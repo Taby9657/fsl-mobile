@@ -16,13 +16,34 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Pokud token expiroval (401), odhlásíme uživatele
+// Mapování HTTP kódů na česká chybová hlášení
+const ERROR_MESSAGES: Record<number, string> = {
+  400: 'Neplatný požadavek – zkontroluj zadané údaje.',
+  401: 'Nejsi přihlášen nebo platnost relace vypršela.',
+  403: 'Nemáš oprávnění k této akci.',
+  404: 'Požadovaný záznam nebyl nalezen.',
+  409: 'Konflikt – záznam již existuje nebo byl změněn.',
+  422: 'Zadané údaje nejsou platné.',
+  429: 'Příliš mnoho požadavků – počkej chvíli a zkus to znovu.',
+  500: 'Chyba serveru – zkus to znovu za okamžik.',
+  503: 'Služba je dočasně nedostupná.',
+};
+
+// Globální error interceptor
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     if (err.response?.status === 401) {
       await SecureStore.deleteItemAsync('fsl_token');
-      // useAuthStore.getState().logout() – zavolej pokud použiješ Zustand
+    }
+    // Přidej přehlednou chybovou zprávu pokud server žádnou neposlal
+    if (err.response && !err.response.data?.error) {
+      err.response.data = err.response.data ?? {};
+      err.response.data.error = ERROR_MESSAGES[err.response.status] ?? 'Neočekávaná chyba.';
+    }
+    // Timeout / síťová chyba
+    if (err.code === 'ECONNABORTED' || !err.response) {
+      err.message = 'Nepodařilo se připojit k serveru. Zkontroluj připojení k internetu.';
     }
     return Promise.reject(err);
   }
@@ -66,15 +87,17 @@ export const playersApi = {
 
 // ==================== ZÁPASY ====================
 export const matchesApi = {
-  list:    (params?: any)  => api.get('/matches', { params }),
-  get:     (id: string)    => api.get(`/matches/${id}`),
-  events:  (id: string)    => api.get(`/matches/${id}`),
-  addEvent:(id: string, data: any) => api.post(`/matches/${id}/events`, data),
-  lineup:  (matchId: string, teamId: string, players: any[]) =>
+  list:            (params?: any)  => api.get('/matches', { params }),
+  get:             (id: string)    => api.get(`/matches/${id}`),
+  addEvent:        (id: string, data: any) => api.post(`/matches/${id}/events`, data),
+  deleteEvent:     (id: string, eventId: string) => api.delete(`/matches/${id}/events/${eventId}`),
+  startMatch:      (id: string)    => api.post(`/matches/${id}/start`),
+  endMatch:        (id: string)    => api.post(`/matches/${id}/end`),
+  lineup:          (matchId: string, teamId: string, players: any[]) =>
     api.put(`/matches/${matchId}/lineup/${teamId}`, { players }),
-  postmatch:(matchId: string, teamId: string, data: any) =>
+  postmatch:       (matchId: string, teamId: string, data: any) =>
     api.put(`/matches/${matchId}/postmatch/${teamId}`, data),
-  submitPostmatch:(matchId: string, teamId: string) =>
+  submitPostmatch: (matchId: string, teamId: string) =>
     api.post(`/matches/${matchId}/postmatch/${teamId}/submit`),
 };
 
@@ -105,9 +128,27 @@ export const statsApi = {
   referees: ()                  => api.get('/stats/referees'),
 };
 
+// ==================== PUSH TOKEN ====================
+export const pushApi = {
+  saveToken: (token: string) => api.put('/auth/push-token', { token }),
+};
+
 // ==================== NOTIFIKACE ====================
 export const notificationsApi = {
   list:    () => api.get('/notifications'),
   readAll: () => api.put('/notifications/read-all'),
   read:    (id: string) => api.put(`/notifications/${id}/read`),
+};
+
+// ==================== SUPERVISOR ====================
+export const supervisorApi = {
+  dashboard:      ()                             => api.get('/supervisor/dashboard'),
+  referees:       (status = 'PENDING')           => api.get('/supervisor/referees', { params: { status } }),
+  approveRef:     (id: string, level: string)    => api.put(`/referees/${id}/approve`, { level }),
+  rejectRef:      (id: string, reason?: string)  => api.put(`/referees/${id}/reject`, { reason }),
+  matches:        (params?: any)                 => api.get('/supervisor/matches', { params }),
+  assignReferee:  (matchId: string, refereeId: string) => api.post(`/supervisor/matches/${matchId}/assign-referee`, { refereeId }),
+  payments:       (params?: any)                 => api.get('/supervisor/payments', { params }),
+  updatePayment:  (playerId: string, data: any)  => api.put(`/payments/player/${playerId}`, data),
+  bankSync:       (days = 30)                    => api.post('/payments/bank-sync', { days }),
 };

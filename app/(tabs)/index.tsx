@@ -4,13 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi, statsApi, notificationsApi } from '../../services/api';
-import { useAuthStore } from '../../store/auth';
+import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
 export default function HomeScreen() {
-  const user = useAuthStore(s => s.user);
+  const { user, isGuest } = useAuthStore();
+  const isManager    = useIsManager();
+  const isReferee    = useIsReferee();
+  const isSupervisor = useIsSupervisor();
+  const hasRole      = isManager || isReferee || isSupervisor || !!user?.player;
   const [matches, setMatches]   = useState<any[]>([]);
   const [table, setTable]       = useState<any[]>([]);
   const [notifs, setNotifs]     = useState<any[]>([]);
@@ -19,14 +23,16 @@ export default function HomeScreen() {
 
   async function load() {
     try {
-      const [mRes, tRes, nRes] = await Promise.all([
+      const calls: Promise<any>[] = [
         matchesApi.list({ limit: '3', status: 'UPCOMING' }),
         statsApi.table(),
-        notificationsApi.list(),
-      ]);
-      setMatches(mRes.data);
-      setTable(tRes.data.slice(0, 5));
-      setNotifs(nRes.data.filter((n: any) => !n.read).slice(0, 3));
+      ];
+      if (!isGuest && user) calls.push(notificationsApi.list());
+
+      const [mRes, tRes, nRes] = await Promise.all(calls);
+      setMatches(mRes.data ?? []);
+      setTable((tRes.data ?? []).slice(0, 5));
+      if (nRes) setNotifs((nRes.data ?? []).filter((n: any) => !n.read).slice(0, 3));
     } catch {}
     setLoading(false);
     setRefresh(false);
@@ -49,7 +55,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Ahoj, {user?.player?.firstName ?? 'hráči'} 👋</Text>
+            <Text style={styles.greeting}>Ahoj, {user?.player?.firstName ?? user?.referee?.firstName ?? (isGuest ? 'návštěvníku' : 'hráči')} 👋</Text>
             <Text style={styles.season}>Sezona 2025/26</Text>
           </View>
           <Pressable onPress={() => router.push('/notifications')} style={styles.bell}>
@@ -60,10 +66,34 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        {/* Banner pro nové uživatele bez role */}
+        {!isGuest && !hasRole && (
+          <Pressable style={styles.onboardBanner} onPress={() => router.push('/onboarding')}>
+            <Ionicons name="person-add" size={20} color={Colors.bg} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.onboardTitle}>Dokonči registraci</Text>
+              <Text style={styles.onboardDesc}>Připoj se k týmu nebo se zaregistruj jako rozhodčí</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.bg} />
+          </Pressable>
+        )}
+
+        {/* Role banner */}
+        {!isGuest && isReferee && user?.referee?.status === 'PENDING' && (
+          <View style={styles.infoBanner}>
+            <Ionicons name="time-outline" size={18} color="#F59E0B" />
+            <Text style={styles.infoBannerTxt}>Registrace rozhodčího čeká na schválení supervisorem</Text>
+          </View>
+        )}
+
         {/* Nejbližší zápasy */}
         <Text style={styles.sectionTitle}>Nejbližší zápasy</Text>
         {matches.length === 0 ? (
-          <Text style={styles.empty}>Žádné nadcházející zápasy</Text>
+          <View style={styles.emptyCard}>
+            <Ionicons name="calendar-outline" size={32} color={Colors.di} />
+            <Text style={styles.emptyCardTitle}>Žádné nadcházející zápasy</Text>
+            <Text style={styles.emptyCardDesc}>Zápasy se zobrazí jakmile supervisor přidá rozpis</Text>
+          </View>
         ) : matches.map((m: any) => (
           <Pressable key={m.id} style={styles.matchCard} onPress={() => router.push(`/match/${m.id}`)}>
             <Text style={styles.matchDate}>{format(new Date(m.date), 'EEE d. M. · HH:mm', { locale: cs })}</Text>
@@ -84,7 +114,14 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <View style={styles.tableCard}>
-          {table.map((row: any, idx: number) => (
+          {table.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="trophy-outline" size={32} color={Colors.di} />
+            <Text style={styles.emptyCardTitle}>Tabulka zatím prázdná</Text>
+            <Text style={styles.emptyCardDesc}>Zobrazí se po odehrání prvních zápasů</Text>
+          </View>
+        ) : null}
+        {table.map((row: any, idx: number) => (
             <View key={row.teamId} style={[styles.tableRow, idx < table.length - 1 && styles.tableRowBorder]}>
               <Text style={styles.tablePos}>{idx + 1}</Text>
               <View style={[styles.teamDot, { backgroundColor: row.team?.color ?? Colors.go }]} />
@@ -118,6 +155,14 @@ const styles = StyleSheet.create({
   sectionRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 10 },
   seeAll:       { fontSize: Fonts.sizes.sm, color: Colors.go },
   empty:        { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center', paddingVertical: 16 },
+  emptyCard:    { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 24, alignItems: 'center', gap: 8, marginBottom: 8 },
+  emptyCardTitle:{ fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.mu },
+  emptyCardDesc: { fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center' },
+  onboardBanner:{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.go, borderRadius: Radius.md, padding: 14, marginBottom: 8 },
+  onboardTitle: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
+  onboardDesc:  { fontSize: Fonts.sizes.xs, color: `${Colors.bg}99` },
+  infoBanner:   { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F59E0B22', borderRadius: Radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F59E0B44' },
+  infoBannerTxt:{ flex: 1, fontSize: Fonts.sizes.xs, color: '#F59E0B', fontWeight: '600' },
   matchCard: {
     backgroundColor: Colors.c1, borderRadius: Radius.md,
     borderWidth: 1, borderColor: Colors.bd,

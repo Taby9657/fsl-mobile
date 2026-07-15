@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, SectionList, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { matchesApi } from '../../services/api';
@@ -42,7 +43,15 @@ export default function MatchesScreen() {
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
       ) : matches.length === 0 ? (
-        <View style={styles.center}><Text style={styles.empty}>Žádné zápasy</Text></View>
+        <View style={styles.center}>
+          <Ionicons name={filter === 'UPCOMING' ? 'calendar-outline' : filter === 'LIVE' ? 'radio-outline' : 'checkmark-circle-outline'} size={48} color={Colors.di} />
+          <Text style={styles.emptyTitle}>
+            {filter === 'UPCOMING' ? 'Žádné nadcházející zápasy' : filter === 'LIVE' ? 'Žádný zápas právě neprobíhá' : 'Žádné odehrané zápasy'}
+          </Text>
+          <Text style={styles.emptyDesc}>
+            {filter === 'UPCOMING' ? 'Rozpis zápasů přidá supervisor' : filter === 'LIVE' ? 'Živé výsledky se zobrazí jakmile zápas začne' : 'Odehrané zápasy se zobrazí po ukončení sezony'}
+          </Text>
+        </View>
       ) : (
         <SectionList
           sections={[{ title: STATUS_LABEL[filter], data: matches }]}
@@ -81,8 +90,10 @@ export default function MatchesScreen() {
 
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: Colors.bg },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  empty:  { color: Colors.mu, fontSize: Fonts.sizes.sm },
+  center:    { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 10 },
+  empty:     { color: Colors.mu, fontSize: Fonts.sizes.sm },
+  emptyTitle:{ fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.mu, textAlign: 'center' },
+  emptyDesc: { fontSize: Fonts.sizes.sm, color: Colors.di, textAlign: 'center', lineHeight: 20 },
   pills:  { flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 0 },
   pill: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full,

@@ -13,32 +13,75 @@ interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
+  isGuest: boolean;
   loading: boolean;
   setAuth: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
+  loginAsGuest: () => void;
+  loginAsTester: () => void;
   loadFromStorage: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
+const TESTER_USER: User = {
+  id: 'tester-001',
+  email: 'tester@fsl.cz',
+  player: {
+    id: 'tester-player',
+    firstName: 'FSL',
+    lastName: 'Tester',
+    isSupervisor: true,
+    teamId: 'tester-team',
+    number: 99,
+    position: 'F',
+  },
+  referee: {
+    id: 'tester-referee',
+    firstName: 'FSL',
+    lastName: 'Tester',
+    level: 2,
+  },
+  manager: [
+    {
+      teamId: 'tester-team',
+      team: { id: 'tester-team', name: 'Testovací tým', abbr: 'TST', color: '#00C851' },
+    },
+  ],
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user:    null,
   token:   null,
+  isGuest: false,
   loading: true,
 
   setAuth: async (token, user) => {
     await SecureStore.setItemAsync('fsl_token', token);
-    set({ token, user, loading: false });
+    set({ token, user, isGuest: false, loading: false });
   },
 
   logout: async () => {
     await SecureStore.deleteItemAsync('fsl_token');
-    set({ token: null, user: null, loading: false });
+    set({ token: null, user: null, isGuest: false, loading: false });
+  },
+
+  loginAsGuest: () => {
+    set({ token: null, user: null, isGuest: true, loading: false });
+  },
+
+  loginAsTester: () => {
+    set({ token: 'TESTER_TOKEN', user: TESTER_USER, isGuest: false, loading: false });
   },
 
   loadFromStorage: async () => {
     try {
       const token = await SecureStore.getItemAsync('fsl_token');
       if (!token) { set({ loading: false }); return; }
+      // Tester token – nevytahuj z API
+      if (token === 'TESTER_TOKEN') {
+        set({ token, user: TESTER_USER, loading: false });
+        return;
+      }
       set({ token });
       const res = await authApi.me();
       set({ user: res.data.user, loading: false });
@@ -50,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   refreshUser: async () => {
     try {
+      if (get().token === 'TESTER_TOKEN') return;
       const res = await authApi.me();
       set({ user: res.data.user });
     } catch {}

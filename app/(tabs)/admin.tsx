@@ -14,15 +14,46 @@ interface MenuItem {
 }
 
 export default function AdminScreen() {
-  const { user } = useAuthStore();
+  const { user, isGuest } = useAuthStore();
   const isManager    = useIsManager();
   const isReferee    = useIsReferee();
   const isSupervisor = useIsSupervisor();
 
   const logout = useAuthStore(s => s.logout);
 
+  // Host → přihlašovací wall
+  if (isGuest || !user) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <View style={styles.lockIcon}>
+            <Ionicons name="lock-closed" size={32} color={Colors.go} />
+          </View>
+          <Text style={styles.emptyTitle}>Přihlas se pro správu</Text>
+          <Text style={styles.emptyDesc}>
+            Správa ligy, soupisky, platby a další funkce jsou dostupné pouze přihlášeným uživatelům.
+          </Text>
+          <Pressable style={styles.btn} onPress={() => router.replace('/(auth)/login')}>
+            <Text style={styles.btnText}>Přihlásit se</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // Sekce podle role
   const sections: { title: string; items: MenuItem[] }[] = [];
+
+  // Profil sekce pro hráče
+  if (user?.player) {
+    sections.push({
+      title: 'Můj profil',
+      items: [
+        { icon: 'person-circle', label: 'Upravit profil', desc: 'Jméno, telefon, číslo dresu', route: '/profile-edit' },
+        { icon: 'card', label: 'Platby', desc: 'Licence a poplatky', route: '/payments' },
+      ],
+    });
+  }
 
   if (isManager) {
     sections.push({
@@ -127,6 +158,10 @@ const styles = StyleSheet.create({
   itemLabel:    { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
   itemDesc:     { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  lockIcon:     {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: `${Colors.go}22`, justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+  },
   emptyTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 8, textAlign: 'center' },
   emptyDesc:    { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   btn:          { backgroundColor: Colors.go, borderRadius: Radius.md, paddingHorizontal: 24, paddingVertical: 12 },

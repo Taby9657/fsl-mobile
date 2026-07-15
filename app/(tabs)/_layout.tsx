@@ -5,7 +5,7 @@ import { useAuthStore, useIsSupervisor, useIsReferee } from '../../store/auth';
 import { Colors } from '../../constants/colors';
 
 export default function TabLayout() {
-  const { user, loading } = useAuthStore();
+  const { user, isGuest, loading } = useAuthStore();
 
   if (loading) {
     return (
@@ -15,11 +15,14 @@ export default function TabLayout() {
     );
   }
 
-  if (!user) return <Redirect href="/(auth)/login" />;
+  // Ani přihlášený, ani host → login
+  if (!user && !isGuest) return <Redirect href="/(auth)/login" />;
 
   // Přihlášený, ale bez profilu → onboarding
-  const hasProfile = user.player || user.referee || (user.manager && user.manager.length > 0);
-  if (!hasProfile) return <Redirect href="/onboarding" />;
+  if (user) {
+    const hasProfile = user.player || user.referee || (user.manager && user.manager.length > 0);
+    if (!hasProfile) return <Redirect href="/onboarding" />;
+  }
 
   return (
     <Tabs

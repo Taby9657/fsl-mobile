@@ -58,7 +58,7 @@ export default function RefereeOnboardingScreen() {
         await refereesApi.uploadPhoto?.(res.data.id, photo).catch(() => {});
       }
       await refreshUser();
-      router.replace('/(tabs)');
+      router.replace('/onboarding/complete');
     } catch (err: any) {
       Alert.alert('Chyba', err.response?.data?.error ?? 'Zkus to znovu');
     } finally {

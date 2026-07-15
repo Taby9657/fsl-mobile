@@ -77,8 +77,8 @@ export default function ManagerOnboardingScreen() {
 
           <Text style={styles.codeHint}>Hráči ho zadají při registraci a automaticky se připojí k tvému týmu.</Text>
 
-          <Pressable style={styles.btnPrimary} onPress={() => router.replace('/(tabs)')}>
-            <Text style={styles.btnText}>Přejít do aplikace</Text>
+          <Pressable style={styles.btnPrimary} onPress={() => router.replace('/onboarding/complete')}>
+            <Text style={styles.btnText}>Co dál →</Text>
           </Pressable>
         </View>
       </SafeAreaView>
