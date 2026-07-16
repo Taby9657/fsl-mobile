@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useNetworkStore } from '../store/network';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://fsl-api.railway.app/api';
 
@@ -31,7 +32,11 @@ const ERROR_MESSAGES: Record<number, string> = {
 
 // Globální error interceptor
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Obnovení připojení
+    useNetworkStore.getState().setOffline(false);
+    return res;
+  },
   async (err) => {
     if (err.response?.status === 401) {
       await SecureStore.deleteItemAsync('fsl_token');
@@ -41,9 +46,10 @@ api.interceptors.response.use(
       err.response.data = err.response.data ?? {};
       err.response.data.error = ERROR_MESSAGES[err.response.status] ?? 'Neočekávaná chyba.';
     }
-    // Timeout / síťová chyba
+    // Timeout / síťová chyba → zobraz offline banner
     if (err.code === 'ECONNABORTED' || !err.response) {
       err.message = 'Nepodařilo se připojit k serveru. Zkontroluj připojení k internetu.';
+      useNetworkStore.getState().setOffline(true);
     }
     return Promise.reject(err);
   }
@@ -78,6 +84,9 @@ export const playersApi = {
   get:         (id: string)   => api.get(`/players/${id}`),
   create:      (data: any)    => api.post('/players', data),
   update:      (id: string, data: any) => api.put(`/players/${id}`, data),
+  leaveTeam:   (id: string)   => api.post(`/players/${id}/leave-team`),
+  removeFromTeam: (playerId: string, teamId: string) => api.delete(`/players/${playerId}/team/${teamId}`),
+  myStats:     ()             => api.get('/players/my/stats'),
   uploadPhoto: (id: string, uri: string) => {
     const form = new FormData();
     form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
@@ -89,6 +98,8 @@ export const playersApi = {
 export const matchesApi = {
   list:            (params?: any)  => api.get('/matches', { params }),
   get:             (id: string)    => api.get(`/matches/${id}`),
+  create:          (data: any)     => api.post('/matches', data),
+  update:          (id: string, data: any) => api.put(`/matches/${id}`, data),
   addEvent:        (id: string, data: any) => api.post(`/matches/${id}/events`, data),
   deleteEvent:     (id: string, eventId: string) => api.delete(`/matches/${id}/events/${eventId}`),
   startMatch:      (id: string)    => api.post(`/matches/${id}/start`),
@@ -148,7 +159,20 @@ export const supervisorApi = {
   rejectRef:      (id: string, reason?: string)  => api.put(`/referees/${id}/reject`, { reason }),
   matches:        (params?: any)                 => api.get('/supervisor/matches', { params }),
   assignReferee:  (matchId: string, refereeId: string) => api.post(`/supervisor/matches/${matchId}/assign-referee`, { refereeId }),
+  deleteMatch:    (matchId: string)              => api.delete(`/supervisor/matches/${matchId}`),
   payments:       (params?: any)                 => api.get('/supervisor/payments', { params }),
   updatePayment:  (playerId: string, data: any)  => api.put(`/payments/player/${playerId}`, data),
   bankSync:       (days = 30)                    => api.post('/payments/bank-sync', { days }),
+
+  // Správa týmů
+  teams:          (params?: any)                 => api.get('/supervisor/teams', { params }),
+  createTeam:     (data: any)                    => api.post('/supervisor/teams', data),
+  updateTeam:     (id: string, data: any)        => api.put(`/supervisor/teams/${id}`, data),
+  deleteTeam:     (id: string)                   => api.delete(`/supervisor/teams/${id}`),
+  divisions:      ()                             => api.get('/supervisor/divisions'),
+  conferences:    ()                             => api.get('/supervisor/conferences'),
+
+  // Rozlosování
+  previewFixtures: (data: any)                   => api.post('/supervisor/fixtures/preview', data),
+  generateFixtures:(data: any)                   => api.post('/supervisor/fixtures/generate', data),
 };
