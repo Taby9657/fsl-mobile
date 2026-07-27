@@ -1,8 +1,9 @@
 // Výběr role – první obrazovka po přihlášení bez profilu
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 const ROLES = [
@@ -33,6 +34,19 @@ const ROLES = [
 ];
 
 export default function OnboardingIndex() {
+  const logout = useAuthStore(s => s.logout);
+
+  function handleLogout() {
+    Alert.alert(
+      'Odhlásit se',
+      'Chceš se přihlásit jiným účtem?',
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        { text: 'Odhlásit', style: 'destructive', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
+      ],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.inner}>
@@ -57,6 +71,10 @@ export default function OnboardingIndex() {
             </Pressable>
           ))}
         </View>
+
+        <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+          <Text style={styles.logoutText}>Přihlásit se jiným účtem</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -78,4 +96,6 @@ const styles = StyleSheet.create({
   cardText:    { flex: 1 },
   cardTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 3 },
   cardDesc:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 18 },
+  logoutBtn:   { alignItems: 'center', marginTop: 28, paddingVertical: 8 },
+  logoutText:  { fontSize: Fonts.sizes.sm, color: Colors.di },
 });

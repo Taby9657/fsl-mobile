@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/colors';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 function PushSetup() {
   usePushNotifications();
@@ -22,6 +23,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PushSetup />
+      <OfflineBanner />
       <StatusBar style="light" backgroundColor={Colors.bg} />
       <Stack
         screenOptions={{
@@ -33,7 +35,6 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)"          options={{ headerShown: false }} />
         <Stack.Screen name="(auth)/login"   options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="onboarding"          options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="onboarding/complete" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="match/[id]"           options={{ headerShown: false }} />
         <Stack.Screen name="match/[id]/score"    options={{ headerShown: false }} />
         <Stack.Screen name="player/[id]"         options={{ headerShown: false }} />
@@ -51,6 +52,9 @@ export default function RootLayout() {
         <Stack.Screen name="supervisor/referees"  options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/matches"   options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/payments"  options={{ headerShown: false }} />
+        <Stack.Screen name="supervisor/teams"     options={{ headerShown: false }} />
+        <Stack.Screen name="supervisor/league"      options={{ headerShown: false }} />
+        <Stack.Screen name="supervisor/highlights" options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>
   );

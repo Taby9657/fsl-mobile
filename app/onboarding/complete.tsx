@@ -2,16 +2,22 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore, useIsManager, useIsReferee } from '../../store/auth';
+import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 export default function OnboardingCompleteScreen() {
   const { user } = useAuthStore();
-  const isManager = useIsManager();
-  const isReferee = useIsReferee();
-  const isPlayer  = !!user?.player && !isManager;
+  const isManager    = useIsManager();
+  const isReferee    = useIsReferee();
+  const isSupervisor = useIsSupervisor();
+  const isPlayer     = !!user?.player && !isManager;
 
-  const steps = isManager ? [
+  const steps = isSupervisor ? [
+    { icon: 'shield-checkmark', label: 'Správce ligy',       desc: 'přehled a nastavení', route: '/supervisor/dashboard' },
+    { icon: 'football'        , label: 'Správa zápasů',      desc: 'přidat, editovat, výsledky', route: '/supervisor/matches' },
+    { icon: 'people'          , label: 'Správa rozhodčích',  desc: 'schvalovat a přiřazovat', route: '/supervisor/referees' },
+    { icon: 'calendar'        , label: 'Generovat rozlosování', desc: 'nastavení ligy a kol', route: '/supervisor/league' },
+  ] : isManager ? [
     { icon: 'qr-code'        , label: 'Vygeneruj pozvánkový kód', desc: 'a pošli ho hráčům', route: '/invite-code' },
     { icon: 'document-text'  , label: 'Odesílej soupisky',        desc: 'před každým zápasem', route: '/lineup' },
     { icon: 'card'           , label: 'Zaplať registraci',        desc: 'přes Stripe nebo převodem', route: '/payments' },
@@ -35,7 +41,9 @@ export default function OnboardingCompleteScreen() {
 
         <Text style={s.title}>Registrace dokončena!</Text>
         <Text style={s.subtitle}>
-          {isManager
+          {isSupervisor
+            ? 'Tvůj účet má oprávnění správce FSL ligy.'
+            : isManager
             ? `Tvůj tým ${user?.manager?.[0]?.team?.name ?? ''} je zaregistrovaný ve FSL.`
             : isReferee
             ? 'Tvoje registrace rozhodčího čeká na schválení supervisorem.'
