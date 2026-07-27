@@ -62,7 +62,7 @@ export default function SuperHighlightsScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['video'],
       videoMaxDuration: 180,
       quality: 0.8,
     });
