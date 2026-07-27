@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
          Image, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { draftApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
@@ -47,7 +47,8 @@ export default function DraftScreen() {
     }
   }, [canJoinDraft]);
 
-  useEffect(() => { load(); }, [load]);
+  // Načti při prvním zobrazení i při návratu z profile-edit nebo [playerId]
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   if (isGuest || !user) return (
     <SafeAreaView style={s.safe}>
