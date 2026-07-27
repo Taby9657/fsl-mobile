@@ -8,6 +8,12 @@ import { draftApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
+function pluralOffer(n: number) {
+  if (n === 1) return '1 nabídka';
+  if (n >= 2 && n <= 4) return `${n} nabídky`;
+  return `${n} nabídek`;
+}
+
 function timeLeft(expiresAt: string | null): string {
   if (!expiresAt) return '';
   const diff = new Date(expiresAt).getTime() - Date.now();
@@ -48,7 +54,10 @@ export default function DraftScreen() {
   }, [canJoinDraft]);
 
   // Načti při prvním zobrazení i při návratu z profile-edit nebo [playerId]
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Guard pro guest – load by selhal s 401 a zobrazil chybový alert
+  useFocusEffect(useCallback(() => {
+    if (!isGuest && user) load();
+  }, [load, isGuest, user]));
 
   if (isGuest || !user) return (
     <SafeAreaView style={s.safe}>
@@ -171,7 +180,7 @@ export default function DraftScreen() {
                   <View style={s.windowBadge}>
                     <Ionicons name="timer-outline" size={12} color={Colors.go} />
                     <Text style={s.windowTxt}>
-                      {item.offerCount} {item.offerCount === 1 ? 'nabídka' : 'nabídky'} · vyprší za {timeLeft(item.windowExpiresAt)}
+                      {pluralOffer(item.offerCount)} · vyprší za {timeLeft(item.windowExpiresAt)}
                     </Text>
                   </View>
                 )}

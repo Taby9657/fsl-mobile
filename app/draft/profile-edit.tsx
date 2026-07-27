@@ -125,7 +125,8 @@ export default function DraftProfileEdit() {
         onPress: async () => {
           try {
             await draftApi.deleteProfile();
-            router.back();
+            // Naviguj na seznam – back by vedl na neaktivní draft kartu
+            router.dismissAll();
           } catch (err: any) {
             Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odebrat');
           }

@@ -7,7 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { draftApi } from '../../services/api';
-import { useAuthStore } from '../../store/auth';import { Colors, Fonts, Radius } from '../../constants/colors';
+import { useAuthStore } from '../../store/auth';
+import { Colors, Fonts, Radius } from '../../constants/colors';
+
+function pluralOffer(n: number) {
+  if (n === 1) return '1 nabídka';
+  if (n >= 2 && n <= 4) return `${n} nabídky`;
+  return `${n} nabídek`;
+}
 
 function timeLeft(expiresAt: string | null): string {
   if (!expiresAt) return '';
@@ -75,7 +82,6 @@ export default function DraftPlayerCard() {
 
   async function handleOffer(offerId: string, action: 'accept' | 'reject') {
     if (!playerId) return;
-    const label = action === 'accept' ? 'přijmout' : 'odmítnout';
     Alert.alert(
       action === 'accept' ? 'Přijmout nabídku' : 'Odmítnout nabídku',
       action === 'accept'
@@ -120,11 +126,17 @@ export default function DraftPlayerCard() {
 
   if (!profile) return (
     <SafeAreaView style={s.safe}>
-      <Pressable onPress={() => router.back()} style={s.backBtn}>
-        <Ionicons name="chevron-back" size={24} color={Colors.wh} />
-      </Pressable>
+      <View style={s.header}>
+        <Pressable onPress={() => router.back()} style={s.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={Colors.wh} />
+        </Pressable>
+        <Text style={s.title}>Draft karta</Text>
+        <View style={{ width: 40 }} />
+      </View>
       <View style={s.center}>
-        <Text style={{ color: Colors.mu }}>Profil nenalezen</Text>
+        <Ionicons name="person-remove-outline" size={48} color={Colors.di} />
+        <Text style={{ color: Colors.mu, marginTop: 12, fontSize: Fonts.sizes.md }}>Profil nenalezen</Text>
+        <Text style={{ color: Colors.di, marginTop: 4, fontSize: Fonts.sizes.sm }}>Hráč není v draft poolu</Text>
       </View>
     </SafeAreaView>
   );
@@ -173,8 +185,7 @@ export default function DraftPlayerCard() {
             <View style={s.windowBanner}>
               <Ionicons name="timer" size={16} color={Colors.go} />
               <Text style={s.windowTxt}>
-                {profile.offerCount} {profile.offerCount === 1 ? 'nabídka' : 'nabídky'} ·
-                {' '}okno vyprší za {timeLeft(profile.windowExpiresAt)}
+                {pluralOffer(profile.offerCount)} · okno vyprší za {timeLeft(profile.windowExpiresAt)}
               </Text>
             </View>
           )}
