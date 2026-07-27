@@ -1,6 +1,6 @@
 // Vedoucí registruje nový tým – 2 kroky
 import { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -62,6 +62,15 @@ export default function ManagerOnboardingScreen() {
 
   // Krok 2 – pozvánkový kód
   if (step === 2) {
+    async function shareCode() {
+      try {
+        await Share.share({
+          message: `Připoj se k týmu ve Floorball Stars Lize! 🏑\n\nPozvánkový kód: ${inviteCode}\n\nStáhni appku FSL a zadej kód při registraci.`,
+          title: 'Pozvánka do FSL',
+        });
+      } catch {}
+    }
+
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.inner}>
@@ -77,8 +86,14 @@ export default function ManagerOnboardingScreen() {
 
           <Text style={styles.codeHint}>Hráči ho zadají při registraci a automaticky se připojí k tvému týmu.</Text>
 
-          <Pressable style={styles.btnPrimary} onPress={() => router.replace('/onboarding/complete')}>
-            <Text style={styles.btnText}>Co dál →</Text>
+          <Pressable style={styles.btnPrimary} onPress={shareCode}>
+            <Ionicons name="share-outline" size={18} color={Colors.bg} style={{ marginRight: 8 }} />
+            <Text style={styles.btnText}>Sdílet pozvánku</Text>
+          </Pressable>
+
+          <Pressable style={[styles.btnPrimary, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.bd, marginTop: 10 }]}
+            onPress={() => router.replace('/onboarding/complete')}>
+            <Text style={[styles.btnText, { color: Colors.mu }]}>Co dál →</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -177,7 +192,7 @@ const styles = StyleSheet.create({
   pillActive:      { backgroundColor: Colors.go, borderColor: Colors.go },
   pillText:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
   pillTextActive:  { color: Colors.bg },
-  btnPrimary:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 28, width: '100%' },
+  btnPrimary:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 28, width: '100%' },
   btnText:         { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   btnDisabled:     { opacity: 0.5 },
   successIcon:     { marginBottom: 20 },

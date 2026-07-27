@@ -60,7 +60,7 @@ export default function PlayerCodeScreen() {
   if (team) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.inner}>
+        <View style={styles.innerCenter}>
           <View style={[styles.teamPreview, { borderColor: team.color }]}>
             <View style={[styles.teamBadge, { backgroundColor: team.color }]}>
               <Text style={styles.teamAbbr}>{team.abbr}</Text>
@@ -172,6 +172,7 @@ export default function PlayerCodeScreen() {
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: Colors.bg },
   inner:           { flexGrow: 1, padding: 24, paddingTop: 16 },
+  innerCenter:     { flex: 1, padding: 24, justifyContent: 'center' },
   back:            { marginBottom: 24 },
   backText:        { color: Colors.go, fontSize: Fonts.sizes.md },
   title:           { fontSize: Fonts.sizes.h1, fontWeight: '900', color: Colors.wh, marginBottom: 6 },

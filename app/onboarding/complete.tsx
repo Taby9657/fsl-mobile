@@ -10,7 +10,6 @@ export default function OnboardingCompleteScreen() {
   const isManager    = useIsManager();
   const isReferee    = useIsReferee();
   const isSupervisor = useIsSupervisor();
-  const isPlayer     = !!user?.player && !isManager;
 
   const steps = isSupervisor ? [
     { icon: 'shield-checkmark', label: 'Správce ligy',       desc: 'přehled a nastavení', route: '/supervisor/dashboard' },
@@ -23,8 +22,8 @@ export default function OnboardingCompleteScreen() {
     { icon: 'card'           , label: 'Zaplať registraci',        desc: 'přes Stripe nebo převodem', route: '/payments' },
     { icon: 'clipboard'      , label: 'Po-zápasový formulář',     desc: 'MVP a hodnocení rozhodčího', route: '/postmatch' },
   ] : isReferee ? [
-    { icon: 'person'         , label: 'Doplň profil',             desc: 'telefon, adresa, číslo účtu', route: '/referee-profile' },
-    { icon: 'calendar'       , label: 'Čekej na nasazení',        desc: 'supervisor ti přiřadí zápasy', route: `/referee/${user?.referee?.id}` },
+    { icon: 'person'         , label: 'Zkontroluj profil',        desc: 'zkontrolovat nebo upravit údaje', route: '/referee-profile' },
+    { icon: 'time'           , label: 'Čekej na schválení',       desc: 'supervisor tě musí nejdřív potvrdit', route: '/referee-profile' },
   ] : [
     { icon: 'card'           , label: 'Zaplať licenci',           desc: 'aktivuj svůj hráčský profil', route: '/payments' },
     { icon: 'person'         , label: 'Prohlédni si profil',      desc: 'statistiky a detaily', route: user?.player?.id ? `/player/${user.player.id}` : '/(tabs)' },
@@ -56,7 +55,7 @@ export default function OnboardingCompleteScreen() {
         <View style={s.card}>
           {steps.map((step, i) => (
             <Pressable
-              key={step.route}
+              key={`${step.icon}-${i}`}
               style={[s.step, i < steps.length - 1 && s.stepBorder]}
               onPress={() => router.push(step.route as any)}
             >
