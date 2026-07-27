@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
@@ -80,7 +80,11 @@ export default function PlayerDetailScreen() {
         {/* Hero karta */}
         <View style={s.heroCard}>
           <View style={s.avatar}>
-            <Text style={s.avatarNum}>{player.jersey}</Text>
+            {player.photoUrl ? (
+              <Image source={{ uri: player.photoUrl }} style={s.avatarImg} />
+            ) : (
+              <Text style={s.avatarNum}>{player.jersey}</Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.heroName}>{player.firstName} {player.lastName}</Text>
@@ -138,7 +142,8 @@ const s = StyleSheet.create({
   title:     { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh, flex: 1, textAlign: 'center' },
   center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
   heroCard:  { margin: 16, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  avatar:    { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.c2, borderWidth: 2, borderColor: Colors.go, justifyContent: 'center', alignItems: 'center' },
+  avatar:    { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.c2, borderWidth: 2, borderColor: Colors.go, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  avatarImg: { width: 56, height: 56, borderRadius: 28 },
   avatarNum: { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.go },
   heroName:  { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   heroTeam:  { fontSize: Fonts.sizes.xs, color: Colors.go, marginTop: 3 },
