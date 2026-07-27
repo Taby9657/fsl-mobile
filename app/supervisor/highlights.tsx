@@ -62,7 +62,7 @@ export default function SuperHighlightsScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       videoMaxDuration: 180,
       quality: 0.8,
     });
@@ -103,8 +103,9 @@ export default function SuperHighlightsScreen() {
           const vr = await highlightsApi.uploadVideo(savedItem.id, videoUri);
           const updated = vr.data;
           setItems(prev => prev.map(h => h.id === savedItem.id ? updated : h));
-        } catch {
-          Alert.alert('Varování', 'Highlight uložen, ale video se nepodařilo nahrát.\nMůžeš zkusit znovu přes Upravit.');
+        } catch (verr: any) {
+          const msg = verr?.response?.data?.error ?? verr?.message ?? 'Neznámá chyba';
+          Alert.alert('Video – chyba', msg);
         } finally {
           setUploadingVideo(false);
         }
