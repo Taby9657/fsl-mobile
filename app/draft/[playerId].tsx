@@ -7,8 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { draftApi } from '../../services/api';
-import { useAuthStore } from '../../store/auth';
-import { Colors, Fonts, Radius } from '../../constants/colors';
+import { useAuthStore } from '../../store/auth';import { Colors, Fonts, Radius } from '../../constants/colors';
 
 function timeLeft(expiresAt: string | null): string {
   if (!expiresAt) return '';
@@ -22,7 +21,7 @@ function timeLeft(expiresAt: string | null): string {
 
 export default function DraftPlayerCard() {
   const { playerId } = useLocalSearchParams<{ playerId: string }>();
-  const { user }     = useAuthStore();
+  const { user, refreshUser } = useAuthStore();
 
   const myPlayer   = user?.player;
   const isManager  = !!(user?.manager?.length);
@@ -95,6 +94,7 @@ export default function DraftPlayerCard() {
                 : await draftApi.rejectOffer(playerId, offerId);
 
               if (action === 'accept') {
+                await refreshUser(); // aktualizuj teamId v store
                 Alert.alert('Přijato!', `Vstupuješ do týmu ${res.data.teamName}!`, [
                   { text: 'OK', onPress: () => router.replace('/(tabs)') },
                 ]);
@@ -174,7 +174,7 @@ export default function DraftPlayerCard() {
               <Ionicons name="timer" size={16} color={Colors.go} />
               <Text style={s.windowTxt}>
                 {profile.offerCount} {profile.offerCount === 1 ? 'nabídka' : 'nabídky'} ·
-                {' '}window vyprší za {timeLeft(profile.windowExpiresAt)}
+                {' '}okno vyprší za {timeLeft(profile.windowExpiresAt)}
               </Text>
             </View>
           )}
