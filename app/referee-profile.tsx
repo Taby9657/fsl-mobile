@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { refereesApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
+import { validatePhone } from '../utils/validation';
 
 const LEVEL_LABEL: Record<string, string> = { A: 'Úroveň A (senior)', B: 'Úroveň B', C: 'Úroveň C (junior)' };
 
@@ -35,10 +36,12 @@ export default function RefereeProfileScreen() {
 
   async function save() {
     if (!refId) return;
+    const phoneErr = validatePhone(form.phone);
+    if (phoneErr) { Alert.alert('Chyba', phoneErr); return; }
+    if (!form.bankAccount.trim()) { Alert.alert('Chyba', 'Číslo účtu je povinné pro výplatu odměn.'); return; }
     setSaving(true);
     try {
-      const res = await refereesApi.get(refId); // refresh before save
-      await refereesApi.register({ ...form }); // uses PUT internally
+      await refereesApi.register({ ...form });
       setRef({ ...ref, ...form });
       setEdit(false);
       Alert.alert('Uloženo');
@@ -73,6 +76,7 @@ export default function RefereeProfileScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.back}>
           <Ionicons name="chevron-back" size={24} color={Colors.wh} />
@@ -144,6 +148,7 @@ export default function RefereeProfileScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

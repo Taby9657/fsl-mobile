@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Google from 'expo-auth-session/providers/google';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import * as Haptics from 'expo-haptics';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,10 +23,10 @@ export default function LoginScreen() {
   const loginAsGuest  = useAuthStore(s => s.loginAsGuest);
   const loginAsTester = useAuthStore(s => s.loginAsTester);
 
-  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? 'placeholder';
   const [, , promptGoogleAsync] = Google.useAuthRequest({
-    iosClientId:     googleClientId,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? 'placeholder',
+    iosClientId:     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId:     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
   });
 
   async function handleGoogle() {
@@ -37,8 +38,10 @@ export default function LoginScreen() {
       if (!authentication?.idToken) throw new Error('Chybí Google idToken');
       const res = await authApi.google(authentication.idToken);
       await setAuth(res.data.token, res.data.user);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Chyba přihlášení', err.message ?? 'Zkus to znovu');
     } finally {
       setLoading(false);
@@ -61,9 +64,11 @@ export default function LoginScreen() {
         credential.email                ?? undefined,
       );
       await setAuth(res.data.token, res.data.user);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');
     } catch (err: any) {
       if (err.code !== 'ERR_CANCELED') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Chyba přihlášení', err.message ?? 'Zkus to znovu');
       }
     } finally {
@@ -82,6 +87,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
 
         {/* Logo + název */}
@@ -164,6 +170,7 @@ export default function LoginScreen() {
           Přihlášením souhlasíš s podmínkami FSL a zpracováním osobních údajů.
         </Text>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
