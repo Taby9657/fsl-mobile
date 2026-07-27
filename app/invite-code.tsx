@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Share } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Share, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { teamsApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
+
+function qrUrl(data: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(data)}&bgcolor=0d0120&color=c9a140&qzone=2&format=png`;
+}
 
 export default function InviteCodeScreen() {
   const { user } = useAuthStore();
@@ -50,10 +54,17 @@ export default function InviteCodeScreen() {
         ) : (
           <>
             <View style={s.codeCard}>
-              <Ionicons name="qr-code-outline" size={64} color={Colors.go} style={{ marginBottom: 24 }} />
+              {/* Skutečný QR kód generovaný přes API */}
+              <View style={s.qrWrap}>
+                <Image
+                  source={{ uri: qrUrl(code) }}
+                  style={s.qrImage}
+                  resizeMode="contain"
+                />
+              </View>
               <Text style={s.codeLabel}>Pozvánkový kód</Text>
               <Text style={s.code} selectable>{code}</Text>
-              <Text style={s.hint}>Hráč kód zadá při registraci pro připojení k týmu {teamName}.</Text>
+              <Text style={s.hint}>Hráč naskenuje QR kód nebo kód zadá ručně při registraci.</Text>
             </View>
 
             <Pressable style={s.shareBtn} onPress={share}>
@@ -73,9 +84,11 @@ const s = StyleSheet.create({
   back:        { width: 40, height: 40, justifyContent: 'center' },
   title:       { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   body:        { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 20 },
-  codeCard:    { width: '100%', backgroundColor: Colors.c1, borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.bd, padding: 32, alignItems: 'center' },
+  codeCard:    { width: '100%', backgroundColor: Colors.c1, borderRadius: Radius.lg, borderWidth: 1, borderColor: Colors.bd, padding: 32, alignItems: 'center', gap: 0 },
+  qrWrap:      { width: 220, height: 220, borderRadius: Radius.md, overflow: 'hidden', marginBottom: 24, backgroundColor: '#0d0120', borderWidth: 1, borderColor: Colors.bd },
+  qrImage:     { width: 220, height: 220 },
   codeLabel:   { fontSize: Fonts.sizes.sm, color: Colors.mu, marginBottom: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  code:        { fontSize: 28, fontWeight: '900', color: Colors.go, letterSpacing: 4, textAlign: 'center', marginBottom: 20 },
+  code:        { fontSize: 28, fontWeight: '900', color: Colors.go, letterSpacing: 4, textAlign: 'center', marginBottom: 16 },
   hint:        { fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center', lineHeight: 18 },
   shareBtn:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.go, borderRadius: Radius.md, paddingHorizontal: 32, paddingVertical: 14 },
   shareBtnText:{ fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },

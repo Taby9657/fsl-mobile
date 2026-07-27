@@ -23,7 +23,8 @@ final public class WebBrowserModule: Module {
       }
 
       guard self.currentWebBrowserSession == nil else {
-        throw WebBrowserAlreadyOpenException()
+        promise.resolve(["type": "locked"])
+        return
       }
 
       guard self.isValid(url: url) else {
@@ -42,6 +43,10 @@ final public class WebBrowserModule: Module {
     .runOnQueue(.main)
 
     AsyncFunction("dismissBrowser") { (promise: Promise) in
+      if (currentWebBrowserSession == nil) {
+        throw WebBrowserNotOpenException()
+      }
+      
       currentWebBrowserSession?.dismiss { type in
         self.currentWebBrowserSession = nil
         promise.resolve(["type": type])

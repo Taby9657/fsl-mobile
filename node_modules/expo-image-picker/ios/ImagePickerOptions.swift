@@ -41,7 +41,7 @@ internal struct ImagePickerOptions: Record {
   var presentationStyle: PresentationStyle = .automatic
 
   @Field
-  var preferredAssetRepresentationMode: PreferredAssetRepresentationMode = .automatic
+  var preferredAssetRepresentationMode: PreferredAssetRepresentationMode = .current
 
   @Field
   var cameraType: CameraType = .back
@@ -54,6 +54,9 @@ internal struct ImagePickerOptions: Record {
 
   @Field
   var orderedSelection: Bool = false
+  
+  @Field
+  var shouldDownloadFromNetwork: Bool = false
 
   func toMediaTypesArray() -> [String] {
     var mediaTypesArray = mediaTypes.map { mediaType in

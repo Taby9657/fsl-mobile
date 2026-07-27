@@ -44,6 +44,8 @@ interface MyStats {
 
 export default function StatsScreen() {
   const [tab, setTab]             = useState<Tab>('mine');
+  const [seasons, setSeasons]     = useState<string[]>([]);
+  const [season, setSeason]       = useState<string | undefined>(undefined); // undefined = aktuální (první)
   const [divisions, setDivisions] = useState<string[]>([]);
   const [division, setDivision]   = useState<string>('Vše');
   const [data, setData]           = useState<any[]>([]);
@@ -53,8 +55,13 @@ export default function StatsScreen() {
   const [refresh, setRefresh]     = useState(false);
   const [error, setError]         = useState(false);
 
-  // Načti seznam divizí jednou při startu
+  // Načti ročníky + divize jednou při startu
   useEffect(() => {
+    statsApi.seasons().then(r => {
+      const s = r.data as string[];
+      setSeasons(s);
+      if (s.length > 0) setSeason(s[0]); // nejnovější první
+    }).catch(() => {});
     supervisorApi.divisions().then(r => {
       const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
       setDivisions(divs);
@@ -64,7 +71,7 @@ export default function StatsScreen() {
   async function loadMine(isRefresh = false) {
     if (!isRefresh) { setLoading(true); setMyStatsErr(null); }
     try {
-      const r = await playersApi.myStats();
+      const r = await playersApi.myStats(season);
       setMyStats(r.data);
     } catch (err: any) {
       setMyStatsErr(err?.response?.status === 404 ? 'no_player' : 'error');
@@ -80,10 +87,10 @@ export default function StatsScreen() {
     const div = division === 'Vše' ? undefined : division;
     try {
       const call =
-        tab === 'scorers'   ? statsApi.scorers(div)
-        : tab === 'assisters' ? statsApi.assisters(div)
-        : tab === 'mvp'       ? statsApi.mvp(div)
-        :                       statsApi.referees();
+        tab === 'scorers'   ? statsApi.scorers(div, season)
+        : tab === 'assisters' ? statsApi.assisters(div, season)
+        : tab === 'mvp'       ? statsApi.mvp(div, season)
+        :                       statsApi.referees(season);
       const r = await call;
       setData(r.data);
     } catch {
@@ -93,7 +100,7 @@ export default function StatsScreen() {
     setRefresh(false);
   }
 
-  useEffect(() => { load(); }, [tab, division]);
+  useEffect(() => { load(); }, [tab, division, season]);
 
   function getValueLabel(item: any): string {
     if (tab === 'scorers')   return `${item.goals} G`;
@@ -218,7 +225,19 @@ export default function StatsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Text style={styles.title}>Statistiky</Text>
+      {/* Hlavička + season selector */}
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Statistiky</Text>
+        {seasons.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }}>
+            {seasons.map(s => (
+              <Pressable key={s} style={[styles.seasonChip, season === s && styles.seasonChipActive]} onPress={() => setSeason(s)}>
+                <Text style={[styles.seasonTxt, season === s && styles.seasonTxtActive]}>{s}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
       {/* Tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 6 }}>
@@ -275,7 +294,12 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: Colors.bg },
-  title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, padding: 16, paddingBottom: 8 },
+  titleRow:     { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingTop: 16, paddingBottom: 8, gap: 12 },
+  title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh },
+  seasonChip:   { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
+  seasonTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },
+  seasonTxtActive: { color: Colors.bg },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
   empty:        { fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' },
   tabsBar:      { flexGrow: 0, marginBottom: 8 },

@@ -38,7 +38,7 @@ export default function PostMatchScreen() {
 
   useEffect(() => {
     if (!teamId) { setLoading(false); return; }
-    matchesApi.list({ teamId, status: 'PLAYED' })
+    matchesApi.list({ teamId, status: 'DONE' })
       .then(r => setMatches(r.data))
       .catch(() => Alert.alert('Chyba', 'Nepodařilo se načíst zápasy'))
       .finally(() => setLoading(false));
@@ -59,15 +59,20 @@ export default function PostMatchScreen() {
   const myPlayers: any[] = myLineup?.players?.map((lp: any) => lp.player) ?? [];
 
   async function submit() {
-    if (!selected || refRating === 0) {
-      Alert.alert('Upozornění', 'Vyber zápas a ohodnoť rozhodčího.');
+    if (!selected) {
+      Alert.alert('Upozornění', 'Vyber zápas.');
+      return;
+    }
+    const hasReferee = !!selected.referee;
+    if (hasReferee && refRating === 0) {
+      Alert.alert('Upozornění', 'Ohodnoť rozhodčího (1–5 hvězdiček).');
       return;
     }
     setSubmitting(true);
     try {
       await matchesApi.postmatch(selected.id, teamId!, {
-        mvpPlayerId:    mvpId || null,
-        refRating:      refRating,
+        opponentMvpId: mvpId || null,
+        refRating:     refRating || null,
       });
       await matchesApi.submitPostmatch(selected.id, teamId!);
       Alert.alert('Hotovo', 'Po-zápasový formulář odeslán!', [{ text: 'OK', onPress: () => router.back() }]);
@@ -160,9 +165,9 @@ export default function PostMatchScreen() {
               )}
 
               <Pressable
-                style={[s.submitBtn, (submitting || refRating === 0) && { opacity: 0.5 }]}
+                style={[s.submitBtn, (submitting || (!!selected?.referee && refRating === 0)) && { opacity: 0.5 }]}
                 onPress={submit}
-                disabled={submitting || refRating === 0}
+                disabled={submitting || (!!selected?.referee && refRating === 0)}
               >
                 {submitting
                   ? <ActivityIndicator color={Colors.bg} size="small" />

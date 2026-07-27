@@ -82,6 +82,20 @@ export default function DashboardScreen() {
             color={stats?.pendingRequests ? '#F59E0B' : Colors.green}
           />
 
+          <Text style={[s.section, { marginTop: 20 }]}>Správa ligy</Text>
+          <View style={s.actions}>
+            {[
+              { icon: 'shield',        label: 'Správa týmů',        route: '/supervisor/teams',   color: Colors.go },
+              { icon: 'calendar',      label: 'Rozlosování',         route: '/supervisor/league',  color: Colors.go },
+            ].map(a => (
+              <Pressable key={a.route} style={s.actionBtn} onPress={() => router.push(a.route as any)}>
+                <Ionicons name={a.icon as any} size={20} color={a.color} />
+                <Text style={s.actionTxt}>{a.label}</Text>
+                <Ionicons name="chevron-forward" size={14} color={Colors.di} />
+              </Pressable>
+            ))}
+          </View>
+
           <Text style={[s.section, { marginTop: 20 }]}>Rychlé akce</Text>
           <View style={s.actions}>
             {[

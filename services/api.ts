@@ -86,7 +86,7 @@ export const playersApi = {
   update:      (id: string, data: any) => api.put(`/players/${id}`, data),
   leaveTeam:   (id: string)   => api.post(`/players/${id}/leave-team`),
   removeFromTeam: (playerId: string, teamId: string) => api.delete(`/players/${playerId}/team/${teamId}`),
-  myStats:     ()             => api.get('/players/my/stats'),
+  myStats:     (season?: string) => api.get('/players/my/stats', { params: { season } }),
   uploadPhoto: (id: string, uri: string) => {
     const form = new FormData();
     form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
@@ -137,12 +137,13 @@ export const paymentsApi = {
 
 // ==================== STATISTIKY ====================
 export const statsApi = {
-  table:    (division?: string) => api.get('/stats/table',    { params: { division } }),
-  scorers:  (division?: string) => api.get('/stats/scorers',  { params: { division } }),
-  assisters:(division?: string) => api.get('/stats/assisters',{ params: { division } }),
-  points:   (division?: string) => api.get('/stats/points',   { params: { division } }),
-  mvp:      (division?: string) => api.get('/stats/mvp',      { params: { division } }),
-  referees: ()                  => api.get('/stats/referees'),
+  seasons:  ()                                  => api.get('/stats/seasons'),
+  table:    (division?: string, season?: string) => api.get('/stats/table',    { params: { division, season } }),
+  scorers:  (division?: string, season?: string) => api.get('/stats/scorers',  { params: { division, season } }),
+  assisters:(division?: string, season?: string) => api.get('/stats/assisters',{ params: { division, season } }),
+  points:   (division?: string, season?: string) => api.get('/stats/points',   { params: { division, season } }),
+  mvp:      (division?: string, season?: string) => api.get('/stats/mvp',      { params: { division, season } }),
+  referees: (season?: string)                    => api.get('/stats/referees', { params: { season } }),
 };
 
 // ==================== PUSH TOKEN ====================

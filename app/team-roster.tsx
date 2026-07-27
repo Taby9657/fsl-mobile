@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { teamsApi } from '../services/api';
+import { teamsApi, playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
+import { SearchBar } from '../components/SearchBar';
 
 const POS: Record<string, string> = { GK: 'Brankář', F: 'Útočník', D: 'Obránce' };
 const LIC_COL: Record<string, string> = {
@@ -17,6 +18,28 @@ export default function TeamRosterScreen() {
   const teamId    = user?.manager?.[0]?.teamId;
   const [loading, setLoading] = useState(true);
   const [team, setTeam]       = useState<any>(null);
+  const [query, setQuery]     = useState('');
+
+  async function removePlayer(player: any) {
+    Alert.alert(
+      'Odebrat hráče',
+      `Odebrat ${player.firstName} ${player.lastName} z týmu?`,
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Odebrat', style: 'destructive',
+          onPress: async () => {
+            try {
+              await playersApi.removeFromTeam(player.id, teamId!);
+              setTeam((t: any) => t ? { ...t, players: t.players.filter((p: any) => p.id !== player.id) } : t);
+            } catch (err: any) {
+              Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odebrat hráče');
+            }
+          },
+        },
+      ],
+    );
+  }
 
   useEffect(() => {
     if (!teamId) { setLoading(false); return; }
@@ -55,8 +78,14 @@ export default function TeamRosterScreen() {
             </View>
           </View>
 
+          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+            <SearchBar value={query} onChangeText={setQuery} placeholder="Hledat hráče..." />
+          </View>
           <FlatList
-            data={team?.players ?? []}
+            data={(team?.players ?? []).filter((p: any) =>
+              `${p.firstName} ${p.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
+              String(p.jersey ?? '').includes(query)
+            )}
             keyExtractor={item => item.id}
             contentContainerStyle={{ padding: 16, paddingTop: 8 }}
             ListEmptyComponent={
@@ -75,7 +104,13 @@ export default function TeamRosterScreen() {
                   <Text style={s.pos}>{POS[item.position] ?? item.position}</Text>
                 </View>
                 <View style={[s.dot, { backgroundColor: LIC_COL[item.payment?.licStatus ?? 'PENDING'] }]} />
-                <Ionicons name="chevron-forward" size={14} color={Colors.di} />
+                <Pressable
+                  style={s.removeBtn}
+                  onPress={() => removePlayer(item)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="person-remove-outline" size={16} color={Colors.red} />
+                </Pressable>
               </Pressable>
             )}
             ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
@@ -105,5 +140,6 @@ const s = StyleSheet.create({
   jerseyNum:{ fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.go },
   name:     { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
   pos:      { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
-  dot:      { width: 8, height: 8, borderRadius: 4 },
+  dot:       { width: 8, height: 8, borderRadius: 4 },
+  removeBtn: { padding: 4 },
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Pressable, FlatList,
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -32,17 +32,20 @@ function timeAgo(iso: string): string {
 
 export default function NotificationsScreen() {
   const [loading, setLoading]   = useState(true);
+  const [refresh, setRefresh]   = useState(false);
   const [notifs, setNotifs]     = useState<Notif[]>([]);
   const [marking, setMarking]   = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     try {
       const res = await notificationsApi.list();
       setNotifs(res.data);
     } catch {
-      Alert.alert('Chyba', 'Nepodařilo se načíst oznámení');
+      if (!isRefresh) Alert.alert('Chyba', 'Nepodařilo se načíst oznámení');
     } finally {
       setLoading(false);
+      setRefresh(false);
     }
   }, []);
 
@@ -134,6 +137,7 @@ export default function NotificationsScreen() {
               renderItem={renderItem}
               ItemSeparatorComponent={() => <View style={s.sep} />}
               contentContainerStyle={{ paddingVertical: 8 }}
+              refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
             />
           )
       }

@@ -12,6 +12,7 @@ import useLatestCallback from 'use-latest-callback';
 
 import { checkDuplicateRouteNames } from './checkDuplicateRouteNames';
 import { checkSerializable } from './checkSerializable';
+import { ConsumedParamsContext } from './ConsumedParamsContext';
 import { NOT_INITIALIZED_ERROR } from './createNavigationContainerRef';
 import { DeprecatedNavigationInChildContext } from './DeprecatedNavigationInChildContext';
 import { EnsureSingleNavigator } from './EnsureSingleNavigator';
@@ -30,6 +31,7 @@ import { UnhandledActionContext } from './UnhandledActionContext';
 import { useChildListeners } from './useChildListeners';
 import { useEventEmitter } from './useEventEmitter';
 import { useKeyedChildListeners } from './useKeyedChildListeners';
+import { useLazyValue } from './useLazyValue';
 import { useNavigationIndependentTree } from './useNavigationIndependentTree';
 import { useOptionsGetters } from './useOptionsGetters';
 import { useSyncState } from './useSyncState';
@@ -108,6 +110,8 @@ export const BaseNavigationContainer = React.forwardRef(
         getPartialState(initialState == null ? undefined : initialState)
       );
 
+    const consumedParams = useLazyValue(() => new WeakMap<object, true>());
+
     const isFirstMountRef = React.useRef<boolean>(true);
 
     const navigatorKeyRef = React.useRef<string | undefined>(undefined);
@@ -154,7 +158,7 @@ export const BaseNavigationContainer = React.forwardRef(
 
     const resetRoot = useLatestCallback(
       (state?: PartialState<NavigationState> | NavigationState) => {
-        const target = state?.key ?? keyedListeners.getState.root?.().key;
+        const target = keyedListeners.getState.root?.().key;
 
         if (target == null) {
           console.error(NOT_INITIALIZED_ERROR);
@@ -264,6 +268,13 @@ export const BaseNavigationContainer = React.forwardRef(
 
     const stackRef = React.useRef<string | undefined>(undefined);
 
+    const lastEmittedStateRef = React.useRef<State | undefined>(undefined);
+
+    const getIsStateEmitted = useLatestCallback(
+      () =>
+        !isFirstMountRef.current && lastEmittedStateRef.current === getState()
+    );
+
     const builderContext = React.useMemo(
       () => ({
         addListener,
@@ -271,6 +282,7 @@ export const BaseNavigationContainer = React.forwardRef(
         onDispatchAction,
         onEmitEvent,
         onOptionsChange,
+        getIsStateEmitted,
         scheduleUpdate,
         flushUpdates,
         stackRef,
@@ -281,6 +293,7 @@ export const BaseNavigationContainer = React.forwardRef(
         onDispatchAction,
         onEmitEvent,
         onOptionsChange,
+        getIsStateEmitted,
         scheduleUpdate,
         flushUpdates,
       ]
@@ -400,6 +413,8 @@ export const BaseNavigationContainer = React.forwardRef(
         }
       }
 
+      lastEmittedStateRef.current = state;
+
       emitter.emit({ type: 'state', data: { state } });
 
       if (!isFirstMountRef.current && onStateChangeRef.current) {
@@ -458,17 +473,19 @@ export const BaseNavigationContainer = React.forwardRef(
         <NavigationContainerRefContext.Provider value={navigation}>
           <NavigationBuilderContext.Provider value={builderContext}>
             <NavigationStateContext.Provider value={context}>
-              <UnhandledActionContext.Provider
-                value={onUnhandledAction ?? defaultOnUnhandledAction}
-              >
-                <DeprecatedNavigationInChildContext.Provider
-                  value={navigationInChildEnabled}
+              <ConsumedParamsContext.Provider value={consumedParams}>
+                <UnhandledActionContext.Provider
+                  value={onUnhandledAction ?? defaultOnUnhandledAction}
                 >
-                  <EnsureSingleNavigator>
-                    <ThemeProvider value={theme}>{children}</ThemeProvider>
-                  </EnsureSingleNavigator>
-                </DeprecatedNavigationInChildContext.Provider>
-              </UnhandledActionContext.Provider>
+                  <DeprecatedNavigationInChildContext.Provider
+                    value={navigationInChildEnabled}
+                  >
+                    <EnsureSingleNavigator>
+                      <ThemeProvider value={theme}>{children}</ThemeProvider>
+                    </EnsureSingleNavigator>
+                  </DeprecatedNavigationInChildContext.Provider>
+                </UnhandledActionContext.Provider>
+              </ConsumedParamsContext.Provider>
             </NavigationStateContext.Provider>
           </NavigationBuilderContext.Provider>
         </NavigationContainerRefContext.Provider>

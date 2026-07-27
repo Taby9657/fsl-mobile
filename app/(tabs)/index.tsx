@@ -36,20 +36,18 @@ export default function HomeScreen() {
   const [refresh,    setRefresh]    = useState(false);
 
   async function load() {
-    try {
-      const calls: Promise<any>[] = [
-        matchesApi.list({ limit: '3', status: 'UPCOMING' }),
-        statsApi.table(),
-        highlightsApi.list(),
-      ];
-      if (!isGuest && user) calls.push(notificationsApi.list());
-
-      const [mRes, tRes, hRes, nRes] = await Promise.all(calls);
-      setMatches(mRes.data ?? []);
-      setTable((tRes.data ?? []).slice(0, 5));
-      setHighlights(hRes.data ?? []);
-      if (nRes) setNotifs((nRes.data ?? []).filter((n: any) => !n.read).slice(0, 3));
-    } catch {}
+    const [mRes, tRes, hRes, nRes] = await Promise.allSettled([
+      matchesApi.list({ limit: '3', status: 'UPCOMING' }),
+      statsApi.table(),
+      highlightsApi.list(),
+      (!isGuest && user) ? notificationsApi.list() : Promise.resolve(null),
+    ]);
+    if (mRes.status === 'fulfilled') setMatches(mRes.value.data ?? []);
+    if (tRes.status === 'fulfilled') setTable((tRes.value.data ?? []).slice(0, 5));
+    if (hRes.status === 'fulfilled') setHighlights(hRes.value.data ?? []);
+    if (nRes.status === 'fulfilled' && nRes.value) {
+      setNotifs((nRes.value.data ?? []).filter((n: any) => !n.read).slice(0, 3));
+    }
     setLoading(false);
     setRefresh(false);
   }
