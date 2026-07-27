@@ -40,6 +40,21 @@ export default function SuperPaymentsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function markTeamPaid(teamId: string) {
+    setActing(teamId);
+    try {
+      await supervisorApi.updateTeamPayment(teamId, { status: 'PAID' });
+      setTeams(prev => prev.map(t =>
+        t.team?.id === teamId ? { ...t, status: 'PAID' } : t
+      ));
+      Alert.alert('Hotovo', 'Týmová platba označena jako zaplacená');
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se aktualizovat');
+    } finally {
+      setActing(null);
+    }
+  }
+
   async function markPaid(playerId: string, type: 'lic' | 'super') {
     setActing(playerId + type);
     try {
@@ -163,18 +178,35 @@ export default function SuperPaymentsScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16 }}
           ListEmptyComponent={<View style={s.center}><Text style={s.empty}>Žádné týmy</Text></View>}
-          renderItem={({ item }) => (
-            <View style={s.card}>
-              <View style={s.cardRow}>
-                <Text style={s.playerName}>{item.team?.name}</Text>
-                <StatusBadge status={item.status} />
+          renderItem={({ item }) => {
+            const tid = item.team?.id;
+            return (
+              <View style={s.card}>
+                <View style={s.cardRow}>
+                  <Text style={s.playerName}>{item.team?.name}</Text>
+                  <StatusBadge status={item.status} />
+                </View>
+                <Text style={s.licLabel}>Registrační poplatek: {item.amount} Kč</Text>
+                {item.variableSymbol && (
+                  <Text style={s.licLabel}>VS: {item.variableSymbol}</Text>
+                )}
+                {item.status !== 'PAID' && (
+                  <View style={[s.licRow, { marginTop: 10 }]}>
+                    <Pressable
+                      style={[s.markBtn, acting === tid && { opacity: 0.5 }]}
+                      onPress={() => markTeamPaid(tid)}
+                      disabled={!!acting}
+                    >
+                      {acting === tid
+                        ? <ActivityIndicator color={Colors.bg} size="small" />
+                        : <Text style={s.markBtnTxt}>Označit zaplaceno</Text>
+                      }
+                    </Pressable>
+                  </View>
+                )}
               </View>
-              <Text style={s.licLabel}>Registrační poplatek: {item.amount} Kč</Text>
-              {item.variableSymbol && (
-                <Text style={s.licLabel}>VS: {item.variableSymbol}</Text>
-              )}
-            </View>
-          )}
+            );
+          }}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         />
       )}

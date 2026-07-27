@@ -29,7 +29,7 @@ function fmtDate(iso: string) {
 
 const EMPTY_FORM = {
   homeTeamId: '', awayTeamId: '', time: '18:00',
-  venue: '', round: '', division: 'Divize A', competition: 'FSL Liga',
+  venue: '', round: '', division: 'Divize A', competition: 'FSL Liga', season: '2025/26',
 };
 
 export default function SuperMatchesScreen() {
@@ -86,6 +86,7 @@ export default function SuperMatchesScreen() {
       round:       match.round?.toString() ?? '',
       division:    match.division ?? 'Divize A',
       competition: match.competition ?? 'FSL Liga',
+      season:      match.season ?? '2025/26',
     });
     setEditTarget(match);
     setModal('edit');
@@ -111,6 +112,7 @@ export default function SuperMatchesScreen() {
         round:       form.round ? parseInt(form.round) : null,
         division:    form.division,
         competition: form.competition,
+        season:      form.season || '2025/26',
       };
       if (modal === 'add') {
         await matchesApi.create(data);
@@ -142,6 +144,27 @@ export default function SuperMatchesScreen() {
               setMatches(prev => prev.filter(m => m.id !== match.id));
             } catch (err: any) {
               Alert.alert('Nelze smazat', err?.response?.data?.error ?? 'Chyba');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  function confirmEnd(match: any) {
+    Alert.alert(
+      'Ukončit zápas',
+      `${match.homeTeam?.abbr ?? '?'} ${match.homeScore}:${match.awayScore} ${match.awayTeam?.abbr ?? '?'}\n\nUkončit zápas a nastavit stav na Odehráno?`,
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Ukončit', style: 'destructive',
+          onPress: async () => {
+            try {
+              await matchesApi.endMatch(match.id);
+              setMatches(prev => prev.map(m => m.id === match.id ? { ...m, status: 'DONE' } : m));
+            } catch (err: any) {
+              Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se ukončit zápas');
             }
           },
         },
@@ -263,6 +286,12 @@ export default function SuperMatchesScreen() {
                   <Ionicons name="pencil-outline" size={13} color={Colors.go} />
                   <Text style={[s.actionTxt, { color: Colors.go }]}>Upravit</Text>
                 </Pressable>
+                {item.status === 'LIVE' && (
+                  <Pressable style={s.actionBtn} onPress={() => confirmEnd(item)}>
+                    <Ionicons name="stop-circle-outline" size={13} color={Colors.red} />
+                    <Text style={[s.actionTxt, { color: Colors.red }]}>Ukončit</Text>
+                  </Pressable>
+                )}
                 {item.status === 'UPCOMING' && (
                   <Pressable style={s.actionBtn} onPress={() => confirmDelete(item)}>
                     <Ionicons name="trash-outline" size={13} color={Colors.red} />
@@ -333,8 +362,16 @@ export default function SuperMatchesScreen() {
                 </View>
               </View>
 
-              <Text style={s.label}>Divize</Text>
-              <TextInput style={s.input} value={form.division} onChangeText={v => setForm(p => ({ ...p, division: v }))} placeholder="Divize A" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 2 }}>
+                  <Text style={s.label}>Divize</Text>
+                  <TextInput style={s.input} value={form.division} onChangeText={v => setForm(p => ({ ...p, division: v }))} placeholder="Divize A" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>Sezóna</Text>
+                  <TextInput style={s.input} value={form.season} onChangeText={v => setForm(p => ({ ...p, season: v }))} placeholder="2025/26" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+                </View>
+              </View>
 
               <Pressable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={saveMatch} disabled={saving}>
                 {saving

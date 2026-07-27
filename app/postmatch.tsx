@@ -28,13 +28,14 @@ export default function PostMatchScreen() {
   const { user }   = useAuthStore();
   const teamId     = user?.manager?.[0]?.teamId;
 
-  const [loading, setLoading]       = useState(true);
-  const [matches, setMatches]       = useState<any[]>([]);
-  const [selected, setSelected]     = useState<any>(null);
-  const [matchDetail, setDetail]    = useState<any>(null);
-  const [mvpId, setMvpId]           = useState('');
-  const [refRating, setRefRating]   = useState(0);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [matches, setMatches]             = useState<any[]>([]);
+  const [selected, setSelected]           = useState<any>(null);
+  const [matchDetail, setDetail]          = useState<any>(null);
+  const [alreadySubmitted, setSubmitted]  = useState(false);
+  const [mvpId, setMvpId]                 = useState('');
+  const [refRating, setRefRating]         = useState(0);
+  const [submitting, setSubmitting]       = useState(false);
 
   useEffect(() => {
     if (!teamId) { setLoading(false); return; }
@@ -48,9 +49,13 @@ export default function PostMatchScreen() {
     setSelected(m);
     setMvpId('');
     setRefRating(0);
+    setSubmitted(false);
     try {
       const res = await matchesApi.get(m.id);
-      setDetail(res.data);
+      const detail = res.data;
+      setDetail(detail);
+      const myPost = detail.postmatches?.find((p: any) => p.teamId === teamId);
+      setSubmitted(myPost?.submitted === true);
     } catch {}
   }
 
@@ -119,7 +124,15 @@ export default function PostMatchScreen() {
             </Pressable>
           ))}
 
-          {selected && (
+          {selected && alreadySubmitted && (
+            <View style={s.doneCard}>
+              <Ionicons name="checkmark-circle" size={36} color={Colors.green} />
+              <Text style={s.doneTitle}>Formulář byl odeslán</Text>
+              <Text style={s.doneDesc}>Po-zápasový formulář pro tento zápas byl již odevzdán.</Text>
+            </View>
+          )}
+
+          {selected && !alreadySubmitted && (
             <>
               {/* Hodnocení rozhodčího */}
               <Text style={[s.section, { marginTop: 20 }]}>2. Hodnocení rozhodčího</Text>
@@ -177,6 +190,7 @@ export default function PostMatchScreen() {
             </>
           )}
 
+
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
@@ -205,4 +219,7 @@ const s = StyleSheet.create({
   playerName:     { flex: 1, fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '500' },
   submitBtn:      { backgroundColor: Colors.go, borderRadius: Radius.md, height: 50, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
   submitBtnText:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
+  doneCard:       { alignItems: 'center', gap: 10, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.green, padding: 24, marginTop: 20 },
+  doneTitle:      { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
+  doneDesc:       { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center' },
 });

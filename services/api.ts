@@ -183,8 +183,9 @@ export const supervisorApi = {
   matches:        (params?: any)                 => api.get('/supervisor/matches', { params }),
   assignReferee:  (matchId: string, refereeId: string) => api.post(`/supervisor/matches/${matchId}/assign-referee`, { refereeId }),
   deleteMatch:    (matchId: string)              => api.delete(`/supervisor/matches/${matchId}`),
-  payments:       (params?: any)                 => api.get('/supervisor/payments', { params }),
-  updatePayment:  (playerId: string, data: any)  => api.put(`/payments/player/${playerId}`, data),
+  payments:           (params?: any)                 => api.get('/supervisor/payments', { params }),
+  updatePayment:      (playerId: string, data: any)  => api.put(`/payments/player/${playerId}`, data),
+  updateTeamPayment:  (teamId: string, data: any)    => api.put(`/payments/team/${teamId}`, data),
   bankSync:       (days = 30)                    => api.post('/payments/bank-sync', { days }),
 
   // Správa týmů

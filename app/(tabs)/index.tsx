@@ -34,19 +34,25 @@ export default function HomeScreen() {
   const [highlights, setHighlights] = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [refresh,    setRefresh]    = useState(false);
+  const [currentSeason, setCurrentSeason] = useState<string>('2025/26');
 
   async function load() {
-    const [mRes, tRes, hRes, nRes] = await Promise.allSettled([
+    const [mRes, tRes, hRes, nRes, sRes] = await Promise.allSettled([
       matchesApi.list({ limit: '3', status: 'UPCOMING' }),
       statsApi.table(),
       highlightsApi.list(),
       (!isGuest && user) ? notificationsApi.list() : Promise.resolve(null),
+      statsApi.seasons(),
     ]);
     if (mRes.status === 'fulfilled') setMatches(mRes.value.data ?? []);
     if (tRes.status === 'fulfilled') setTable((tRes.value.data ?? []).slice(0, 5));
     if (hRes.status === 'fulfilled') setHighlights(hRes.value.data ?? []);
     if (nRes.status === 'fulfilled' && nRes.value) {
       setNotifs((nRes.value.data ?? []).filter((n: any) => !n.read).slice(0, 3));
+    }
+    if (sRes.status === 'fulfilled') {
+      const ss: string[] = sRes.value.data ?? [];
+      if (ss.length > 0) setCurrentSeason(ss[0]);
     }
     setLoading(false);
     setRefresh(false);
@@ -72,7 +78,7 @@ export default function HomeScreen() {
             <Text style={s.greeting}>
               Ahoj, {user?.player?.firstName ?? user?.referee?.firstName ?? (isGuest ? 'návštěvníku' : 'hráči')} 👋
             </Text>
-            <Text style={s.season}>Sezona 2025/26</Text>
+            <Text style={s.season}>Sezona {currentSeason}</Text>
           </View>
           <Pressable onPress={() => router.push('/notifications')} style={s.bell}>
             <Ionicons name="notifications" size={22} color={unread > 0 ? Colors.go : Colors.mu} />
