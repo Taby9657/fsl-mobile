@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supervisorApi, matchesApi, refereesApi } from '../../services/api';
+import { DatePicker } from '../../components/DatePicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type StatusFilter = 'UPCOMING' | 'LIVE' | 'DONE' | 'ALL';
@@ -33,7 +34,7 @@ function parseDateTime(dateStr: string, timeStr: string): Date | null {
 }
 
 const EMPTY_FORM = {
-  homeTeamId: '', awayTeamId: '', date: '', time: '18:00',
+  homeTeamId: '', awayTeamId: '', time: '18:00',
   venue: '', round: '', division: 'Divize A', competition: 'FSL Liga',
 };
 
@@ -48,6 +49,7 @@ export default function SuperMatchesScreen() {
   const [editTarget, setEditTarget] = useState<any>(null);
   const [assignTarget, setAssignTarget] = useState<any>(null);
   const [form, setForm]             = useState({ ...EMPTY_FORM });
+  const [matchDate, setMatchDate]   = useState<Date | null>(null);
   const [saving, setSaving]         = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
@@ -74,16 +76,17 @@ export default function SuperMatchesScreen() {
 
   function openAdd() {
     setForm({ ...EMPTY_FORM });
+    setMatchDate(null);
     setEditTarget(null);
     setModal('add');
   }
 
   function openEdit(match: any) {
     const d = new Date(match.date);
+    setMatchDate(d);
     setForm({
       homeTeamId:  match.homeTeamId ?? '',
       awayTeamId:  match.awayTeamId ?? '',
-      date:        `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`,
       time:        `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`,
       venue:       match.venue ?? '',
       round:       match.round?.toString() ?? '',
@@ -95,8 +98,12 @@ export default function SuperMatchesScreen() {
   }
 
   async function saveMatch() {
-    const dt = parseDateTime(form.date, form.time);
-    if (!dt) { Alert.alert('Chybné datum/čas', 'Formát: DD.MM.YYYY a HH:MM'); return; }
+    if (!matchDate) { Alert.alert('Chybí datum', 'Vyber datum zápasu'); return; }
+    const tm = form.time.match(/^(\d{1,2}):(\d{2})$/);
+    if (!tm) { Alert.alert('Chybný čas', 'Formát: HH:MM'); return; }
+    const dt = new Date(matchDate);
+    dt.setHours(parseInt(tm[1]), parseInt(tm[2]), 0, 0);
+    if (isNaN(dt.getTime())) { Alert.alert('Chybný čas', 'Formát: HH:MM'); return; }
     if (!form.homeTeamId || !form.awayTeamId) { Alert.alert('Chybí týmy', 'Vyber domácí i hostující tým'); return; }
     if (form.homeTeamId === form.awayTeamId) { Alert.alert('Chyba', 'Domácí a hosté musí být různé týmy'); return; }
 
@@ -314,16 +321,11 @@ export default function SuperMatchesScreen() {
                 </View>
               </ScrollView>
 
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 2 }}>
-                  <Text style={s.label}>Datum * (DD.MM.YYYY)</Text>
-                  <TextInput style={s.input} value={form.date} onChangeText={v => setForm(p => ({ ...p, date: v }))} placeholder="01.09.2026" placeholderTextColor={Colors.di} keyboardType="numbers-and-punctuation" keyboardAppearance="dark" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.label}>Čas</Text>
-                  <TextInput style={s.input} value={form.time} onChangeText={v => setForm(p => ({ ...p, time: v }))} placeholder="18:00" placeholderTextColor={Colors.di} keyboardType="numbers-and-punctuation" keyboardAppearance="dark" />
-                </View>
-              </View>
+              <Text style={s.label}>Datum *</Text>
+              <DatePicker value={matchDate} onChange={setMatchDate} placeholder="Vybrat datum" />
+
+              <Text style={s.label}>Čas</Text>
+              <TextInput style={s.input} value={form.time} onChangeText={v => setForm(p => ({ ...p, time: v }))} placeholder="18:00" placeholderTextColor={Colors.di} keyboardType="numbers-and-punctuation" keyboardAppearance="dark" />
 
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={{ flex: 2 }}>

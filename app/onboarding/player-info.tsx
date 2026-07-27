@@ -5,9 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { DatePicker } from '../../components/DatePicker';
 import { playersApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { validateName, validatePhone, validateJersey, firstError } from '../../utils/validation';
 
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 
@@ -17,8 +19,9 @@ export default function PlayerInfoScreen() {
 
   const [form, setForm] = useState({
     firstName: '', lastName: '', jersey: '',
-    position: 'Útočník', phone: '', birthdate: '',
+    position: 'Útočník', phone: '',
   });
+  const [birthdate, setBirthdate] = useState<Date | null>(null);
   const [photo, setPhoto]     = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,15 +38,21 @@ export default function PlayerInfoScreen() {
   }
 
   async function submit() {
-    if (!form.firstName || !form.lastName || !form.jersey) {
-      Alert.alert('Vyplň povinné údaje', 'Jméno, příjmení a číslo dresu jsou povinné.'); return;
+    const e1 = validateName(form.firstName, 'Jméno');
+    const e2 = validateName(form.lastName, 'Příjmení');
+    const e3 = validateJersey(form.jersey);
+    const e4 = !form.jersey.trim() ? 'Číslo dresu je povinné.' : null;
+    const e5 = validatePhone(form.phone);
+    const first = firstError([e1, e2, e4 ?? e3, e5]);
+    if (first) {
+      Alert.alert('Vyplň povinné údaje', first); return;
     }
     setLoading(true);
     try {
       const res = await playersApi.create({
         firstName: form.firstName, lastName: form.lastName,
         jersey: form.jersey, position: form.position,
-        phone: form.phone || undefined, birthdate: form.birthdate || undefined,
+        phone: form.phone || undefined, birthdate: birthdate ? birthdate.toISOString() : undefined,
         teamId,
       });
       if (photo) {
@@ -122,8 +131,7 @@ export default function PlayerInfoScreen() {
 
         {/* Datum narození */}
         <Text style={styles.label}>Datum narození</Text>
-        <TextInput style={styles.input} value={form.birthdate} onChangeText={v => set('birthdate', v)}
-          placeholder="1995-06-15" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+        <DatePicker value={birthdate} onChange={setBirthdate} placeholder="Vybrat datum" maxDate={new Date()} />
 
         <Pressable style={[styles.btnPrimary, loading && styles.btnDisabled]} onPress={submit} disabled={loading}>
           {loading ? <ActivityIndicator color={Colors.bg} /> : <Text style={styles.btnText}>Dokončit registraci</Text>}

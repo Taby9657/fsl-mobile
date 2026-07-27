@@ -8,6 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi } from '../../../services/api';
 import { Colors, Fonts, Radius } from '../../../constants/colors';
+import * as Haptics from 'expo-haptics';
 
 type EventType = 'GOAL' | 'PENALTY';
 type ModalType = 'goal' | 'penalty' | null;
@@ -106,6 +107,7 @@ export default function LiveScoreScreen() {
         scorerId:  goalScorer  || undefined,
         assistId:  goalAssist  || undefined,
       });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModal(null);
       resetGoalForm();
       load();
@@ -130,6 +132,7 @@ export default function LiveScoreScreen() {
         penaltyId:   penPlayer   || undefined,
         penaltyType: penType,
       });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setModal(null);
       resetPenForm();
       load();

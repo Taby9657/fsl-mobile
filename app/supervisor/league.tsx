@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supervisorApi } from '../../services/api';
+import { DatePicker } from '../../components/DatePicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 // ─── typy ────────────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ export default function SuperLeagueScreen() {
   const [selTeamIds,  setSelTeamIds] = useState<string[]>([]);
 
   // Konfigurace
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
   const [interval,  setInterval]  = useState('7');
   const [time,      setTime]      = useState('18:00');
   const [venue,     setVenue]     = useState('');
@@ -154,8 +155,8 @@ export default function SuperLeagueScreen() {
   // ── Generování ─────────────────────────────────────────────────────────────
 
   async function loadPreview() {
-    const d = parseDate(startDate);
-    if (!d) { Alert.alert('Chybné datum', 'Zadej DD.MM.YYYY'); return; }
+    const d = startDate;
+    if (!d) { Alert.alert('Chybné datum', 'Vyber datum 1. kola'); return; }
     if (scopeTeams.length < 2) { Alert.alert('Málo týmů', 'Vyber alespoň 2 týmy'); return; }
 
     setPrevLoad(true);
@@ -175,7 +176,7 @@ export default function SuperLeagueScreen() {
   }
 
   async function generate() {
-    const d = parseDate(startDate);
+    const d = startDate;
     if (!d) return;
     setGenerating(true);
     try {
@@ -459,16 +460,8 @@ export default function SuperLeagueScreen() {
           <>
             <Text style={s.sectionTitle}>Nastavení rozpisu</Text>
 
-            <Text style={s.fieldLabel}>Datum 1. kola * (DD.MM.YYYY)</Text>
-            <TextInput
-              style={s.input}
-              value={startDate}
-              onChangeText={setStartDate}
-              placeholder="01.09.2026"
-              placeholderTextColor={Colors.di}
-              keyboardType="numbers-and-punctuation"
-              keyboardAppearance="dark"
-            />
+            <Text style={s.fieldLabel}>Datum 1. kola *</Text>
+            <DatePicker value={startDate} onChange={setStartDate} placeholder="Vybrat datum" />
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>

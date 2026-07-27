@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { DatePicker } from '../components/DatePicker';
 import { playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
@@ -24,8 +25,10 @@ export default function ProfileEditScreen() {
     jersey:    String(player?.jersey ?? ''),
     position:  POS_MAP[player?.position ?? 'F'] ?? 'Útočník',
     phone:     player?.phone     ?? '',
-    birthdate: player?.birthdate ? player.birthdate.split('T')[0] : '',
   });
+  const [birthdate, setBirthdate] = useState<Date | null>(
+    player?.birthdate ? new Date(player.birthdate) : null
+  );
   const [saving, setSaving]       = useState(false);
   const [errors, setErrors]       = useState<Record<string, string>>({});
   const [photoUri, setPhotoUri]   = useState<string | null>(null);
@@ -109,8 +112,8 @@ export default function ProfileEditScreen() {
         lastName:  form.lastName,
         jersey:    form.jersey ? parseInt(form.jersey) : undefined,
         position:  POS_REV[form.position] ?? 'F',
-        phone:     form.phone     || undefined,
-        birthdate: form.birthdate || undefined,
+        phone:     form.phone || undefined,
+        birthdate: birthdate ? birthdate.toISOString() : undefined,
       });
       await refreshUser();
       Alert.alert('Uloženo', 'Profil byl úspěšně aktualizován');
@@ -173,7 +176,15 @@ export default function ProfileEditScreen() {
             <Field label="Jméno *" value={form.firstName} onChange={v => set('firstName', v)} placeholder="Tomáš" error={errors.firstName} />
             <Field label="Příjmení *" value={form.lastName} onChange={v => set('lastName', v)} placeholder="Novák" error={errors.lastName} />
             <Field label="Telefon" value={form.phone} onChange={v => set('phone', v)} placeholder="+420 601 234 567" keyboardType="phone-pad" error={errors.phone} />
-            <Field label="Datum narození" value={form.birthdate} onChange={v => set('birthdate', v)} placeholder="DD.MM.RRRR" last />
+            <View style={[s.fieldWrap]}>
+              <Text style={s.label}>Datum narození</Text>
+              <DatePicker
+                value={birthdate}
+                onChange={setBirthdate}
+                placeholder="Vybrat datum"
+                maxDate={new Date()}
+              />
+            </View>
           </View>
         </View>
 
