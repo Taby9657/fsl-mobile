@@ -3,13 +3,14 @@ import { View, Text, FlatList, ScrollView, StyleSheet, Pressable, ActivityIndica
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { statsApi, supervisorApi } from '../../services/api';
+import { statsApi, supervisorApi, playersApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 
-type Tab = 'scorers' | 'assisters' | 'mvp' | 'referees';
+type Tab = 'scorers' | 'assisters' | 'mvp' | 'referees' | 'mine';
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'mine',      label: 'Moje' },
   { key: 'scorers',   label: 'Střelci' },
   { key: 'assisters', label: 'Nahrávači' },
   { key: 'mvp',       label: 'MVP' },
@@ -31,14 +32,26 @@ function StarRow({ avg }: { avg: number }) {
   );
 }
 
+interface MyStats {
+  goals: number;
+  assists: number;
+  points: number;
+  penalties: number;
+  mvpVotes: number;
+  recentGoals: any[];
+  recentAssists: any[];
+}
+
 export default function StatsScreen() {
-  const [tab, setTab]           = useState<Tab>('scorers');
+  const [tab, setTab]             = useState<Tab>('mine');
   const [divisions, setDivisions] = useState<string[]>([]);
-  const [division, setDivision] = useState<string>('Vše');
-  const [data, setData]         = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [refresh, setRefresh]   = useState(false);
-  const [error, setError]       = useState(false);
+  const [division, setDivision]   = useState<string>('Vše');
+  const [data, setData]           = useState<any[]>([]);
+  const [myStats, setMyStats]     = useState<MyStats | null>(null);
+  const [myStatsErr, setMyStatsErr] = useState<'no_player' | 'error' | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [refresh, setRefresh]     = useState(false);
+  const [error, setError]         = useState(false);
 
   // Načti seznam divizí jednou při startu
   useEffect(() => {
@@ -48,7 +61,20 @@ export default function StatsScreen() {
     }).catch(() => {});
   }, []);
 
+  async function loadMine(isRefresh = false) {
+    if (!isRefresh) { setLoading(true); setMyStatsErr(null); }
+    try {
+      const r = await playersApi.myStats();
+      setMyStats(r.data);
+    } catch (err: any) {
+      setMyStatsErr(err?.response?.status === 404 ? 'no_player' : 'error');
+    }
+    setLoading(false);
+    setRefresh(false);
+  }
+
   async function load(isRefresh = false) {
+    if (tab === 'mine') return loadMine(isRefresh);
     if (!isRefresh) { setLoading(true); setError(false); }
     setData([]);
     const div = division === 'Vše' ? undefined : division;
@@ -118,6 +144,76 @@ export default function StatsScreen() {
     );
   }
 
+  function renderMineContent() {
+    if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>;
+    if (myStatsErr === 'no_player') return (
+      <View style={styles.center}>
+        <Ionicons name="person-outline" size={40} color={Colors.mu} />
+        <Text style={styles.empty}>Nemáte hráčský profil</Text>
+        <Text style={[styles.empty, { fontSize: Fonts.sizes.sm, color: Colors.di }]}>Statistiky se zobrazí po registraci hráče</Text>
+      </View>
+    );
+    if (myStatsErr === 'error') return <ErrorView onRetry={() => loadMine()} />;
+    if (!myStats) return null;
+
+    const fmt = (m: any) => {
+      const ha = m.match;
+      return `${ha?.homeTeam?.abbr ?? '?'} vs ${ha?.awayTeam?.abbr ?? '?'}`;
+    };
+
+    return (
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 12 }}
+        refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); loadMine(true); }} tintColor={Colors.go} />}
+      >
+        {/* Souhrn */}
+        <View style={styles.statGrid}>
+          {[
+            { label: 'Góly',     value: myStats.goals,     icon: 'football' as const },
+            { label: 'Asistence',value: myStats.assists,   icon: 'hand-right' as const },
+            { label: 'Body',     value: myStats.points,    icon: 'flash' as const },
+            { label: 'Tresty',   value: myStats.penalties, icon: 'warning' as const },
+            { label: 'MVP',      value: myStats.mvpVotes,  icon: 'star' as const },
+          ].map(s => (
+            <View key={s.label} style={styles.statCard}>
+              <Ionicons name={s.icon} size={18} color={Colors.go} />
+              <Text style={styles.statValue}>{s.value}</Text>
+              <Text style={styles.statLabel}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Posledních 5 gólů */}
+        {myStats.recentGoals.length > 0 && (
+          <View style={styles.recentBlock}>
+            <Text style={styles.recentTitle}>Poslední góly</Text>
+            {myStats.recentGoals.map((g: any, i: number) => (
+              <Pressable key={g.id ?? i} style={styles.recentRow} onPress={() => g.matchId && router.push(`/match/${g.matchId}` as any)}>
+                <Ionicons name="football" size={14} color={Colors.go} />
+                <Text style={styles.recentText}>{fmt(g)}</Text>
+                <Text style={styles.recentMin}>{g.minute}'</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* Posledních 5 asistencí */}
+        {myStats.recentAssists.length > 0 && (
+          <View style={styles.recentBlock}>
+            <Text style={styles.recentTitle}>Poslední asistence</Text>
+            {myStats.recentAssists.map((a: any, i: number) => (
+              <Pressable key={a.id ?? i} style={styles.recentRow} onPress={() => a.matchId && router.push(`/match/${a.matchId}` as any)}>
+                <Ionicons name="hand-right" size={14} color={Colors.go} />
+                <Text style={styles.recentText}>{fmt(a)}</Text>
+                <Text style={styles.recentMin}>{a.minute}'</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  }
+
   const divisionList = ['Vše', ...divisions];
 
   return (
@@ -125,7 +221,7 @@ export default function StatsScreen() {
       <Text style={styles.title}>Statistiky</Text>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 6 }}>
         {TABS.map(t => (
           <Pressable
             key={t.key}
@@ -137,10 +233,10 @@ export default function StatsScreen() {
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
-      {/* Division filter (skryj pro rozhodčí) */}
-      {tab !== 'referees' && divisionList.length > 1 && (
+      {/* Division filter (skryj pro rozhodčí a moje) */}
+      {tab !== 'referees' && tab !== 'mine' && divisionList.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.divBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
           {divisionList.map(d => (
             <Pressable
@@ -154,7 +250,7 @@ export default function StatsScreen() {
         </ScrollView>
       )}
 
-      {loading ? (
+      {tab === 'mine' ? renderMineContent() : loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
       ) : error ? (
         <ErrorView onRetry={() => load()} />
@@ -180,18 +276,29 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: Colors.bg },
   title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, padding: 16, paddingBottom: 8 },
-  center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
-  empty:        { fontSize: Fonts.sizes.md, color: Colors.mu },
-  tabs: {
-    flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginBottom: 8,
-  },
+  center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
+  empty:        { fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' },
+  tabsBar:      { flexGrow: 0, marginBottom: 8 },
   tab: {
-    flex: 1, paddingVertical: 7, borderRadius: Radius.md,
+    paddingHorizontal: 16, paddingVertical: 7, borderRadius: Radius.md,
     backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, alignItems: 'center',
   },
   tabActive:     { backgroundColor: Colors.go, borderColor: Colors.go },
   tabText:       { fontSize: 11, color: Colors.mu, fontWeight: '600' },
   tabTextActive: { color: Colors.bg },
+  // Moje statistiky
+  statGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statCard:     {
+    flex: 1, minWidth: '28%', backgroundColor: Colors.c1, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.bd, padding: 14, alignItems: 'center', gap: 4,
+  },
+  statValue:    { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.wh },
+  statLabel:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+  recentBlock:  { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
+  recentTitle:  { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, padding: 12, borderBottomWidth: 1, borderBottomColor: Colors.bd },
+  recentRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.bd },
+  recentText:   { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },
+  recentMin:    { fontSize: Fonts.sizes.xs, color: Colors.di },
   row: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
     paddingHorizontal: 14, backgroundColor: Colors.c1,
