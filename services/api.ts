@@ -165,7 +165,10 @@ export const highlightsApi = {
   uploadVideo: (id: string, uri: string)   => {
     const form = new FormData();
     form.append('video', { uri, name: 'video.mp4', type: 'video/mp4' } as any);
-    return api.post(`/highlights/${id}/video`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post(`/highlights/${id}/video`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 180_000, // 3 minuty pro video upload
+    });
   },
 };
 
