@@ -42,7 +42,7 @@ export default function RefereeProfileScreen() {
     if (!form.bankAccount.trim()) { Alert.alert('Chyba', 'Číslo účtu je povinné pro výplatu odměn.'); return; }
     setSaving(true);
     try {
-      await refereesApi.register({ ...form });
+      await refereesApi.update(refId, form);
       setRef({ ...ref, ...form });
       setEdit(false);
       Alert.alert('Uloženo');
