@@ -10,9 +10,11 @@ try {
   Notifications = require('expo-notifications');
   Notifications!.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge:  true,
+      shouldShowAlert:  true,
+      shouldShowBanner: true,
+      shouldShowList:   true,
+      shouldPlaySound:  true,
+      shouldSetBadge:   true,
     }),
   });
 } catch {
@@ -48,8 +50,8 @@ async function registerForPushNotifications(): Promise<string | null> {
 
 export function usePushNotifications() {
   const { user } = useAuthStore();
-  const notifListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notifListener = useRef<any>(undefined);
+  const responseListener = useRef<any>(undefined);
 
   useEffect(() => {
     if (!user || !Notifications) return;
@@ -66,8 +68,8 @@ export function usePushNotifications() {
     });
 
     return () => {
-      if (notifListener.current)    Notifications!.removeNotificationSubscription(notifListener.current);
-      if (responseListener.current) Notifications!.removeNotificationSubscription(responseListener.current);
+      notifListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [user?.id]);
 }

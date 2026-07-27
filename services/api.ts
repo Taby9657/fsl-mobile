@@ -118,6 +118,11 @@ export const refereesApi = {
   get:          (id: string)   => api.get(`/referees/${id}`),
   register:     (data: any)    => api.post('/referees', data),
   futureMatches:(id: string)   => api.get(`/referees/${id}/future-matches`),
+  uploadPhoto:  (id: string, uri: string) => {
+    const form = new FormData();
+    form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
+    return api.post(`/referees/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 // ==================== PLATBY ====================

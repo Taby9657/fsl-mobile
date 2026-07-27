@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
+import { validateName, validatePhone, validateJersey, firstError } from '../utils/validation';
 
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 const POS_MAP: Record<string, string> = { F: 'Útočník', D: 'Obránce', GK: 'Brankář' };
@@ -14,6 +15,7 @@ const POS_REV: Record<string, string> = { 'Útočník': 'F', 'Obránce': 'D', 'B
 export default function ProfileEditScreen() {
   const { user, refreshUser } = useAuthStore();
   const player = user?.player;
+  const [leavingTeam, setLeavingTeam] = useState(false);
 
   const [form, setForm] = useState({
     firstName: player?.firstName ?? '',
@@ -24,14 +26,51 @@ export default function ProfileEditScreen() {
     birthdate: player?.birthdate ? player.birthdate.split('T')[0] : '',
   });
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   function set(key: string, val: string) {
     setForm(f => ({ ...f, [key]: val }));
+    if (errors[key]) setErrors(e => ({ ...e, [key]: '' }));
+  }
+
+  async function leaveTeam() {
+    Alert.alert(
+      'Opustit tým',
+      `Opravdu chceš opustit tým ${player?.team?.name ?? ''}? Tuto akci nelze vrátit.`,
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Opustit', style: 'destructive',
+          onPress: async () => {
+            if (!player?.id) return;
+            setLeavingTeam(true);
+            try {
+              await playersApi.leaveTeam(player.id);
+              await refreshUser();
+              Alert.alert('Hotovo', 'Byl jsi odebrán z týmu.');
+              router.back();
+            } catch (err: any) {
+              Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se opustit tým');
+            } finally {
+              setLeavingTeam(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function save() {
-    if (!form.firstName || !form.lastName) {
-      Alert.alert('Chybí jméno', 'Jméno a příjmení jsou povinné');
+    const newErrors: Record<string, string> = {};
+    const e1 = validateName(form.firstName, 'Jméno');       if (e1) newErrors.firstName = e1;
+    const e2 = validateName(form.lastName, 'Příjmení');     if (e2) newErrors.lastName = e2;
+    const e3 = validatePhone(form.phone);                   if (e3) newErrors.phone = e3;
+    const e4 = validateJersey(form.jersey);                 if (e4) newErrors.jersey = e4;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      const first = firstError([e1, e2, e3, e4]);
+      Alert.alert('Chyba ve formuláři', first ?? 'Zkontroluj zadané údaje.');
       return;
     }
     if (!player?.id) { Alert.alert('Chyba', 'Hráčský profil nenalezen'); return; }
@@ -83,17 +122,17 @@ export default function ProfileEditScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>Osobní údaje</Text>
           <View style={s.card}>
-            <Field label="Jméno *" value={form.firstName} onChange={v => set('firstName', v)} placeholder="Tomáš" />
-            <Field label="Příjmení *" value={form.lastName} onChange={v => set('lastName', v)} placeholder="Novák" />
-            <Field label="Telefon" value={form.phone} onChange={v => set('phone', v)} placeholder="+420 601 234 567" keyboardType="phone-pad" />
-            <Field label="Datum narození" value={form.birthdate} onChange={v => set('birthdate', v)} placeholder="1995-06-15" last />
+            <Field label="Jméno *" value={form.firstName} onChange={v => set('firstName', v)} placeholder="Tomáš" error={errors.firstName} />
+            <Field label="Příjmení *" value={form.lastName} onChange={v => set('lastName', v)} placeholder="Novák" error={errors.lastName} />
+            <Field label="Telefon" value={form.phone} onChange={v => set('phone', v)} placeholder="+420 601 234 567" keyboardType="phone-pad" error={errors.phone} />
+            <Field label="Datum narození" value={form.birthdate} onChange={v => set('birthdate', v)} placeholder="DD.MM.RRRR" last />
           </View>
         </View>
 
         <View style={s.section}>
           <Text style={s.sectionLabel}>Hráčské údaje</Text>
           <View style={s.card}>
-            <Field label="Číslo dresu" value={form.jersey} onChange={v => set('jersey', v)} placeholder="10" keyboardType="number-pad" />
+            <Field label="Číslo dresu" value={form.jersey} onChange={v => set('jersey', v)} placeholder="10" keyboardType="number-pad" error={errors.jersey} />
             <View style={s.fieldWrap}>
               <Text style={s.label}>Pozice</Text>
               <View style={s.pills}>
@@ -110,17 +149,55 @@ export default function ProfileEditScreen() {
         <Pressable style={[s.submitBtn, saving && { opacity: 0.5 }]} onPress={save} disabled={saving}>
           {saving ? <ActivityIndicator color={Colors.bg} /> : <Text style={s.submitTxt}>Uložit změny</Text>}
         </Pressable>
+
+        {/* Opustit tým */}
+        {player?.teamId && (
+          <View style={s.section}>
+            <Text style={s.sectionLabel}>Tým</Text>
+            <View style={s.card}>
+              <View style={s.fieldWrap}>
+                <Text style={s.label}>Aktuální tým</Text>
+                <Text style={{ fontSize: Fonts.sizes.md, color: Colors.wh, marginTop: 2 }}>{player?.team?.name ?? '—'}</Text>
+              </View>
+              <Pressable
+                style={[s.leaveBtn, leavingTeam && { opacity: 0.5 }]}
+                onPress={leaveTeam}
+                disabled={leavingTeam}
+              >
+                {leavingTeam
+                  ? <ActivityIndicator color={Colors.red} size="small" />
+                  : <>
+                      <Ionicons name="exit-outline" size={16} color={Colors.red} />
+                      <Text style={s.leaveTxt}>Opustit tým</Text>
+                    </>
+                }
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Field({ label, value, onChange, placeholder, keyboardType, last }: any) {
+interface FieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'phone-pad' | 'number-pad' | 'email-address';
+  last?: boolean;
+  error?: string;
+}
+
+function Field({ label, value, onChange, placeholder, keyboardType, last, error }: FieldProps) {
   return (
     <View style={[s.fieldWrap, !last && s.fieldBorder]}>
       <Text style={s.label}>{label}</Text>
       <TextInput
-        style={s.input}
+        style={[s.input, error ? { color: Colors.red } : {}]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
@@ -128,6 +205,7 @@ function Field({ label, value, onChange, placeholder, keyboardType, last }: any)
         keyboardType={keyboardType ?? 'default'}
         keyboardAppearance="dark"
       />
+      {!!error && <Text style={s.errorTxt}>{error}</Text>}
     </View>
   );
 }
@@ -155,4 +233,7 @@ const s = StyleSheet.create({
   pillTxtActive:{ color: Colors.bg },
   submitBtn:  { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 8 },
   submitTxt:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
+  errorTxt:   { fontSize: Fonts.sizes.xs, color: Colors.red, marginTop: 4 },
+  leaveBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderTopWidth: 1, borderTopColor: Colors.bd },
+  leaveTxt:   { fontSize: Fonts.sizes.sm, color: Colors.red, fontWeight: '600' },
 });

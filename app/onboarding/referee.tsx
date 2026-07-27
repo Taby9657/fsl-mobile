@@ -55,7 +55,7 @@ export default function RefereeOnboardingScreen() {
     try {
       const res = await refereesApi.register(form);
       if (photo) {
-        await refereesApi.uploadPhoto?.(res.data.id, photo).catch(() => {});
+        await refereesApi.uploadPhoto(res.data.id, photo).catch(() => {});
       }
       await refreshUser();
       router.replace('/onboarding/complete');
@@ -217,18 +217,6 @@ export default function RefereeOnboardingScreen() {
   );
 }
 
-// Pomocná funkce pro upload fotky přes API
-const refereesApiWithPhoto = {
-  ...refereesApi,
-  uploadPhoto: async (id: string, uri: string) => {
-    const { playersApi } = await import('../../services/api');
-    // Použijeme stejný endpoint pattern
-    const form = new FormData();
-    form.append('photo', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
-    const { api } = await import('../../services/api');
-    return api.post(`/referees/${id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  },
-};
 
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: Colors.bg },
