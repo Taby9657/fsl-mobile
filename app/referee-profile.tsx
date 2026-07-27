@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { refereesApi } from '../services/api';
+import { DoneBar, DONE_BAR_ID } from '../components/DoneBar';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
 import { validatePhone } from '../utils/validation';
@@ -55,7 +56,8 @@ export default function RefereeProfileScreen() {
   const statusColor = ref?.status === 'APPROVED' ? Colors.green : ref?.status === 'REJECTED' ? Colors.red : '#F59E0B';
   const statusLabel = ref?.status === 'APPROVED' ? 'Schválen' : ref?.status === 'REJECTED' ? 'Zamítnut' : 'Čeká na schválení';
 
-  function Field({ label, field }: { label: string; field: keyof typeof form }) {
+  function Field({ label, field, keyboardType }: { label: string; field: keyof typeof form; keyboardType?: 'default' | 'phone-pad' | 'number-pad' }) {
+    const needsDoneBar = keyboardType === 'number-pad' || keyboardType === 'phone-pad';
     return (
       <View style={{ marginBottom: 14 }}>
         <Text style={s.fieldLabel}>{label}</Text>
@@ -66,6 +68,10 @@ export default function RefereeProfileScreen() {
             onChangeText={v => setForm(p => ({ ...p, [field]: v }))}
             placeholderTextColor={Colors.di}
             placeholder={label}
+            keyboardType={keyboardType ?? 'default'}
+            keyboardAppearance="dark"
+            returnKeyType="done"
+            inputAccessoryViewID={needsDoneBar ? DONE_BAR_ID : undefined}
           />
         ) : (
           <Text style={s.fieldValue}>{(ref?.[field] as string) || '—'}</Text>
@@ -76,6 +82,7 @@ export default function RefereeProfileScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <DoneBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.back}>
@@ -118,17 +125,17 @@ export default function RefereeProfileScreen() {
           {/* Kontaktní údaje */}
           <Text style={s.section}>Kontaktní údaje</Text>
           <View style={s.card}>
-            <Field label="Telefon"  field="phone" />
+            <Field label="Telefon"  field="phone"   keyboardType="phone-pad" />
             <Field label="Adresa"   field="address" />
             <Field label="Město"    field="city" />
-            <Field label="PSČ"      field="zip" />
+            <Field label="PSČ"      field="zip"     keyboardType="number-pad" />
           </View>
 
           {/* Bankovní spojení */}
           <Text style={[s.section, { marginTop: 20 }]}>Bankovní spojení (výplaty)</Text>
           <View style={s.card}>
-            <Field label="Číslo účtu" field="bankAccount" />
-            <Field label="Kód banky"  field="bankCode" />
+            <Field label="Číslo účtu" field="bankAccount" keyboardType="number-pad" />
+            <Field label="Kód banky"  field="bankCode"    keyboardType="number-pad" />
           </View>
           <Text style={s.note}>Bankovní údaje jsou potřeba pro výplatu odměn za zápasy.</Text>
 

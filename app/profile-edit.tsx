@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { DatePicker } from '../components/DatePicker';
+import { DoneBar, DONE_BAR_ID } from '../components/DoneBar';
 import { playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
@@ -136,6 +137,7 @@ export default function ProfileEditScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <DoneBar />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -258,6 +260,7 @@ interface FieldProps {
 }
 
 function Field({ label, value, onChange, placeholder, keyboardType, last, error }: FieldProps) {
+  const needsDoneBar = keyboardType === 'number-pad' || keyboardType === 'phone-pad';
   return (
     <View style={[s.fieldWrap, !last && s.fieldBorder]}>
       <Text style={s.label}>{label}</Text>
@@ -269,6 +272,8 @@ function Field({ label, value, onChange, placeholder, keyboardType, last, error 
         placeholderTextColor={Colors.di}
         keyboardType={keyboardType ?? 'default'}
         keyboardAppearance="dark"
+        returnKeyType="done"
+        inputAccessoryViewID={needsDoneBar ? DONE_BAR_ID : undefined}
       />
       {!!error && <Text style={s.errorTxt}>{error}</Text>}
     </View>

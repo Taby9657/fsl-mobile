@@ -6,6 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { DatePicker } from '../../components/DatePicker';
+import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { playersApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
@@ -69,6 +70,7 @@ export default function PlayerInfoScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <DoneBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} style={styles.back}>
@@ -109,7 +111,8 @@ export default function PlayerInfoScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Číslo dresu *</Text>
             <TextInput style={styles.input} value={form.jersey} onChangeText={v => set('jersey', v)}
-              placeholder="10" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+              placeholder="10" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
+              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
           </View>
           <View style={{ flex: 2 }}>
             <Text style={styles.label}>Pozice</Text>
@@ -128,7 +131,8 @@ export default function PlayerInfoScreen() {
         <Text style={styles.label}>Telefon</Text>
         <TextInput style={styles.input} value={form.phone} onChangeText={v => set('phone', v)}
           placeholder="+420 601 234 567" placeholderTextColor={Colors.di}
-          keyboardType="phone-pad" keyboardAppearance="dark" />
+          keyboardType="phone-pad" keyboardAppearance="dark"
+          returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
         {/* Datum narození */}
         <Text style={styles.label}>Datum narození</Text>

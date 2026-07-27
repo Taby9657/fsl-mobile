@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { refereesApi } from '../../services/api';
+import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -70,6 +71,7 @@ export default function RefereeOnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <DoneBar />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Progress bar */}
       <View style={styles.progressRow}>
@@ -120,7 +122,8 @@ export default function RefereeOnboardingScreen() {
             <Text style={styles.label}>Telefon</Text>
             <TextInput style={styles.input} value={form.phone} onChangeText={v => set('phone', v)}
               placeholder="+420 601 234 567" placeholderTextColor={Colors.di}
-              keyboardType="phone-pad" keyboardAppearance="dark" />
+              keyboardType="phone-pad" keyboardAppearance="dark"
+              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
           </>
         )}
 
@@ -147,17 +150,20 @@ export default function RefereeOnboardingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>PSČ</Text>
                 <TextInput style={styles.input} value={form.zip} onChangeText={v => set('zip', v)}
-                  placeholder="12000" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+                  placeholder="12000" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
+                  returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
               </View>
             </View>
 
             <Text style={styles.label}>Číslo bankovního účtu</Text>
             <TextInput style={styles.input} value={form.bankAccount} onChangeText={v => set('bankAccount', v)}
-              placeholder="192000145399" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+              placeholder="192000145399" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
+              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
             <Text style={styles.label}>Kód banky</Text>
             <TextInput style={styles.input} value={form.bankCode} onChangeText={v => set('bankCode', v)}
-              placeholder="0800" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+              placeholder="0800" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
+              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
             <Text style={styles.bankHint}>
               Kód banky: ČS 0800, KB 0100, ČSOB 0300, Fio 2010, mBank 6210
