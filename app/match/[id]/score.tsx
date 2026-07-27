@@ -174,7 +174,7 @@ export default function LiveScoreScreen() {
   const goals    = (match?.events ?? []).filter((e: any) => e.type === 'GOAL');
   const penalties= (match?.events ?? []).filter((e: any) => e.type === 'PENALTY');
   const isLive   = match?.status === 'LIVE';
-  const isPlayed = match?.status === 'PLAYED';
+  const isPlayed = match?.status === 'DONE';
 
   if (loading) return (
     <SafeAreaView style={s.safe}>
