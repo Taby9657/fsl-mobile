@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { VideoView, useVideoPlayer } from 'expo-video';
 import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
@@ -11,27 +10,14 @@ import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
 function VideoHighlightCard({ videoUrl, pinned }: { videoUrl: string; pinned: boolean }) {
-  const ref = useRef<VideoView>(null);
-  const player = useVideoPlayer(videoUrl, p => { p.loop = false; });
-
   return (
     <Pressable
       style={[s.videoCard, pinned && s.highlightPinned]}
-      onPress={() => {
-        player.play();
-        ref.current?.enterFullscreen();
-      }}
+      onPress={() => Linking.openURL(videoUrl)}
     >
-      <VideoView
-        ref={ref}
-        player={player}
-        style={s.videoView}
-        allowsFullscreen
-        nativeControls={false}
-        contentFit="cover"
-      />
-      <View style={s.playOverlay} pointerEvents="none">
-        <Ionicons name="play-circle" size={60} color="rgba(255,255,255,0.88)" />
+      <View style={s.playOverlay}>
+        <Ionicons name="play-circle" size={64} color="rgba(255,255,255,0.92)" />
+        <Text style={s.videoHint}>Klepni pro přehrání</Text>
       </View>
     </Pressable>
   );
@@ -244,9 +230,9 @@ const s = StyleSheet.create({
   highlightTitle:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
   highlightBody:   { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 19 },
   // Video highlight
-  videoCard:   { borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden', marginBottom: 8, height: 210 },
-  videoView:   { width: '100%', height: '100%' },
-  playOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
+  videoCard:   { borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden', marginBottom: 8, height: 200, backgroundColor: '#1a0a2e', justifyContent: 'center', alignItems: 'center' },
+  playOverlay: { justifyContent: 'center', alignItems: 'center', gap: 8 },
+  videoHint:   { fontSize: Fonts.sizes.xs, color: 'rgba(255,255,255,0.55)' },
 
   addHighlightBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, borderStyle: 'dashed', padding: 14, marginBottom: 4, marginTop: 16 },
   addHighlightTxt: { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600' },
