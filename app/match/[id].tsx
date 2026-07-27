@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi } from '../../services/api';
+import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type Tab = 'events' | 'lineups' | 'info';
@@ -22,7 +23,9 @@ function fmt(iso: string) {
 }
 
 export default function MatchDetailScreen() {
-  const { id }    = useLocalSearchParams<{ id: string }>();
+  const { id }       = useLocalSearchParams<{ id: string }>();
+  const isSupervisor = useIsSupervisor();
+  const { user }     = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [match, setMatch]     = useState<any>(null);
   const [tab, setTab]         = useState<Tab>('events');
@@ -70,8 +73,10 @@ export default function MatchDetailScreen() {
     </SafeAreaView>
   );
 
-  const isPlayed = match.status === 'DONE';
+  const isPlayed  = match.status === 'DONE';
   const showScore = match.status === 'DONE' || match.status === 'LIVE';
+  const isAssignedRef = user?.referee?.id && match.refereeId === user.referee.id;
+  const canScore  = (isSupervisor || isAssignedRef) && (match.status === 'LIVE' || match.status === 'UPCOMING');
   const goals    = (match.events ?? []).filter((e: any) => e.type === 'GOAL');
   const penalties= (match.events ?? []).filter((e: any) => e.type === 'PENALTY');
 
@@ -93,7 +98,14 @@ export default function MatchDetailScreen() {
         <Text style={[s.statusBadge, { color: STATUS_COLOR[match.status] ?? Colors.mu }]}>
           {STATUS_LABEL[match.status] ?? match.status}
         </Text>
-        <View style={{ width: 40 }} />
+        {canScore ? (
+          <Pressable style={s.scoreBtn} onPress={() => router.push(`/match/${id}/score` as any)}>
+            <Ionicons name="football" size={14} color={Colors.bg} />
+            <Text style={s.scoreBtnTxt}>Skórovat</Text>
+          </Pressable>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView>
@@ -286,6 +298,8 @@ const s = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: Colors.bg },
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   back:         { width: 40, height: 40, justifyContent: 'center' },
+  scoreBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.go, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
+  scoreBtnTxt:  { fontSize: 11, fontWeight: '700', color: Colors.bg },
   title:        { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   statusBadge:  { fontSize: Fonts.sizes.sm, fontWeight: '700' },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },

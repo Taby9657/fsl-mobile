@@ -50,16 +50,16 @@ export default function TeamDetailScreen() {
 
   const players: any[] = team.players ?? [];
   const wins   = matches.filter((m: any) => {
-    if (m.status !== 'PLAYED') return false;
+    if (m.status !== 'DONE') return false;
     const isHome = m.homeTeamId === id;
     return isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
   }).length;
   const losses = matches.filter((m: any) => {
-    if (m.status !== 'PLAYED') return false;
+    if (m.status !== 'DONE') return false;
     const isHome = m.homeTeamId === id;
     return isHome ? m.homeScore < m.awayScore : m.awayScore < m.homeScore;
   }).length;
-  const played = matches.filter((m: any) => m.status === 'PLAYED').length;
+  const played = matches.filter((m: any) => m.status === 'DONE').length;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -138,9 +138,9 @@ export default function TeamDetailScreen() {
                 const opp    = isHome ? m.awayTeam : m.homeTeam;
                 const myScore  = isHome ? m.homeScore : m.awayScore;
                 const oppScore = isHome ? m.awayScore : m.homeScore;
-                const won = m.status === 'PLAYED' && myScore > oppScore;
-                const lost= m.status === 'PLAYED' && myScore < oppScore;
-                const result = m.status !== 'PLAYED' ? null : won ? 'V' : lost ? 'P' : 'R';
+                const won = m.status === 'DONE' && myScore > oppScore;
+                const lost= m.status === 'DONE' && myScore < oppScore;
+                const result = m.status !== 'DONE' ? null : won ? 'V' : lost ? 'P' : 'R';
                 const resultColor = won ? Colors.green : lost ? Colors.red : Colors.mu;
 
                 return (
@@ -151,7 +151,7 @@ export default function TeamDetailScreen() {
                       </Text>
                       <Text style={s.matchDate}>{new Date(m.date).toLocaleDateString('cs-CZ')}</Text>
                     </View>
-                    {m.status === 'PLAYED' ? (
+                    {m.status === 'DONE' ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <Text style={s.score}>{myScore}:{oppScore}</Text>
                         <View style={[s.resultBadge, { backgroundColor: `${resultColor}22`, borderColor: resultColor }]}>

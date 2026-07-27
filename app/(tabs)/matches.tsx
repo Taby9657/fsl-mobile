@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, Refresh
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { matchesApi, supervisorApi } from '../../services/api';
+import { matchesApi, supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 import { format } from 'date-fns';
@@ -24,16 +24,22 @@ export default function MatchesScreen() {
   const [filter, setFilter]       = useState<MatchStatus>('UPCOMING');
   const [divisions, setDivisions] = useState<string[]>([]);
   const [division, setDivision]   = useState<string | undefined>(undefined);
+  const [seasons, setSeasons]     = useState<string[]>([]);
+  const [season, setSeason]       = useState<string | undefined>(undefined);
   const [loading, setLoading]     = useState(true);
   const [refresh, setRefresh]     = useState(false);
   const [error, setError]         = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Načti divize jednou při startu
+  // Načti divize + sezóny jednou při startu
   useEffect(() => {
     supervisorApi.divisions().then(r => {
       const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
       setDivisions(divs);
+    }).catch(() => {});
+    statsApi.seasons().then(r => {
+      const ss: string[] = r.data ?? [];
+      setSeasons(ss);
     }).catch(() => {});
   }, []);
 
@@ -42,6 +48,7 @@ export default function MatchesScreen() {
     try {
       const params: Record<string, string> = { status: filter, limit: '50' };
       if (division) params.division = division;
+      if (season)   params.season   = season;
       const r = await matchesApi.list(params);
       setMatches(r.data);
     } catch {
@@ -59,9 +66,10 @@ export default function MatchesScreen() {
     return () => {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
-  }, [filter, division]);
+  }, [filter, division, season]);
 
   const divisionList = ['Vše', ...divisions];
+  const showSeasons  = seasons.length > 1 && filter === 'DONE';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -89,6 +97,26 @@ export default function MatchesScreen() {
               onPress={() => setDivision(d === 'Vše' ? undefined : d)}
             >
               <Text style={[styles.divChipTxt, (division === d || (d === 'Vše' && !division)) && styles.divChipTxtActive]}>{d}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Season filter – jen pro DONE zápasy */}
+      {showSeasons && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.divBar}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        >
+          {seasons.map(s => (
+            <Pressable
+              key={s}
+              style={[styles.divChip, (season === s || (!season && s === seasons[0])) && styles.divChipActive]}
+              onPress={() => setSeason(s === seasons[0] && !season ? undefined : s)}
+            >
+              <Text style={[styles.divChipTxt, (season === s || (!season && s === seasons[0])) && styles.divChipTxtActive]}>{s}</Text>
             </Pressable>
           ))}
         </ScrollView>
