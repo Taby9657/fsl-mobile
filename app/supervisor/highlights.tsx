@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { highlightsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -13,12 +14,14 @@ interface HForm { round: string; title: string; body: string; pinned: boolean; }
 const EMPTY: HForm = { round: '', title: '', body: '', pinned: false };
 
 export default function SuperHighlightsScreen() {
-  const [items,  setItems]  = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [modal,   setModal]   = useState<'create' | 'edit' | null>(null);
-  const [target,  setTarget]  = useState<any>(null);
-  const [form,    setForm]    = useState<HForm>(EMPTY);
+  const [items,          setItems]          = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [saving,         setSaving]         = useState(false);
+  const [modal,          setModal]          = useState<'create' | 'edit' | null>(null);
+  const [target,         setTarget]         = useState<any>(null);
+  const [form,           setForm]           = useState<HForm>(EMPTY);
+  const [videoUri,       setVideoUri]       = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -36,6 +39,7 @@ export default function SuperHighlightsScreen() {
   function openCreate() {
     setForm(EMPTY);
     setTarget(null);
+    setVideoUri(null);
     setModal('create');
   }
 
@@ -47,7 +51,24 @@ export default function SuperHighlightsScreen() {
       pinned: item.pinned,
     });
     setTarget(item);
+    setVideoUri(null);
     setModal('edit');
+  }
+
+  async function pickVideo() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Oprávnění', 'Potřebuji přístup ke galerii');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      videoMaxDuration: 180,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setVideoUri(result.assets[0].uri);
+    }
   }
 
   async function save() {
@@ -63,13 +84,32 @@ export default function SuperHighlightsScreen() {
         body:   form.body.trim(),
         pinned: form.pinned,
       };
+
+      let savedItem: any;
       if (modal === 'create') {
         const r = await highlightsApi.create(data);
-        setItems(prev => [r.data, ...prev]);
+        savedItem = r.data;
+        setItems(prev => [savedItem, ...prev]);
       } else if (target) {
         const r = await highlightsApi.update(target.id, data);
-        setItems(prev => prev.map(h => h.id === target.id ? r.data : h));
+        savedItem = r.data;
+        setItems(prev => prev.map(h => h.id === target.id ? savedItem : h));
       }
+
+      // Nahrát video pokud bylo vybráno
+      if (videoUri && savedItem) {
+        setUploadingVideo(true);
+        try {
+          const vr = await highlightsApi.uploadVideo(savedItem.id, videoUri);
+          const updated = vr.data;
+          setItems(prev => prev.map(h => h.id === savedItem.id ? updated : h));
+        } catch {
+          Alert.alert('Varování', 'Highlight uložen, ale video se nepodařilo nahrát.\nMůžeš zkusit znovu přes Upravit.');
+        } finally {
+          setUploadingVideo(false);
+        }
+      }
+
       setModal(null);
     } catch (err: any) {
       Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se uložit');
@@ -105,6 +145,9 @@ export default function SuperHighlightsScreen() {
       setItems(prev => prev.map(h => h.id === item.id ? r.data : h));
     } catch {}
   }
+
+  const isBusy = saving || uploadingVideo;
+  const busyLabel = uploadingVideo ? 'Nahrávám video…' : (modal === 'create' ? 'Přidat highlight' : 'Uložit změny');
 
   return (
     <SafeAreaView style={s.safe}>
@@ -142,6 +185,12 @@ export default function SuperHighlightsScreen() {
                     <Text style={s.pinnedTxt}>Připnuto</Text>
                   </View>
                 )}
+                {item.videoUrl && (
+                  <View style={s.videoBadge}>
+                    <Ionicons name="videocam" size={10} color={Colors.wh} />
+                    <Text style={s.videoBadgeTxt}>Video</Text>
+                  </View>
+                )}
               </View>
               <Text style={s.itemTitle}>{item.title}</Text>
               <Text style={s.itemBody} numberOfLines={2}>{item.body}</Text>
@@ -167,10 +216,16 @@ export default function SuperHighlightsScreen() {
         />
       )}
 
-      {/* Modal */}
+      {/* Modal – opravený layout pro klávesnici */}
       <Modal visible={!!modal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <Pressable style={s.backdrop} onPress={() => setModal(null)} />
+        {/* Backdrop – separátní element (absoluteFill) */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setModal(null)} />
+
+        {/* KAV pozicuje sheet nad klávesnici */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={s.kavWrap}
+        >
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
             <Text style={s.sheetTitle}>{modal === 'create' ? 'Nový highlight' : 'Upravit highlight'}</Text>
@@ -210,6 +265,24 @@ export default function SuperHighlightsScreen() {
                 keyboardAppearance="dark"
               />
 
+              {/* Video sekce */}
+              <Text style={s.label}>Video (volitelné)</Text>
+              <Pressable style={s.videoPicker} onPress={pickVideo}>
+                <Ionicons
+                  name={videoUri ? 'checkmark-circle' : (target?.videoUrl ? 'checkmark-circle' : 'videocam-outline')}
+                  size={20}
+                  color={videoUri || target?.videoUrl ? Colors.green : Colors.mu}
+                />
+                <Text style={[s.videoPickerTxt, (videoUri || target?.videoUrl) && { color: Colors.green }]}>
+                  {videoUri
+                    ? 'Nové video vybráno ✓'
+                    : target?.videoUrl
+                      ? 'Máš nahráno video – vybrat nové'
+                      : 'Vybrat video z galerie'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+              </Pressable>
+
               <View style={s.switchRow}>
                 <View>
                   <Text style={s.switchLabel}>Připnout nahoře</Text>
@@ -223,13 +296,13 @@ export default function SuperHighlightsScreen() {
                 />
               </View>
 
-              <Pressable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
-                {saving
-                  ? <ActivityIndicator color={Colors.bg} />
-                  : <Text style={s.saveBtnTxt}>{modal === 'create' ? 'Přidat highlight' : 'Uložit změny'}</Text>
+              <Pressable style={[s.saveBtn, isBusy && { opacity: 0.6 }]} onPress={save} disabled={isBusy}>
+                {isBusy
+                  ? <><ActivityIndicator color={Colors.bg} /><Text style={[s.saveBtnTxt, { marginLeft: 8 }]}>{busyLabel}</Text></>
+                  : <Text style={s.saveBtnTxt}>{busyLabel}</Text>
                 }
               </Pressable>
-              <View style={{ height: 32 }} />
+              <View style={{ height: 40 }} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -254,6 +327,8 @@ const s = StyleSheet.create({
   round:       { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
   pinnedBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.go, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   pinnedTxt:   { fontSize: 10, fontWeight: '700', color: Colors.bg },
+  videoBadge:  { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#3B82F6', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  videoBadgeTxt: { fontSize: 10, fontWeight: '700', color: Colors.wh },
   itemTitle:   { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
   itemBody:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 19 },
 
@@ -261,17 +336,23 @@ const s = StyleSheet.create({
   actionBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: Radius.sm, backgroundColor: Colors.bg },
   actionTxt:   { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
 
-  backdrop:    { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:       { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.c1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '90%' },
+  // Modal – klávesnice fix
+  kavWrap:     { position: 'absolute', bottom: 0, left: 0, right: 0 },
+  sheet:       { backgroundColor: Colors.c1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '92%' },
   sheetHandle: { width: 40, height: 4, backgroundColor: Colors.bd, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   sheetTitle:  { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 16 },
 
   label:       { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 14 },
   input:       { backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 12, fontSize: Fonts.sizes.md, color: Colors.wh },
   textarea:    { minHeight: 110, paddingTop: 12 },
+
+  videoPicker: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14 },
+  videoPickerTxt: { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.mu },
+
   switchRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.bg, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginTop: 14 },
   switchLabel: { fontSize: Fonts.sizes.md, color: Colors.wh, fontWeight: '600' },
   switchHint:  { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
-  saveBtn:     { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 20 },
+
+  saveBtn:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, marginTop: 20 },
   saveBtnTxt:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
 });

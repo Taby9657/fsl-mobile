@@ -158,10 +158,15 @@ export const notificationsApi = {
 
 // ==================== HIGHLIGHTS ====================
 export const highlightsApi = {
-  list:   ()                          => api.get('/highlights'),
-  create: (data: any)                 => api.post('/highlights', data),
-  update: (id: string, data: any)     => api.put(`/highlights/${id}`, data),
-  delete: (id: string)                => api.delete(`/highlights/${id}`),
+  list:        ()                          => api.get('/highlights'),
+  create:      (data: any)                 => api.post('/highlights', data),
+  update:      (id: string, data: any)     => api.put(`/highlights/${id}`, data),
+  delete:      (id: string)                => api.delete(`/highlights/${id}`),
+  uploadVideo: (id: string, uri: string)   => {
+    const form = new FormData();
+    form.append('video', { uri, name: 'video.mp4', type: 'video/mp4' } as any);
+    return api.post(`/highlights/${id}/video`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 // ==================== SUPERVISOR ====================
