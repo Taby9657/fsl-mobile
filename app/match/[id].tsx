@@ -71,6 +71,7 @@ export default function MatchDetailScreen() {
   );
 
   const isPlayed = match.status === 'DONE';
+  const showScore = match.status === 'DONE' || match.status === 'LIVE';
   const goals    = (match.events ?? []).filter((e: any) => e.type === 'GOAL');
   const penalties= (match.events ?? []).filter((e: any) => e.type === 'PENALTY');
 
@@ -106,7 +107,7 @@ export default function MatchDetailScreen() {
           </Pressable>
 
           <View style={s.scoreCol}>
-            {isPlayed ? (
+            {showScore ? (
               <Text style={s.score}>{match.homeScore ?? 0}:{match.awayScore ?? 0}</Text>
             ) : (
               <Text style={s.scoreDate}>{fmt(match.date)}</Text>

@@ -130,7 +130,7 @@ export default function MatchesScreen() {
               </View>
               <View style={styles.teams}>
                 <Text style={styles.teamName}>{item.homeTeam.name}</Text>
-                {item.status === 'DONE' ? (
+                {(item.status === 'DONE' || item.status === 'LIVE') ? (
                   <Text style={styles.score}>{item.homeScore} : {item.awayScore}</Text>
                 ) : (
                   <Text style={styles.vs}>vs</Text>

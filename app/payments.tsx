@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Alert, Linking,
+  ActivityIndicator, Alert, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { goBack } from '../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { paymentsApi } from '../services/api';
+import { paymentsApi, matchesApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
 
@@ -36,6 +35,14 @@ interface TeamPayment {
   variableSymbol: string | null;
 }
 
+interface HomeMatch {
+  id: string;
+  date: string;
+  awayTeam: { name: string; abbr: string; color: string };
+  homeFeePaid: boolean;
+  venue: string | null;
+}
+
 const STATUS_LABEL: Record<PayStatus, string> = {
   PENDING: 'Čeká na platbu',
   PAID:    'Zaplaceno',
@@ -60,6 +67,11 @@ const STATUS_ICON: Record<PayStatus, keyof typeof Ionicons.glyphMap> = {
 const BANK_IBAN = 'CZ6508000000192000145399';
 const BANK_BIC  = 'GIBACZPX';
 
+function spdQrUrl(vs: string, amount: number, msg: string): string {
+  const spd = `SPD*1.0*ACC:${BANK_IBAN}+${BANK_BIC}*AM:${amount}.00*CC:CZK*X-VS:${vs}*MSG:${msg}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spd)}&bgcolor=0d0120&color=c9a140&qzone=1&format=png`;
+}
+
 function StatusChip({ status }: { status: PayStatus }) {
   const color = STATUS_COLOR[status];
   return (
@@ -83,35 +95,67 @@ function InfoRow({ label, value, copyable }: { label: string; value: string; cop
   );
 }
 
-function TransferBox({ vs, amount }: { vs: string; amount: number }) {
+function TransferBox({ vs, amount, msg = 'FSL poplatek' }: { vs: string; amount: number; msg?: string }) {
   return (
     <View style={s.transferBox}>
       <Text style={s.transferTitle}>Platba převodem</Text>
-      <InfoRow label="Číslo účtu (IBAN)" value={BANK_IBAN} copyable />
-      <InfoRow label="BIC/SWIFT"          value={BANK_BIC} copyable />
-      <InfoRow label="Variabilní symbol"  value={vs} copyable />
-      <InfoRow label="Částka"             value={`${amount} Kč`} />
+      <View style={s.transferInner}>
+        <View style={{ flex: 1 }}>
+          <InfoRow label="IBAN"               value={BANK_IBAN} copyable />
+          <InfoRow label="BIC/SWIFT"          value={BANK_BIC} copyable />
+          <InfoRow label="Variabilní symbol"  value={vs} copyable />
+          <InfoRow label="Částka"             value={`${amount} Kč`} />
+        </View>
+        <Image
+          source={{ uri: spdQrUrl(vs, amount, msg) }}
+          style={s.qrImg}
+          resizeMode="contain"
+        />
+      </View>
+      <Text style={s.transferHint}>Naskenuj QR kód v bankovní aplikaci pro rychlou platbu</Text>
     </View>
   );
+}
+
+function formatMatchDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 
 export default function PaymentsScreen() {
   const { user } = useAuthStore();
   const isManager = (user?.manager?.length ?? 0) > 0;
+  const managerTeamId = user?.manager?.[0]?.teamId ?? null;
 
-  const [loading, setLoading] = useState(true);
-  const [player, setPlayer]   = useState<PlayerPayment | null>(null);
-  const [teams, setTeams]     = useState<TeamPayment[]>([]);
-  const [paying, setPaying]   = useState<string | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [player, setPlayer]         = useState<PlayerPayment | null>(null);
+  const [teams, setTeams]           = useState<TeamPayment[]>([]);
+  const [homeMatches, setHomeMatches] = useState<HomeMatch[]>([]);
+  const [paying, setPaying]         = useState<string | null>(null); // matchId or 'player-license' etc.
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     try {
-      const res = await paymentsApi.me();
-      setPlayer(res.data.playerPayment ?? null);
-      const tp = res.data.teamPayment;
-      if (tp) setTeams(Array.isArray(tp) ? tp : [tp]);
+      const [payRes, matchRes] = await Promise.allSettled([
+        paymentsApi.me(),
+        isManager && managerTeamId
+          ? matchesApi.list({ homeTeamId: managerTeamId, status: 'UPCOMING', limit: 20 })
+          : Promise.resolve(null),
+      ]);
+
+      if (payRes.status === 'fulfilled') {
+        setPlayer(payRes.value.data.playerPayment ?? null);
+        const tp = payRes.value.data.teamPayment;
+        if (tp) setTeams(Array.isArray(tp) ? tp : [tp]);
+      }
+
+      if (matchRes.status === 'fulfilled' && matchRes.value) {
+        const sorted = [...(matchRes.value.data ?? [])].sort(
+          (a: HomeMatch, b: HomeMatch) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        setHomeMatches(sorted);
+      }
     } catch {
       Alert.alert('Chyba', 'Nepodařilo se načíst platby');
     } finally {
@@ -119,13 +163,25 @@ export default function PaymentsScreen() {
     }
   }
 
-  async function openStripe(type: 'player-license' | 'super-license' | 'home-fee') {
+  async function openStripe(type: 'player-license' | 'super-license') {
     setPaying(type);
     try {
-      let res;
-      if (type === 'player-license') res = await paymentsApi.playerLicense();
-      else if (type === 'super-license') res = await paymentsApi.superLicense();
-      else res = await paymentsApi.homeFee('');
+      const res = type === 'player-license'
+        ? await paymentsApi.playerLicense()
+        : await paymentsApi.superLicense();
+      const url: string = res.data.url;
+      if (url) Linking.openURL(url);
+    } catch (err: any) {
+      Alert.alert('Chyba platby', err?.response?.data?.error ?? 'Zkontrolujte připojení a zkuste znovu.');
+    } finally {
+      setPaying(null);
+    }
+  }
+
+  async function openHomeFee(matchId: string) {
+    setPaying(matchId);
+    try {
+      const res = await paymentsApi.homeFee(matchId);
       const url: string = res.data.url;
       if (url) Linking.openURL(url);
     } catch (err: any) {
@@ -142,7 +198,7 @@ export default function PaymentsScreen() {
     </SafeAreaView>
   );
 
-  const hasData = player || teams.length > 0;
+  const hasData = player || teams.length > 0 || isManager;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -186,7 +242,7 @@ export default function PaymentsScreen() {
                   }
                 </Pressable>
                 {player.variableSymbol && (
-                  <TransferBox vs={player.variableSymbol} amount={player.licFee} />
+                  <TransferBox vs={player.variableSymbol} amount={player.licFee} msg="FSL hracska licence" />
                 )}
               </>
             )}
@@ -252,12 +308,12 @@ export default function PaymentsScreen() {
             )}
 
             {tp.status === 'PENDING' && tp.variableSymbol && (
-              <TransferBox vs={tp.variableSymbol} amount={tp.amount} />
+              <TransferBox vs={tp.variableSymbol} amount={tp.amount} msg="FSL registrace tymu" />
             )}
           </View>
         ))}
 
-        {/* ── DOMÁCÍ ZÁPAS (vedoucí) ── */}
+        {/* ── DOMÁCÍ ZÁPASY – poplatky (vedoucí) ── */}
         {isManager && (
           <View style={[s.card, { marginTop: 12 }]}>
             <View style={s.cardHeader}>
@@ -265,25 +321,50 @@ export default function PaymentsScreen() {
                 <Ionicons name="home" size={18} color={Colors.red} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.cardTitle}>Poplatek za domácí zápas</Text>
-                <Text style={s.cardSub}>2 200 Kč / zápas</Text>
+                <Text style={s.cardTitle}>Poplatky za domácí zápasy</Text>
+                <Text style={s.cardSub}>2 200 Kč / zápas · do 48 h před zápasem</Text>
               </View>
             </View>
+
             <View style={s.hr} />
-            <Text style={s.infoLabel}>
-              Poplatek se hradí nejpozději 48 hodin před domácím zápasem.
-              Po zaplacení obdržíte potvrzení e-mailem.
-            </Text>
-            <Pressable
-              style={[s.btn, { backgroundColor: Colors.red, marginTop: 12 }]}
-              onPress={() => openStripe('home-fee')}
-              disabled={!!paying}
-            >
-              {paying === 'home-fee'
-                ? <ActivityIndicator color={Colors.white} size="small" />
-                : <><Ionicons name="cash-outline" size={16} color={Colors.white} /><Text style={s.btnText}>Zaplatit kartou</Text></>
-              }
-            </Pressable>
+
+            {homeMatches.length === 0 ? (
+              <Text style={[s.infoLabel, { textAlign: 'center', paddingVertical: 8 }]}>
+                Žádné nadcházející domácí zápasy
+              </Text>
+            ) : (
+              homeMatches.map((m, i) => (
+                <View key={m.id} style={[s.matchRow, i > 0 && s.matchRowBorder]}>
+                  {/* Soupeř + datum */}
+                  <View style={s.matchBadge}>
+                    <Text style={s.matchAbbr}>{m.awayTeam.abbr}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.matchName}>vs {m.awayTeam.name}</Text>
+                    <Text style={s.matchDate}>{formatMatchDate(m.date)}{m.venue ? ` · ${m.venue}` : ''}</Text>
+                  </View>
+
+                  {/* Stav / tlačítko */}
+                  {m.homeFeePaid ? (
+                    <View style={s.paidBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
+                      <Text style={s.paidText}>Zaplaceno</Text>
+                    </View>
+                  ) : (
+                    <Pressable
+                      style={[s.payBtn, paying === m.id && { opacity: 0.6 }]}
+                      onPress={() => openHomeFee(m.id)}
+                      disabled={!!paying}
+                    >
+                      {paying === m.id
+                        ? <ActivityIndicator color={Colors.white} size="small" style={{ width: 52 }} />
+                        : <Text style={s.payBtnText}>Zaplatit</Text>
+                      }
+                    </Pressable>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         )}
 
@@ -292,7 +373,7 @@ export default function PaymentsScreen() {
           <View style={[s.center, { marginTop: 80 }]}>
             <Ionicons name="card-outline" size={48} color={Colors.mu} />
             <Text style={s.emptyTitle}>Žádné platby</Text>
-            <Text style={s.emptyDesc}>Zatím nemáš žádný hráčský profil ani roli vedoucího.</Text>
+            <Text style={s.emptyDesc}>Platby se zobrazí po registraci do týmu nebo jako vedoucí.</Text>
           </View>
         )}
 
@@ -330,11 +411,23 @@ const s = StyleSheet.create({
   hr:           { height: 1, backgroundColor: Colors.bd, marginVertical: 12 },
   infoRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
   infoLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu, flex: 1, lineHeight: 18 },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center' },
   infoValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '500' },
   btn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: Radius.md },
   btnText:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.white },
-  transferBox:  { backgroundColor: Colors.c2, borderRadius: Radius.sm, padding: 12, marginTop: 10 },
-  transferTitle:{ fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.mu, marginBottom: 8 },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center' },
+  transferBox:   { backgroundColor: Colors.c2, borderRadius: Radius.sm, padding: 12, marginTop: 10 },
+  transferTitle: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.mu, marginBottom: 8 },
+  transferInner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  transferHint:  { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 10, textAlign: 'center' },
+  qrImg:         { width: 100, height: 100, borderRadius: Radius.sm, backgroundColor: Colors.bg },
+  // Domácí zápasy
+  matchRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  matchRowBorder:{ borderTopWidth: 1, borderTopColor: Colors.bd },
+  matchBadge:    { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center' },
+  matchAbbr:     { fontSize: Fonts.sizes.xs, fontWeight: '900', color: Colors.go },
+  matchName:     { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
+  matchDate:     { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
+  paidBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  paidText:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.green },
+  payBtn:        { backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 8 },
+  payBtnText:    { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.white },
 });

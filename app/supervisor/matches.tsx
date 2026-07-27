@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supervisorApi, matchesApi, refereesApi } from '../../services/api';
 import { DatePicker } from '../../components/DatePicker';
+import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type StatusFilter = 'UPCOMING' | 'LIVE' | 'DONE' | 'ALL';
@@ -25,13 +26,6 @@ function fmtDate(iso: string) {
   return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}  ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-function parseDateTime(dateStr: string, timeStr: string): Date | null {
-  const dm = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  const tm = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-  if (!dm || !tm) return null;
-  const d = new Date(parseInt(dm[3]), parseInt(dm[2]) - 1, parseInt(dm[1]), parseInt(tm[1]), parseInt(tm[2]));
-  return isNaN(d.getTime()) ? null : d;
-}
 
 const EMPTY_FORM = {
   homeTeamId: '', awayTeamId: '', time: '18:00',
@@ -179,6 +173,7 @@ export default function SuperMatchesScreen() {
 
   return (
     <SafeAreaView style={s.safe}>
+      <DoneBar />
       {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.back}>
@@ -334,7 +329,7 @@ export default function SuperMatchesScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Kolo</Text>
-                  <TextInput style={s.input} value={form.round} onChangeText={v => setForm(p => ({ ...p, round: v }))} placeholder="1" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+                  <TextInput style={s.input} value={form.round} onChangeText={v => setForm(p => ({ ...p, round: v }))} placeholder="1" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" inputAccessoryViewID={DONE_BAR_ID} returnKeyType="done" />
                 </View>
               </View>
 
