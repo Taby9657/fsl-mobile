@@ -4,10 +4,10 @@
     "slug": "fsl-liga",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0D0120"
     },
@@ -15,16 +15,18 @@
       "supportsTablet": false,
       "bundleIdentifier": "cz.fsl.app",
       "buildNumber": "1",
+      "deploymentTarget": "15.1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Potřebujeme přístup k fotoaparátu pro nahrání profilové fotky.",
-        "NSPhotoLibraryUsageDescription": "Potřebujeme přístup k fotkám pro nahrání profilové fotky a loga týmu."
+        "NSCameraUsageDescription": "Potřebujeme přístup k fotoaparátu pro nahrání profilové fotky a skenování QR kódů.",
+        "NSPhotoLibraryUsageDescription": "Potřebujeme přístup k fotkám pro nahrání profilové fotky a loga týmu.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "cz.fsl.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0D0120"
       },
       "permissions": [
@@ -35,6 +37,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
       "expo-secure-store",
       "expo-apple-authentication",
       [
@@ -42,10 +45,19 @@
         {
           "photosPermission": "FSL potřebuje přístup k fotkám pro profilovou fotku."
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#C9A140",
+          "sounds": []
+        }
+      ],
+      "expo-web-browser",
+      "expo-video"
     ],
     "scheme": "fsl",
-    "newArchEnabled": false,
     "experiments": {
       "typedRoutes": true
     },

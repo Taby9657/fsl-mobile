@@ -1,13 +1,41 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
+
+function VideoHighlightCard({ videoUrl, pinned }: { videoUrl: string; pinned: boolean }) {
+  const ref = useRef<VideoView>(null);
+  const player = useVideoPlayer(videoUrl, p => { p.loop = false; });
+
+  return (
+    <Pressable
+      style={[s.videoCard, pinned && s.highlightPinned]}
+      onPress={() => {
+        player.play();
+        ref.current?.enterFullscreen();
+      }}
+    >
+      <VideoView
+        ref={ref}
+        player={player}
+        style={s.videoView}
+        allowsFullscreen
+        nativeControls={false}
+        contentFit="cover"
+      />
+      <View style={s.playOverlay} pointerEvents="none">
+        <Ionicons name="play-circle" size={60} color="rgba(255,255,255,0.88)" />
+      </View>
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
   const { user, isGuest } = useAuthStore();
@@ -101,21 +129,25 @@ export default function HomeScreen() {
                 </Pressable>
               )}
             </View>
-            {highlights.slice(0, 3).map((h: any) => (
-              <View key={h.id} style={[s.highlightCard, h.pinned && s.highlightPinned]}>
-                <View style={s.highlightHeader}>
-                  {h.pinned && (
-                    <View style={s.pinnedBadge}>
-                      <Ionicons name="pin" size={10} color={Colors.bg} />
-                      <Text style={s.pinnedTxt}>Připnuto</Text>
-                    </View>
-                  )}
-                  {h.round && <Text style={s.highlightRound}>Kolo {h.round}</Text>}
+            {highlights.slice(0, 3).map((h: any) =>
+              h.videoUrl ? (
+                <VideoHighlightCard key={h.id} videoUrl={h.videoUrl} pinned={h.pinned} />
+              ) : (
+                <View key={h.id} style={[s.highlightCard, h.pinned && s.highlightPinned]}>
+                  <View style={s.highlightHeader}>
+                    {h.pinned && (
+                      <View style={s.pinnedBadge}>
+                        <Ionicons name="pin" size={10} color={Colors.bg} />
+                        <Text style={s.pinnedTxt}>Připnuto</Text>
+                      </View>
+                    )}
+                    {h.round && <Text style={s.highlightRound}>Kolo {h.round}</Text>}
+                  </View>
+                  <Text style={s.highlightTitle}>{h.title}</Text>
+                  <Text style={s.highlightBody} numberOfLines={3}>{h.body}</Text>
                 </View>
-                <Text style={s.highlightTitle}>{h.title}</Text>
-                <Text style={s.highlightBody} numberOfLines={3}>{h.body}</Text>
-              </View>
-            ))}
+              )
+            )}
           </>
         )}
 
@@ -211,6 +243,11 @@ const s = StyleSheet.create({
   highlightRound:  { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
   highlightTitle:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
   highlightBody:   { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 19 },
+  // Video highlight
+  videoCard:   { borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden', marginBottom: 8, height: 210 },
+  videoView:   { width: '100%', height: '100%' },
+  playOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.25)' },
+
   addHighlightBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, borderStyle: 'dashed', padding: 14, marginBottom: 4, marginTop: 16 },
   addHighlightTxt: { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600' },
 
