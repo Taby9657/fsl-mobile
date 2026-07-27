@@ -28,7 +28,7 @@ export default function ManagerOnboardingScreen() {
 
   async function pickLogo() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['image'] as any,
       allowsEditing: true, aspect: [1, 1], quality: 0.8,
     });
     if (!result.canceled) setLogo(result.assets[0].uri);

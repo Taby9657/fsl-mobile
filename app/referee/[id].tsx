@@ -55,7 +55,7 @@ export default function RefereeDetailScreen() {
   const avgRating = ratings.length > 0
     ? ratings.reduce((s: number, r: any) => s + r.rating, 0) / ratings.length
     : 0;
-  const pastMatches: any[] = (ref?.matches ?? []).filter((m: any) => m.status === 'PLAYED');
+  const pastMatches: any[] = (ref?.matches ?? []).filter((m: any) => m.status === 'DONE');
 
   return (
     <SafeAreaView style={s.safe}>

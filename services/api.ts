@@ -174,6 +174,28 @@ export const highlightsApi = {
   },
 };
 
+// ==================== DRAFT ====================
+export const draftApi = {
+  list:          ()                                  => api.get('/draft'),
+  me:            ()                                  => api.get('/draft/me'),
+  getProfile:    (playerId: string)                  => api.get(`/draft/${playerId}`),
+  createProfile: (data: any)                         => api.post('/draft/profile', data),
+  updateProfile: (data: any)                         => api.put('/draft/profile', data),
+  deleteProfile: ()                                  => api.delete('/draft/profile'),
+  uploadVideo:   (uri: string) => {
+    const form = new FormData();
+    form.append('video', { uri, name: 'draft.mp4', type: 'video/mp4' } as any);
+    return api.post('/draft/profile/video', form, {
+      headers:  { 'Content-Type': 'multipart/form-data' },
+      timeout:  180_000,
+    });
+  },
+  deleteVideo:   (videoId: string)                   => api.delete(`/draft/video/${videoId}`),
+  makeOffer:     (playerId: string, data: any)        => api.post(`/draft/${playerId}/offer`, data),
+  acceptOffer:   (playerId: string, offerId: string)  => api.post(`/draft/${playerId}/offer/${offerId}/accept`),
+  rejectOffer:   (playerId: string, offerId: string)  => api.post(`/draft/${playerId}/offer/${offerId}/reject`),
+};
+
 // ==================== SUPERVISOR ====================
 export const supervisorApi = {
   dashboard:      ()                             => api.get('/supervisor/dashboard'),

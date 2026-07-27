@@ -39,7 +39,7 @@ export default function ProfileEditScreen() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert('Oprávnění', 'Potřebuji přístup ke galerii'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['image'] as any,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,

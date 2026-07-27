@@ -35,7 +35,7 @@ export default function RefereeOnboardingScreen() {
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['image'] as any,
       allowsEditing: true, aspect: [1, 1], quality: 0.8,
     });
     if (!result.canceled) setPhoto(result.assets[0].uri);

@@ -59,9 +59,9 @@ export default function PostMatchScreen() {
     } catch {}
   }
 
-  // Hráči mého týmu v daném zápase
-  const myLineup = matchDetail?.lineups?.find((l: any) => l.teamId === teamId);
-  const myPlayers: any[] = myLineup?.players?.map((lp: any) => lp.player) ?? [];
+  // Hráči soupeře v daném zápase (opponentMvpId = MVP ze soupeřovy sestavy)
+  const opponentLineup = matchDetail?.lineups?.find((l: any) => l.teamId !== teamId);
+  const opponentPlayers: any[] = opponentLineup?.players?.map((lp: any) => lp.player) ?? [];
 
   async function submit() {
     if (!selected) {
@@ -156,11 +156,11 @@ export default function PostMatchScreen() {
               )}
 
               {/* MVP */}
-              <Text style={[s.section, { marginTop: 20 }]}>3. MVP zápasu (volitelné)</Text>
-              {myPlayers.length === 0 ? (
-                <Text style={s.empty}>Soupiska k tomuto zápasu nebyla odeslána.</Text>
+              <Text style={[s.section, { marginTop: 20 }]}>3. Nejlepší hráč soupeře (volitelné)</Text>
+              {opponentPlayers.length === 0 ? (
+                <Text style={s.empty}>Soupiska soupeře k tomuto zápasu nebyla odeslána.</Text>
               ) : (
-                myPlayers.map(p => (
+                opponentPlayers.map(p => (
                   <Pressable
                     key={p.id}
                     style={[s.playerRow, mvpId === p.id && s.playerRowSel]}
