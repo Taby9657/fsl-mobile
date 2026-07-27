@@ -1,132 +1,379 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
+  Alert, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform, RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supervisorApi, refereesApi } from '../../services/api';
+import { supervisorApi, matchesApi, refereesApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
-function fmt(iso: string) {
+type StatusFilter = 'UPCOMING' | 'LIVE' | 'DONE' | 'ALL';
+type ModalType = 'add' | 'edit' | 'referee' | null;
+
+const STATUS_LABEL: Record<string, string> = {
+  UPCOMING: 'Nadcházející', LIVE: 'LIVE', DONE: 'Odehráno', CANCELLED: 'Zrušeno',
+};
+const STATUS_COLOR: Record<string, string> = {
+  UPCOMING: Colors.mu, LIVE: Colors.red, DONE: Colors.green, CANCELLED: Colors.di,
+};
+
+function fmtDate(iso: string) {
   const d = new Date(iso);
-  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}  ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function parseDateTime(dateStr: string, timeStr: string): Date | null {
+  const dm = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const tm = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!dm || !tm) return null;
+  const d = new Date(parseInt(dm[3]), parseInt(dm[2]) - 1, parseInt(dm[1]), parseInt(tm[1]), parseInt(tm[2]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+const EMPTY_FORM = {
+  homeTeamId: '', awayTeamId: '', date: '', time: '18:00',
+  venue: '', round: '', division: 'Divize A', competition: 'FSL Liga',
+};
+
 export default function SuperMatchesScreen() {
-  const [matches, setMatches]   = useState<any[]>([]);
-  const [refs, setRefs]         = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [assignMatch, setAssign] = useState<any>(null);  // modal target
-  const [assigning, setAssigning] = useState(false);
+  const [matches, setMatches]       = useState<any[]>([]);
+  const [teams, setTeams]           = useState<any[]>([]);
+  const [refs, setRefs]             = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter]         = useState<StatusFilter>('UPCOMING');
+  const [modal, setModal]           = useState<ModalType>(null);
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [assignTarget, setAssignTarget] = useState<any>(null);
+  const [form, setForm]             = useState({ ...EMPTY_FORM });
+  const [saving, setSaving]         = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      supervisorApi.matches({ status: 'UPCOMING' }),
-      refereesApi.list({ status: 'APPROVED' }),
-    ])
-      .then(([mRes, rRes]) => {
-        setMatches(mRes.data);
-        setRefs(rRes.data);
-      })
-      .catch(() => Alert.alert('Chyba', 'Nepodařilo se načíst data'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  async function assign(refereeId: string) {
-    if (!assignMatch) return;
-    setAssigning(true);
+  const load = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const res = await supervisorApi.assignReferee(assignMatch.id, refereeId);
-      setMatches(prev => prev.map(m => m.id === assignMatch.id ? { ...m, referee: res.data.referee } : m));
-      setAssign(null);
-      Alert.alert('Hotovo', 'Rozhodčí přiřazen');
-    } catch (err: any) {
-      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se přiřadit');
+      const params = filter === 'ALL' ? {} : { status: filter };
+      const [mRes, tRes, rRes] = await Promise.all([
+        supervisorApi.matches(params),
+        supervisorApi.teams(),
+        refereesApi.list({ status: 'APPROVED' }),
+      ]);
+      setMatches(mRes.data ?? []);
+      setTeams(tRes.data ?? []);
+      setRefs(rRes.data ?? []);
+    } catch {
+      Alert.alert('Chyba', 'Nepodařilo se načíst zápasy');
     } finally {
-      setAssigning(false);
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [filter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() {
+    setForm({ ...EMPTY_FORM });
+    setEditTarget(null);
+    setModal('add');
+  }
+
+  function openEdit(match: any) {
+    const d = new Date(match.date);
+    setForm({
+      homeTeamId:  match.homeTeamId ?? '',
+      awayTeamId:  match.awayTeamId ?? '',
+      date:        `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`,
+      time:        `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`,
+      venue:       match.venue ?? '',
+      round:       match.round?.toString() ?? '',
+      division:    match.division ?? 'Divize A',
+      competition: match.competition ?? 'FSL Liga',
+    });
+    setEditTarget(match);
+    setModal('edit');
+  }
+
+  async function saveMatch() {
+    const dt = parseDateTime(form.date, form.time);
+    if (!dt) { Alert.alert('Chybné datum/čas', 'Formát: DD.MM.YYYY a HH:MM'); return; }
+    if (!form.homeTeamId || !form.awayTeamId) { Alert.alert('Chybí týmy', 'Vyber domácí i hostující tým'); return; }
+    if (form.homeTeamId === form.awayTeamId) { Alert.alert('Chyba', 'Domácí a hosté musí být různé týmy'); return; }
+
+    setSaving(true);
+    try {
+      const data = {
+        homeTeamId:  form.homeTeamId,
+        awayTeamId:  form.awayTeamId,
+        date:        dt.toISOString(),
+        venue:       form.venue || null,
+        round:       form.round ? parseInt(form.round) : null,
+        division:    form.division,
+        competition: form.competition,
+      };
+      if (modal === 'add') {
+        await matchesApi.create(data);
+        setModal(null);
+        load(); // reload celý seznam – response neobsahuje vnořené objekty týmů
+      } else if (editTarget) {
+        await matchesApi.update(editTarget.id, data);
+        setModal(null);
+        load();
+      }
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se uložit');
+    } finally {
+      setSaving(false);
     }
   }
 
+  function confirmDelete(match: any) {
+    Alert.alert(
+      'Smazat zápas',
+      `${match.homeTeam?.abbr ?? '?'} vs ${match.awayTeam?.abbr ?? '?'}\n${fmtDate(match.date)}\n\nOpravdu smazat?`,
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Smazat', style: 'destructive',
+          onPress: async () => {
+            try {
+              await supervisorApi.deleteMatch(match.id);
+              setMatches(prev => prev.filter(m => m.id !== match.id));
+            } catch (err: any) {
+              Alert.alert('Nelze smazat', err?.response?.data?.error ?? 'Chyba');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function assignReferee(refereeId: string) {
+    if (!assignTarget) return;
+    setSaving(true);
+    try {
+      const r = await supervisorApi.assignReferee(assignTarget.id, refereeId);
+      setMatches(prev => prev.map(m => m.id === assignTarget.id ? { ...m, referee: r.data.referee } : m));
+      setAssignTarget(null);
+      setModal(null);
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se přiřadit');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const FILTERS: { key: StatusFilter; label: string }[] = [
+    { key: 'UPCOMING', label: 'Nadcházející' },
+    { key: 'LIVE',     label: 'LIVE' },
+    { key: 'DONE',     label: 'Odehrané' },
+    { key: 'ALL',      label: 'Vše' },
+  ];
+
   return (
     <SafeAreaView style={s.safe}>
+      {/* Header */}
       <View style={s.header}>
         <Pressable onPress={() => router.back()} style={s.back}>
           <Ionicons name="chevron-back" size={24} color={Colors.wh} />
         </Pressable>
         <Text style={s.title}>Správa zápasů</Text>
-        <View style={{ width: 40 }} />
+        <Pressable style={s.addBtn} onPress={openAdd}>
+          <Ionicons name="add" size={22} color={Colors.bg} />
+        </Pressable>
       </View>
 
+      {/* Filter tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+        {FILTERS.map(f => (
+          <Pressable
+            key={f.key}
+            style={[s.chip, filter === f.key && s.chipActive]}
+            onPress={() => setFilter(f.key)}
+          >
+            <Text style={[s.chipText, filter === f.key && s.chipTextActive]}>{f.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       {loading ? (
-        <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+        <View style={s.center}><ActivityIndicator color={Colors.go} size="large" /></View>
       ) : (
         <FlatList
           data={matches}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16 }}
-          ListEmptyComponent={
+          contentContainerStyle={{ padding: 16, gap: 10 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.go} />}
+          ListEmptyComponent={() => (
             <View style={s.center}>
-              <Text style={s.empty}>Žádné nadcházející zápasy</Text>
+              <Ionicons name="football-outline" size={44} color={Colors.di} />
+              <Text style={s.emptyText}>Žádné zápasy</Text>
             </View>
-          }
+          )}
           renderItem={({ item }) => (
             <View style={s.card}>
+              {/* Status + kolo */}
               <View style={s.cardTop}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.teams}>{item.homeTeam?.name} vs {item.awayTeam?.name}</Text>
-                  <Text style={s.meta}>{fmt(item.date)}{item.venue ? ` · ${item.venue}` : ''}</Text>
-                </View>
+                <Text style={[s.statusBadge, { color: STATUS_COLOR[item.status] ?? Colors.mu }]}>
+                  {STATUS_LABEL[item.status] ?? item.status}
+                </Text>
+                {item.round ? <Text style={s.roundBadge}>Kolo {item.round}</Text> : null}
+                <Text style={s.divisionBadge}>{item.division}</Text>
               </View>
+
+              {/* Týmy + skóre */}
+              <View style={s.teamsRow}>
+                <View style={[s.dot, { backgroundColor: item.homeTeam?.color ?? Colors.go }]} />
+                <Text style={s.abbr}>{item.homeTeam?.abbr ?? '?'}</Text>
+                {item.status !== 'UPCOMING'
+                  ? <Text style={s.score}>{item.homeScore}:{item.awayScore}</Text>
+                  : <Text style={s.vs}>vs</Text>}
+                <Text style={s.abbr}>{item.awayTeam?.abbr ?? '?'}</Text>
+                <View style={[s.dot, { backgroundColor: item.awayTeam?.color ?? Colors.pu }]} />
+              </View>
+
+              {/* Meta */}
+              <Text style={s.meta}>{fmtDate(item.date)}{item.venue ? ` · ${item.venue}` : ''}</Text>
 
               {/* Rozhodčí */}
               {item.referee ? (
                 <View style={s.refRow}>
-                  <Ionicons name="person-circle-outline" size={16} color={Colors.green} />
-                  <Text style={s.refName}>{item.referee.firstName} {item.referee.lastName} (úr. {item.referee.level})</Text>
-                  <Pressable onPress={() => setAssign(item)} style={s.changeBtn}>
+                  <Ionicons name="person-circle-outline" size={14} color={Colors.green} />
+                  <Text style={s.refName}>{item.referee.firstName} {item.referee.lastName}</Text>
+                  <Pressable onPress={() => { setAssignTarget(item); setModal('referee'); }} style={s.changeBtn}>
                     <Text style={s.changeTxt}>Změnit</Text>
                   </Pressable>
                 </View>
               ) : (
-                <Pressable style={s.assignBtn} onPress={() => setAssign(item)}>
-                  <Ionicons name="person-add-outline" size={16} color={Colors.pu} />
+                <Pressable style={s.assignBtn} onPress={() => { setAssignTarget(item); setModal('referee'); }}>
+                  <Ionicons name="person-add-outline" size={14} color={Colors.pu} />
                   <Text style={s.assignTxt}>Přiřadit rozhodčího</Text>
                 </Pressable>
               )}
+
+              {/* Akce */}
+              <View style={s.actions}>
+                <Pressable style={s.actionBtn} onPress={() => router.push(`/match/${item.id}` as any)}>
+                  <Ionicons name="eye-outline" size={13} color={Colors.mu} />
+                  <Text style={s.actionTxt}>Detail</Text>
+                </Pressable>
+                <Pressable style={s.actionBtn} onPress={() => openEdit(item)}>
+                  <Ionicons name="pencil-outline" size={13} color={Colors.go} />
+                  <Text style={[s.actionTxt, { color: Colors.go }]}>Upravit</Text>
+                </Pressable>
+                {item.status === 'UPCOMING' && (
+                  <Pressable style={s.actionBtn} onPress={() => confirmDelete(item)}>
+                    <Ionicons name="trash-outline" size={13} color={Colors.red} />
+                    <Text style={[s.actionTxt, { color: Colors.red }]}>Smazat</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
           )}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         />
       )}
 
-      {/* Modal pro výběr rozhodčího */}
-      <Modal visible={!!assignMatch} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={s.modal}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Vyber rozhodčího</Text>
-              <Pressable onPress={() => setAssign(null)}>
-                <Ionicons name="close" size={22} color={Colors.mu} />
+      {/* ── Modal: přidat / upravit zápas ── */}
+      <Modal visible={modal === 'add' || modal === 'edit'} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable style={s.backdrop} onPress={() => setModal(null)} />
+          <View style={s.sheet}>
+            <View style={s.sheetHandle} />
+            <Text style={s.sheetTitle}>{modal === 'add' ? 'Nový zápas' : 'Upravit zápas'}</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+              <Text style={s.label}>Domácí tým *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {teams.map(t => (
+                    <Pressable
+                      key={t.id}
+                      style={[s.teamChip, form.homeTeamId === t.id && { borderColor: t.color ?? Colors.go, backgroundColor: `${(t.color ?? Colors.go)}22` }]}
+                      onPress={() => setForm(p => ({ ...p, homeTeamId: t.id }))}
+                    >
+                      <View style={[s.chipDot, { backgroundColor: t.color ?? Colors.go }]} />
+                      <Text style={[s.chipLbl, form.homeTeamId === t.id && { color: Colors.wh }]}>{t.abbr}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <Text style={s.label}>Hostující tým *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {teams.map(t => (
+                    <Pressable
+                      key={t.id}
+                      style={[s.teamChip, form.awayTeamId === t.id && { borderColor: t.color ?? Colors.pu, backgroundColor: `${(t.color ?? Colors.pu)}22` }]}
+                      onPress={() => setForm(p => ({ ...p, awayTeamId: t.id }))}
+                    >
+                      <View style={[s.chipDot, { backgroundColor: t.color ?? Colors.pu }]} />
+                      <Text style={[s.chipLbl, form.awayTeamId === t.id && { color: Colors.wh }]}>{t.abbr}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 2 }}>
+                  <Text style={s.label}>Datum * (DD.MM.YYYY)</Text>
+                  <TextInput style={s.input} value={form.date} onChangeText={v => setForm(p => ({ ...p, date: v }))} placeholder="01.09.2026" placeholderTextColor={Colors.di} keyboardType="numbers-and-punctuation" keyboardAppearance="dark" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>Čas</Text>
+                  <TextInput style={s.input} value={form.time} onChangeText={v => setForm(p => ({ ...p, time: v }))} placeholder="18:00" placeholderTextColor={Colors.di} keyboardType="numbers-and-punctuation" keyboardAppearance="dark" />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 2 }}>
+                  <Text style={s.label}>Hřiště</Text>
+                  <TextInput style={s.input} value={form.venue} onChangeText={v => setForm(p => ({ ...p, venue: v }))} placeholder="Sportovní hala" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>Kolo</Text>
+                  <TextInput style={s.input} value={form.round} onChangeText={v => setForm(p => ({ ...p, round: v }))} placeholder="1" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" />
+                </View>
+              </View>
+
+              <Text style={s.label}>Divize</Text>
+              <TextInput style={s.input} value={form.division} onChangeText={v => setForm(p => ({ ...p, division: v }))} placeholder="Divize A" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+
+              <Pressable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={saveMatch} disabled={saving}>
+                {saving
+                  ? <ActivityIndicator color={Colors.bg} />
+                  : <Text style={s.saveBtnTxt}>{modal === 'add' ? 'Vytvořit zápas' : 'Uložit změny'}</Text>}
               </Pressable>
-            </View>
-            <Text style={s.modalSub}>
-              {assignMatch?.homeTeam?.abbr} vs {assignMatch?.awayTeam?.abbr}
-            </Text>
-            <ScrollView style={{ maxHeight: 360 }}>
-              {refs.map(r => (
-                <Pressable key={r.id} style={s.refOption} onPress={() => assign(r.id)} disabled={assigning}>
-                  <View style={s.refAv}>
-                    <Ionicons name="person" size={16} color={Colors.pu} />
-                  </View>
-                  <Text style={s.refOptName}>{r.firstName} {r.lastName}</Text>
-                  <Text style={s.refLvl}>{r.level}</Text>
-                  {assigning && <ActivityIndicator size="small" color={Colors.go} />}
-                </Pressable>
-              ))}
-              {refs.length === 0 && (
-                <Text style={[s.empty, { padding: 16 }]}>Žádní schválení rozhodčí</Text>
-              )}
+              <View style={{ height: 32 }} />
             </ScrollView>
           </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Modal: přiřadit rozhodčího ── */}
+      <Modal visible={modal === 'referee'} transparent animationType="slide">
+        <Pressable style={s.backdrop} onPress={() => { setModal(null); setAssignTarget(null); }} />
+        <View style={[s.sheet, { maxHeight: '60%' }]}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>Přiřadit rozhodčího</Text>
+          {assignTarget && (
+            <Text style={s.sheetSub}>{assignTarget.homeTeam?.abbr} vs {assignTarget.awayTeam?.abbr} · {fmtDate(assignTarget.date)}</Text>
+          )}
+          <ScrollView>
+            {refs.length === 0
+              ? <Text style={{ color: Colors.mu, padding: 16 }}>Žádní schválení rozhodčí</Text>
+              : refs.map(r => (
+                  <Pressable key={r.id} style={s.refOption} onPress={() => assignReferee(r.id)} disabled={saving}>
+                    <View style={s.refAv}><Ionicons name="person" size={16} color={Colors.pu} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.refOptName}>{r.firstName} {r.lastName}</Text>
+                      <Text style={s.refLvl}>{r.level}</Text>
+                    </View>
+                    {saving && <ActivityIndicator size="small" color={Colors.go} />}
+                  </Pressable>
+                ))}
+            <View style={{ height: 24 }} />
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -138,25 +385,55 @@ const s = StyleSheet.create({
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   back:         { width: 40, height: 40, justifyContent: 'center' },
   title:        { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
-  center:       { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  empty:        { fontSize: Fonts.sizes.sm, color: Colors.mu },
+  addBtn:       { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.go, justifyContent: 'center', alignItems: 'center' },
+  center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
+  emptyText:    { fontSize: Fonts.sizes.md, color: Colors.mu },
+
+  filterBar:    { flexGrow: 0, marginBottom: 4 },
+  chip:         { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  chipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
+  chipText:     { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
+  chipTextActive: { color: Colors.bg },
+
   card:         { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14 },
-  cardTop:      { flexDirection: 'row', alignItems: 'flex-start' },
-  teams:        { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
-  meta:         { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 3 },
-  refRow:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: `${Colors.green}11`, borderRadius: Radius.sm, padding: 8 },
-  refName:      { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },
-  changeBtn:    { backgroundColor: Colors.c2, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  cardTop:      { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  statusBadge:  { fontSize: Fonts.sizes.xs, fontWeight: '700', textTransform: 'uppercase' },
+  roundBadge:   { fontSize: Fonts.sizes.xs, color: Colors.mu, backgroundColor: Colors.bg, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  divisionBadge:{ fontSize: Fonts.sizes.xs, color: Colors.di, marginLeft: 'auto' as any },
+  teamsRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  dot:          { width: 10, height: 10, borderRadius: 5 },
+  abbr:         { fontSize: Fonts.sizes.lg, fontWeight: '800', color: Colors.wh, flex: 1 },
+  score:        { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.go, paddingHorizontal: 8 },
+  vs:           { fontSize: Fonts.sizes.sm, color: Colors.mu, paddingHorizontal: 8 },
+  meta:         { fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 8 },
+
+  refRow:       { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${Colors.green}11`, borderRadius: Radius.sm, padding: 8, marginBottom: 8 },
+  refName:      { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.wh },
+  changeBtn:    { backgroundColor: Colors.c2, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 3 },
   changeTxt:    { fontSize: Fonts.sizes.xs, color: Colors.go, fontWeight: '600' },
-  assignBtn:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, borderWidth: 1, borderColor: Colors.pu, borderRadius: Radius.sm, padding: 10, borderStyle: 'dashed' },
-  assignTxt:    { fontSize: Fonts.sizes.sm, color: Colors.pu, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modal:        { backgroundColor: Colors.c1, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg, padding: 20 },
-  modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  modalTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
-  modalSub:     { fontSize: Fonts.sizes.sm, color: Colors.mu, marginBottom: 16 },
+  assignBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: Colors.pu, borderRadius: Radius.sm, padding: 8, borderStyle: 'dashed', marginBottom: 8 },
+  assignTxt:    { fontSize: Fonts.sizes.xs, color: Colors.pu, fontWeight: '600' },
+
+  actions:      { flexDirection: 'row', gap: 8, borderTopWidth: 1, borderTopColor: Colors.bd, paddingTop: 10 },
+  actionBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: Radius.sm, backgroundColor: Colors.bg },
+  actionTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+
+  backdrop:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet:        { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.c1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '90%' },
+  sheetHandle:  { width: 40, height: 4, backgroundColor: Colors.bd, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
+  sheetSub:     { fontSize: Fonts.sizes.sm, color: Colors.mu, marginBottom: 16 },
+
+  label:        { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 14 },
+  input:        { backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 12, fontSize: Fonts.sizes.md, color: Colors.wh },
+  teamChip:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.bg },
+  chipDot:      { width: 8, height: 8, borderRadius: 4 },
+  chipLbl:      { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
+  saveBtn:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 20 },
+  saveBtnTxt:   { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
+
   refOption:    { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   refAv:        { width: 32, height: 32, borderRadius: 16, backgroundColor: `${Colors.pu}22`, justifyContent: 'center', alignItems: 'center' },
-  refOptName:   { flex: 1, fontSize: Fonts.sizes.md, color: Colors.wh, fontWeight: '500' },
+  refOptName:   { fontSize: Fonts.sizes.md, color: Colors.wh, fontWeight: '500' },
   refLvl:       { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600' },
 });

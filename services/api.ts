@@ -156,6 +156,14 @@ export const notificationsApi = {
   read:    (id: string) => api.put(`/notifications/${id}/read`),
 };
 
+// ==================== HIGHLIGHTS ====================
+export const highlightsApi = {
+  list:   ()                          => api.get('/highlights'),
+  create: (data: any)                 => api.post('/highlights', data),
+  update: (id: string, data: any)     => api.put(`/highlights/${id}`, data),
+  delete: (id: string)                => api.delete(`/highlights/${id}`),
+};
+
 // ==================== SUPERVISOR ====================
 export const supervisorApi = {
   dashboard:      ()                             => api.get('/supervisor/dashboard'),

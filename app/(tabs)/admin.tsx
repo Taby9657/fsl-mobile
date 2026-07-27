@@ -85,7 +85,10 @@ export default function AdminScreen() {
         { icon: 'stats-chart', label: 'Dashboard', desc: 'Přehled celé ligy', route: '/supervisor/dashboard', color: Colors.pu },
         { icon: 'person-add', label: 'Rozhodčí ke schválení', desc: 'Čekající registrace', route: '/supervisor/referees', color: Colors.pu },
         { icon: 'football', label: 'Správa zápasů', desc: 'Přiřazení rozhodčích', route: '/supervisor/matches', color: Colors.pu },
-        { icon: 'cash', label: 'Platby', desc: 'Přehled a ruční sync', route: '/supervisor/payments', color: Colors.pu },
+        { icon: 'cash',         label: 'Platby',          desc: 'Přehled a ruční sync',          route: '/supervisor/payments', color: Colors.pu },
+        { icon: 'shield',       label: 'Správa týmů',     desc: 'Přidání, editace, smazání týmů', route: '/supervisor/teams',    color: Colors.pu },
+        { icon: 'git-branch',   label: 'Rozlosování',     desc: 'Generování rozpisu zápasů',      route: '/supervisor/league',      color: Colors.pu },
+        { icon: 'newspaper',    label: 'Highlights kola', desc: 'Aktuality viditelné na home screen', route: '/supervisor/highlights', color: Colors.pu },
       ],
     });
   }

@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
-import { View, Text, SectionList, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { matchesApi } from '../../services/api';
+import { matchesApi, supervisorApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
+
+const LIVE_POLL_INTERVAL = 15_000;
 
 type MatchStatus = 'UPCOMING' | 'LIVE' | 'DONE';
 
@@ -17,21 +20,52 @@ const STATUS_LABEL: Record<MatchStatus, string> = {
 };
 
 export default function MatchesScreen() {
-  const [matches, setMatches] = useState<any[]>([]);
-  const [filter, setFilter]   = useState<MatchStatus>('UPCOMING');
-  const [loading, setLoading] = useState(true);
+  const [matches, setMatches]     = useState<any[]>([]);
+  const [filter, setFilter]       = useState<MatchStatus>('UPCOMING');
+  const [divisions, setDivisions] = useState<string[]>([]);
+  const [division, setDivision]   = useState<string | undefined>(undefined);
+  const [loading, setLoading]     = useState(true);
+  const [refresh, setRefresh]     = useState(false);
+  const [error, setError]         = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Načti divize jednou při startu
+  useEffect(() => {
+    supervisorApi.divisions().then(r => {
+      const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
+      setDivisions(divs);
+    }).catch(() => {});
+  }, []);
+
+  async function load(isRefresh = false) {
+    if (!isRefresh) { setLoading(true); setError(false); }
+    try {
+      const params: Record<string, string> = { status: filter, limit: '50' };
+      if (division) params.division = division;
+      const r = await matchesApi.list(params);
+      setMatches(r.data);
+    } catch {
+      if (!isRefresh) setError(true);
+    }
+    setLoading(false);
+    setRefresh(false);
+  }
 
   useEffect(() => {
-    setLoading(true);
-    matchesApi.list({ status: filter, limit: '50' })
-      .then(r => setMatches(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [filter]);
+    load();
+    if (filter === 'LIVE') {
+      pollRef.current = setInterval(() => load(true), LIVE_POLL_INTERVAL);
+    }
+    return () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, [filter, division]);
+
+  const divisionList = ['Vše', ...divisions];
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Filter pills */}
+      {/* Status filter */}
       <View style={styles.pills}>
         {(['LIVE', 'UPCOMING', 'DONE'] as MatchStatus[]).map(s => (
           <Pressable key={s} style={[styles.pill, filter === s && styles.pillActive]} onPress={() => setFilter(s)}>
@@ -40,11 +74,37 @@ export default function MatchesScreen() {
         ))}
       </View>
 
+      {/* Division filter */}
+      {divisionList.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.divBar}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+        >
+          {divisionList.map(d => (
+            <Pressable
+              key={d}
+              style={[styles.divChip, (division === d || (d === 'Vše' && !division)) && styles.divChipActive]}
+              onPress={() => setDivision(d === 'Vše' ? undefined : d)}
+            >
+              <Text style={[styles.divChipTxt, (division === d || (d === 'Vše' && !division)) && styles.divChipTxtActive]}>{d}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
+      ) : error ? (
+        <ErrorView onRetry={() => load()} />
       ) : matches.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name={filter === 'UPCOMING' ? 'calendar-outline' : filter === 'LIVE' ? 'radio-outline' : 'checkmark-circle-outline'} size={48} color={Colors.di} />
+          <Ionicons
+            name={filter === 'UPCOMING' ? 'calendar-outline' : filter === 'LIVE' ? 'radio-outline' : 'checkmark-circle-outline'}
+            size={48}
+            color={Colors.di}
+          />
           <Text style={styles.emptyTitle}>
             {filter === 'UPCOMING' ? 'Žádné nadcházející zápasy' : filter === 'LIVE' ? 'Žádný zápas právě neprobíhá' : 'Žádné odehrané zápasy'}
           </Text>
@@ -53,13 +113,11 @@ export default function MatchesScreen() {
           </Text>
         </View>
       ) : (
-        <SectionList
-          sections={[{ title: STATUS_LABEL[filter], data: matches }]}
+        <FlatList
+          data={matches}
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: 16 }}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
-          )}
+          refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
           renderItem={({ item }) => (
             <Pressable style={styles.card} onPress={() => router.push(`/match/${item.id}`)}>
               <View style={styles.cardRow}>
@@ -79,9 +137,14 @@ export default function MatchesScreen() {
                 )}
                 <Text style={[styles.teamName, { textAlign: 'right' }]}>{item.awayTeam.name}</Text>
               </View>
-              {item.venue && <Text style={styles.venue}>{item.venue}</Text>}
+              {(item.venue || item.division) && (
+                <Text style={styles.venue}>
+                  {[item.division, item.venue].filter(Boolean).join(' · ')}
+                </Text>
+              )}
             </Pressable>
           )}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         />
       )}
     </SafeAreaView>
@@ -89,31 +152,34 @@ export default function MatchesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:   { flex: 1, backgroundColor: Colors.bg },
-  center:    { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 10 },
-  empty:     { color: Colors.mu, fontSize: Fonts.sizes.sm },
-  emptyTitle:{ fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.mu, textAlign: 'center' },
-  emptyDesc: { fontSize: Fonts.sizes.sm, color: Colors.di, textAlign: 'center', lineHeight: 20 },
-  pills:  { flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 0 },
+  safe:          { flex: 1, backgroundColor: Colors.bg },
+  center:        { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 10 },
+  emptyTitle:    { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.mu, textAlign: 'center' },
+  emptyDesc:     { fontSize: Fonts.sizes.sm, color: Colors.di, textAlign: 'center', lineHeight: 20 },
+  pills:         { flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 8 },
   pill: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.full,
     backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd,
   },
-  pillActive:     { backgroundColor: Colors.go, borderColor: Colors.go },
-  pillText:       { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
-  pillTextActive: { color: Colors.bg },
-  sectionHeader:  { fontSize: Fonts.sizes.sm, color: Colors.mu, marginBottom: 8, fontWeight: '600' },
+  pillActive:      { backgroundColor: Colors.go, borderColor: Colors.go },
+  pillText:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
+  pillTextActive:  { color: Colors.bg },
+  divBar:          { flexGrow: 0, marginBottom: 4 },
+  divChip:         { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  divChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
+  divChipTxt:      { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
+  divChipTxtActive:{ color: Colors.bg },
   card: {
     backgroundColor: Colors.c1, borderRadius: Radius.md,
-    borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: Colors.bd, padding: 14,
   },
-  cardRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  date:     { fontSize: Fonts.sizes.xs, color: Colors.mu },
-  liveBadge:{ backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
-  liveText: { fontSize: 10, fontWeight: '700', color: Colors.white },
-  teams:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  teamName: { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
-  score:    { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.go, minWidth: 60, textAlign: 'center' },
-  vs:       { fontSize: Fonts.sizes.sm, color: Colors.mu, minWidth: 30, textAlign: 'center' },
-  venue:    { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 6 },
+  cardRow:   { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  date:      { fontSize: Fonts.sizes.xs, color: Colors.mu },
+  liveBadge: { backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
+  liveText:  { fontSize: 10, fontWeight: '700', color: Colors.white },
+  teams:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  teamName:  { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
+  score:     { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.go, minWidth: 60, textAlign: 'center' },
+  vs:        { fontSize: Fonts.sizes.sm, color: Colors.mu, minWidth: 30, textAlign: 'center' },
+  venue:     { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 6 },
 });

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { statsApi } from '../../services/api';
+import { statsApi, supervisorApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
 
 type Tab = 'scorers' | 'assisters' | 'mvp' | 'referees';
 
@@ -31,23 +32,42 @@ function StarRow({ avg }: { avg: number }) {
 }
 
 export default function StatsScreen() {
-  const [tab, setTab]         = useState<Tab>('scorers');
-  const [data, setData]       = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tab, setTab]           = useState<Tab>('scorers');
+  const [divisions, setDivisions] = useState<string[]>([]);
+  const [division, setDivision] = useState<string>('Vše');
+  const [data, setData]         = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [refresh, setRefresh]   = useState(false);
+  const [error, setError]       = useState(false);
 
+  // Načti seznam divizí jednou při startu
   useEffect(() => {
-    setLoading(true);
+    supervisorApi.divisions().then(r => {
+      const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
+      setDivisions(divs);
+    }).catch(() => {});
+  }, []);
+
+  async function load(isRefresh = false) {
+    if (!isRefresh) { setLoading(true); setError(false); }
     setData([]);
-    const call =
-      tab === 'scorers'   ? statsApi.scorers()
-      : tab === 'assisters' ? statsApi.assisters()
-      : tab === 'mvp'       ? statsApi.mvp()
-      :                       statsApi.referees();
-    call
-      .then(r => setData(r.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [tab]);
+    const div = division === 'Vše' ? undefined : division;
+    try {
+      const call =
+        tab === 'scorers'   ? statsApi.scorers(div)
+        : tab === 'assisters' ? statsApi.assisters(div)
+        : tab === 'mvp'       ? statsApi.mvp(div)
+        :                       statsApi.referees();
+      const r = await call;
+      setData(r.data);
+    } catch {
+      if (!isRefresh) setError(true);
+    }
+    setLoading(false);
+    setRefresh(false);
+  }
+
+  useEffect(() => { load(); }, [tab, division]);
 
   function getValueLabel(item: any): string {
     if (tab === 'scorers')   return `${item.goals} G`;
@@ -98,6 +118,8 @@ export default function StatsScreen() {
     );
   }
 
+  const divisionList = ['Vše', ...divisions];
+
   return (
     <SafeAreaView style={styles.safe}>
       <Text style={styles.title}>Statistiky</Text>
@@ -117,8 +139,25 @@ export default function StatsScreen() {
         ))}
       </View>
 
+      {/* Division filter (skryj pro rozhodčí) */}
+      {tab !== 'referees' && divisionList.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.divBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+          {divisionList.map(d => (
+            <Pressable
+              key={d}
+              style={[styles.divChip, division === d && styles.divChipActive]}
+              onPress={() => setDivision(d)}
+            >
+              <Text style={[styles.divChipTxt, division === d && styles.divChipTxtActive]}>{d}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
+      ) : error ? (
+        <ErrorView onRetry={() => load()} />
       ) : data.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="stats-chart-outline" size={40} color={Colors.mu} />
@@ -131,6 +170,7 @@ export default function StatsScreen() {
           contentContainerStyle={{ padding: 16 }}
           renderItem={tab === 'referees' ? renderRefereeRow : renderPlayerRow}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
+          refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
         />
       )}
     </SafeAreaView>
@@ -163,9 +203,13 @@ const styles = StyleSheet.create({
   team:     { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   value:    { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.go },
   sep:      { height: 6 },
-  // Rozhodčí specifické
   refMeta:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 3 },
   refCount: { fontSize: Fonts.sizes.xs, color: Colors.di },
   refScore: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   refMax:   { fontSize: Fonts.sizes.sm, color: Colors.mu },
+  divBar:        { flexGrow: 0, marginBottom: 4 },
+  divChip:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  divChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
+  divChipTxt:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
+  divChipTxtActive: { color: Colors.bg },
 });
