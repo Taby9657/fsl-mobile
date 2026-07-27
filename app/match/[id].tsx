@@ -235,15 +235,30 @@ export default function MatchDetailScreen() {
 }
 
 function LineupCol({ title, players }: { title: string; players: any[] }) {
+  const unlicensedCount = players.filter((lp: any) => {
+    const lic = lp.player?.payment?.licStatus;
+    return lic && !['PAID', 'EXEMPT'].includes(lic);
+  }).length;
   return (
     <View style={{ flex: 1 }}>
       <Text style={[s.section, { textAlign: 'center' }]}>{title}</Text>
-      {players.map((lp: any) => (
-        <Pressable key={lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
-          <Text style={s.lineupNum}>{lp.player?.jersey}</Text>
-          <Text style={s.lineupName} numberOfLines={1}>{lp.player?.lastName}</Text>
-        </Pressable>
-      ))}
+      {unlicensedCount > 0 && (
+        <View style={s.licWarn}>
+          <Ionicons name="warning" size={12} color={Colors.red} />
+          <Text style={s.licWarnTxt}>{unlicensedCount}× bez licence</Text>
+        </View>
+      )}
+      {players.map((lp: any) => {
+        const lic = lp.player?.payment?.licStatus;
+        const unlicensed = lic && !['PAID', 'EXEMPT'].includes(lic);
+        return (
+          <Pressable key={lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
+            <Text style={[s.lineupNum, unlicensed && { color: Colors.red }]}>{lp.player?.jersey}</Text>
+            <Text style={s.lineupName} numberOfLines={1}>{lp.player?.lastName}</Text>
+            {unlicensed && <Ionicons name="warning" size={12} color={Colors.red} />}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -295,9 +310,11 @@ const s = StyleSheet.create({
   eventMin:     { width: 28, fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center' },
   eventName:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
   eventSub:     { fontSize: Fonts.sizes.xs, color: Colors.mu },
-  lineupRow:    { flexDirection: 'row', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.bd },
+  lineupRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   lineupNum:    { width: 22, fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
   lineupName:   { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },
+  licWarn:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: `${Colors.red}18`, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 6 },
+  licWarnTxt:   { fontSize: 10, color: Colors.red, fontWeight: '700' },
   infoCard:     { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 16 },
   infoRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   infoLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu },

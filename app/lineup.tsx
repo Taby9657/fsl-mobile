@@ -45,24 +45,48 @@ export default function LineupScreen() {
     });
   }
 
+  function isLicensed(p: any) {
+    return ['PAID', 'EXEMPT'].includes(p.payment?.licStatus);
+  }
+
+  async function doSubmit(force = false) {
+    setSubmitting(true);
+    try {
+      await matchesApi.lineup(
+        selected!.id,
+        teamId!,
+        [...picked].map(id => ({ playerId: id })),
+        force,
+      );
+      Alert.alert('Hotovo', 'Soupiska odeslána!', [{ text: 'OK', onPress: () => router.back() }]);
+    } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 'UNLICENSED_PLAYERS') {
+        const names = (err.response.data.unlicensed as any[])
+          .map((u: any) => `${u.jersey ? `#${u.jersey} ` : ''}${u.firstName} ${u.lastName}`)
+          .join('\n');
+        Alert.alert(
+          '⚠️ Hráči bez licence',
+          `Tito hráči nemají platnou licenci:\n\n${names}\n\nOdeslat soupisku přesto?`,
+          [
+            { text: 'Zrušit', style: 'cancel' },
+            { text: 'Odeslat přesto', style: 'destructive', onPress: () => doSubmit(true) },
+          ],
+        );
+      } else {
+        Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odeslat soupisku');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function submitLineup() {
     if (!selected || picked.size === 0) {
       Alert.alert('Upozornění', 'Vyber zápas a aspoň jednoho hráče.');
       return;
     }
-    setSubmitting(true);
-    try {
-      await matchesApi.lineup(
-        selected.id,
-        teamId!,
-        [...picked].map(id => ({ playerId: id })),
-      );
-      Alert.alert('Hotovo', 'Soupiska odeslána!', [{ text: 'OK', onPress: () => router.back() }]);
-    } catch (err: any) {
-      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odeslat soupisku');
-    } finally {
-      setSubmitting(false);
-    }
+    await doSubmit(false);
   }
 
   return (
@@ -109,14 +133,20 @@ export default function LineupScreen() {
               </Text>
               {players.map(p => {
                 const sel = picked.has(p.id);
+                const lic = isLicensed(p);
                 return (
                   <Pressable key={p.id} style={[s.playerRow, sel && s.playerRowSel]} onPress={() => togglePlayer(p.id)}>
-                    <View style={s.jersey}>
+                    <View style={[s.jersey, { borderColor: lic ? Colors.go : Colors.red }]}>
                       <Text style={s.jerseyNum}>{p.jersey ?? '–'}</Text>
                     </View>
-                    <Text style={[s.playerName, sel && { color: Colors.wh }]}>
-                      {p.firstName} {p.lastName}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.playerName, sel && { color: Colors.wh }]}>
+                        {p.firstName} {p.lastName}
+                      </Text>
+                      {!lic && (
+                        <Text style={s.noLicTxt}>⚠️ bez licence</Text>
+                      )}
+                    </View>
                     <Ionicons
                       name={sel ? 'checkmark-circle' : 'ellipse-outline'}
                       size={20}
@@ -160,7 +190,8 @@ const s = StyleSheet.create({
   matchVenue:     { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 1 },
   playerRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.c1, borderRadius: Radius.md, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: Colors.bd },
   playerRowSel:   { borderColor: Colors.go, backgroundColor: Colors.c2 },
-  jersey:         { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center' },
+  jersey:         { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5 },
+  noLicTxt:       { fontSize: 10, color: Colors.red, marginTop: 1 },
   jerseyNum:      { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
   playerName:     { flex: 1, fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '500' },
   submitBtn:      { backgroundColor: Colors.go, borderRadius: Radius.md, height: 50, justifyContent: 'center', alignItems: 'center', marginTop: 20 },

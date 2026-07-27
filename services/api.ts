@@ -104,8 +104,8 @@ export const matchesApi = {
   deleteEvent:     (id: string, eventId: string) => api.delete(`/matches/${id}/events/${eventId}`),
   startMatch:      (id: string)    => api.post(`/matches/${id}/start`),
   endMatch:        (id: string)    => api.post(`/matches/${id}/end`),
-  lineup:          (matchId: string, teamId: string, players: any[]) =>
-    api.put(`/matches/${matchId}/lineup/${teamId}`, { players }),
+  lineup:          (matchId: string, teamId: string, players: any[], force = false) =>
+    api.put(`/matches/${matchId}/lineup/${teamId}`, { players, force }),
   postmatch:       (matchId: string, teamId: string, data: any) =>
     api.put(`/matches/${matchId}/postmatch/${teamId}`, data),
   submitPostmatch: (matchId: string, teamId: string) =>

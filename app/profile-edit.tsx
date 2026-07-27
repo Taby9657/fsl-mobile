@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
@@ -25,8 +26,35 @@ export default function ProfileEditScreen() {
     phone:     player?.phone     ?? '',
     birthdate: player?.birthdate ? player.birthdate.split('T')[0] : '',
   });
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving]       = useState(false);
+  const [errors, setErrors]       = useState<Record<string, string>>({});
+  const [photoUri, setPhotoUri]   = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  async function pickPhoto() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('Oprávnění', 'Potřebuji přístup ke galerii'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const uri = result.assets[0].uri;
+    setPhotoUri(uri);
+    if (!player?.id) return;
+    setUploadingPhoto(true);
+    try {
+      await playersApi.uploadPhoto(player.id, uri);
+      await refreshUser();
+    } catch {
+      Alert.alert('Chyba', 'Nepodařilo se nahrát fotku');
+      setPhotoUri(null);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   function set(key: string, val: string) {
     setForm(f => ({ ...f, [key]: val }));
@@ -119,6 +147,26 @@ export default function ProfileEditScreen() {
       </View>
 
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+
+        {/* Foto */}
+        <Pressable style={s.avatarWrap} onPress={pickPhoto} disabled={uploadingPhoto}>
+          {photoUri || player.photoUrl ? (
+            <Image source={{ uri: photoUri ?? player.photoUrl }} style={s.avatarImg} />
+          ) : (
+            <View style={s.avatarPlaceholder}>
+              <Text style={s.avatarInitials}>
+                {(player.firstName?.[0] ?? '?')}{(player.lastName?.[0] ?? '')}
+              </Text>
+            </View>
+          )}
+          <View style={s.cameraIcon}>
+            {uploadingPhoto
+              ? <ActivityIndicator size="small" color={Colors.wh} />
+              : <Ionicons name="camera" size={16} color={Colors.wh} />
+            }
+          </View>
+        </Pressable>
+
         <View style={s.section}>
           <Text style={s.sectionLabel}>Osobní údaje</Text>
           <View style={s.card}>
@@ -218,8 +266,13 @@ const s = StyleSheet.create({
   saveBtn:    { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '700' },
   center:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty:      { color: Colors.mu },
-  scroll:     { padding: 16, gap: 16 },
-  section:    { gap: 6 },
+  scroll:     { padding: 16, gap: 16, alignItems: 'center' },
+  avatarWrap: { position: 'relative', marginBottom: 8 },
+  avatarImg:  { width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: Colors.go },
+  avatarPlaceholder: { width: 88, height: 88, borderRadius: 44, backgroundColor: Colors.c2, borderWidth: 2, borderColor: Colors.go, justifyContent: 'center', alignItems: 'center' },
+  avatarInitials: { fontSize: Fonts.sizes.xl, fontWeight: '800', color: Colors.go },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.go, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: Colors.bg },
+  section:    { gap: 6, width: '100%' },
   sectionLabel:{ fontSize: 11, color: Colors.mu, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   card:       { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
   fieldWrap:  { padding: 14 },
@@ -231,7 +284,7 @@ const s = StyleSheet.create({
   pillActive: { backgroundColor: Colors.go, borderColor: Colors.go },
   pillTxt:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
   pillTxtActive:{ color: Colors.bg },
-  submitBtn:  { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 8 },
+  submitBtn:  { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginTop: 8, width: '100%' },
   submitTxt:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   errorTxt:   { fontSize: Fonts.sizes.xs, color: Colors.red, marginTop: 4 },
   leaveBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderTopWidth: 1, borderTopColor: Colors.bd },
