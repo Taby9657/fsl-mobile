@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,10 +10,10 @@ import { Colors, Fonts, Radius } from '../../constants/colors';
 type Tab = 'events' | 'lineups' | 'info';
 
 const STATUS_LABEL: Record<string, string> = {
-  UPCOMING: 'Nadcházející', LIVE: 'LIVE', PLAYED: 'Odehráno', CANCELLED: 'Zrušeno',
+  UPCOMING: 'Nadcházející', LIVE: 'LIVE', DONE: 'Odehráno', CANCELLED: 'Zrušeno',
 };
 const STATUS_COLOR: Record<string, string> = {
-  UPCOMING: Colors.mu, LIVE: Colors.red, PLAYED: Colors.green, CANCELLED: Colors.di,
+  UPCOMING: Colors.mu, LIVE: Colors.red, DONE: Colors.green, CANCELLED: Colors.di,
 };
 
 function fmt(iso: string) {
@@ -26,12 +26,29 @@ export default function MatchDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [match, setMatch]     = useState<any>(null);
   const [tab, setTab]         = useState<Tab>('events');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function fetchMatch(isBackground = false) {
+    if (!id) return;
+    try {
+      const r = await matchesApi.get(id);
+      setMatch(r.data);
+      // Start/stop polling based on live status
+      if (r.data.status === 'LIVE' && !pollRef.current) {
+        pollRef.current = setInterval(() => fetchMatch(true), 15_000);
+      } else if (r.data.status !== 'LIVE' && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    } catch { /* silent on background refresh */ }
+    if (!isBackground) setLoading(false);
+  }
 
   useEffect(() => {
-    if (!id) return;
-    matchesApi.get(id)
-      .then(r => setMatch(r.data))
-      .finally(() => setLoading(false));
+    fetchMatch();
+    return () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
   }, [id]);
 
   if (loading) return (
@@ -53,7 +70,7 @@ export default function MatchDetailScreen() {
     </SafeAreaView>
   );
 
-  const isPlayed = match.status === 'PLAYED';
+  const isPlayed = match.status === 'DONE';
   const goals    = (match.events ?? []).filter((e: any) => e.type === 'GOAL');
   const penalties= (match.events ?? []).filter((e: any) => e.type === 'PENALTY');
 
