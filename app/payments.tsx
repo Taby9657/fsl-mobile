@@ -11,7 +11,7 @@ import { SkeletonBlock } from '../components/SkeletonCard';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
 
-type PayStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXEMPT';
+type PayStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'WAIVED';
 
 interface PlayerPayment {
   id: string;
@@ -47,22 +47,22 @@ interface HomeMatch {
 const STATUS_LABEL: Record<PayStatus, string> = {
   PENDING: 'Čeká na platbu',
   PAID:    'Zaplaceno',
-  FAILED:  'Neúspěšná platba',
-  EXEMPT:  'Osvobozeno',
+  OVERDUE: 'Po splatnosti',
+  WAIVED:  'Odpuštěno',
 };
 
 const STATUS_COLOR: Record<PayStatus, string> = {
   PENDING: '#F59E0B',
   PAID:    Colors.green,
-  FAILED:  Colors.red,
-  EXEMPT:  Colors.mu,
+  OVERDUE: Colors.red,
+  WAIVED:  Colors.mu,
 };
 
 const STATUS_ICON: Record<PayStatus, keyof typeof Ionicons.glyphMap> = {
   PENDING: 'time-outline',
   PAID:    'checkmark-circle',
-  FAILED:  'close-circle',
-  EXEMPT:  'shield-checkmark-outline',
+  OVERDUE: 'alert-circle',
+  WAIVED:  'shield-checkmark-outline',
 };
 
 const BANK_IBAN = 'CZ6508000000192000145399';

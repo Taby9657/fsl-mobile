@@ -7,13 +7,13 @@ import { supervisorApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type Tab = 'players' | 'teams';
-type PayStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXEMPT';
+type PayStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'WAIVED';
 
 const S_COLOR: Record<PayStatus, string> = {
-  PAID: Colors.green, PENDING: '#F59E0B', FAILED: Colors.red, EXEMPT: Colors.mu,
+  PAID: Colors.green, PENDING: '#F59E0B', OVERDUE: Colors.red, WAIVED: Colors.mu,
 };
 const S_LABEL: Record<PayStatus, string> = {
-  PAID: 'Zaplaceno', PENDING: 'Čeká', FAILED: 'Selhalo', EXEMPT: 'Osvobozeno',
+  PAID: 'Zaplaceno', PENDING: 'Čeká', OVERDUE: 'Po splatnosti', WAIVED: 'Odpuštěno',
 };
 
 function StatusBadge({ status }: { status: PayStatus }) {
@@ -147,7 +147,7 @@ export default function SuperPaymentsScreen() {
                     </Pressable>
                   )}
                 </View>
-                {item.superStatus !== 'EXEMPT' && (
+                {item.superStatus !== 'WAIVED' && item.superStatus !== 'PAID' && (
                   <View style={[s.licRow, { marginTop: 8 }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.licLabel}>Super licence ({item.superFee} Kč)</Text>
