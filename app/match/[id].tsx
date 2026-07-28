@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Share } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Share, Linking, Alert } from 'react-native';
 import { LiveBadge } from '../../components/LiveBadge';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -89,10 +89,14 @@ export default function MatchDetailScreen() {
     if (!starRating || !match.referee) return;
     setRatingBusy(true);
     try {
-      await refereesApi.rate(match.referee.id, id, starRating);
+      await refereesApi.rate(match.referee.id, id!, starRating);
       setRatingDone(true);
-    } catch { /* tichá chyba */ }
-    setRatingBusy(false);
+    } catch (e: any) {
+      const msg = e?.response?.data?.error ?? 'Hodnocení se nepodařilo odeslat. Zkus to znovu.';
+      Alert.alert('Chyba', msg);
+    } finally {
+      setRatingBusy(false);
+    }
   }
   // Unified chronological timeline
   const timeline = [...(match.events ?? [])].sort((a: any, b: any) => a.minute - b.minute);
@@ -120,6 +124,31 @@ export default function MatchDetailScreen() {
             <Pressable style={s.scoreBtn} onPress={() => router.push(`/match/${id}/score` as any)}>
               <Ionicons name="football" size={14} color={Colors.bg} />
               <Text style={s.scoreBtnTxt}>Skórovat</Text>
+            </Pressable>
+          )}
+          {match.status === 'UPCOMING' && (
+            <Pressable
+              style={s.shareBtn}
+              onPress={() => {
+                const start  = new Date(match.date);
+                const end    = new Date(start.getTime() + 90 * 60 * 1000);
+                const fmt_dt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                const title  = encodeURIComponent(`${match.homeTeam?.abbr} vs ${match.awayTeam?.abbr}`);
+                const loc    = encodeURIComponent(match.venue ?? 'FSL');
+                const ics    = [
+                  'BEGIN:VCALENDAR', 'VERSION:2.0',
+                  'BEGIN:VEVENT',
+                  `DTSTART:${fmt_dt(start)}`,
+                  `DTEND:${fmt_dt(end)}`,
+                  `SUMMARY:${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
+                  `LOCATION:${match.venue ?? ''}`,
+                  'END:VEVENT', 'END:VCALENDAR',
+                ].join('\r\n');
+                const uri = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+                Linking.openURL(uri).catch(() => {});
+              }}
+            >
+              <Ionicons name="calendar-outline" size={20} color={Colors.mu} />
             </Pressable>
           )}
           <Pressable
@@ -312,7 +341,7 @@ export default function MatchDetailScreen() {
 function LineupCol({ title, players }: { title: string; players: any[] }) {
   const unlicensedCount = players.filter((lp: any) => {
     const lic = lp.player?.payment?.licStatus;
-    return lic && !['PAID', 'EXEMPT'].includes(lic);
+    return lic && !['PAID', 'WAIVED'].includes(lic);
   }).length;
   return (
     <View style={{ flex: 1 }}>
@@ -325,7 +354,7 @@ function LineupCol({ title, players }: { title: string; players: any[] }) {
       )}
       {players.map((lp: any) => {
         const lic = lp.player?.payment?.licStatus;
-        const unlicensed = lic && !['PAID', 'EXEMPT'].includes(lic);
+        const unlicensed = lic && !['PAID', 'WAIVED'].includes(lic);
         return (
           <Pressable key={lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
             <Text style={[s.lineupNum, unlicensed && { color: Colors.red }]}>{lp.player?.jersey}</Text>

@@ -88,6 +88,23 @@ export default function PostMatchScreen() {
     }
   }
 
+  // UX-02: guard pro non-manažery
+  if (!loading && !teamId) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.header}>
+        <Pressable onPress={() => router.back()} style={s.back}>
+          <Ionicons name="chevron-back" size={24} color={Colors.wh} />
+        </Pressable>
+        <Text style={s.title}>Po-zápasový formulář</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={s.center}>
+        <Ionicons name="lock-closed-outline" size={48} color={Colors.mu} />
+        <Text style={s.empty}>Formulář je dostupný pouze pro manažery týmů</Text>
+      </View>
+    </SafeAreaView>
+  );
+
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>

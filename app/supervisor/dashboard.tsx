@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert, Share, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supervisorApi } from '../../services/api';
+import { supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 import { SkeletonBlock } from '../../components/SkeletonCard';
@@ -140,6 +140,7 @@ export default function DashboardScreen() {
             label="Otevřené žádosti"
             value={stats?.pendingRequests ?? 0}
             color={(stats?.pendingRequests ?? 0) > 0 ? '#F59E0B' : Colors.green}
+            route="/supervisor/requests"
           />
 
           <Text style={[s.section, { marginTop: 20 }]}>Správa ligy</Text>
@@ -162,6 +163,7 @@ export default function DashboardScreen() {
               { icon: 'person-add', label: 'Schvalovací fronta', route: '/supervisor/referees' },
               { icon: 'football',   label: 'Správa zápasů',      route: '/supervisor/matches' },
               { icon: 'cash',       label: 'Přehled plateb',     route: '/supervisor/payments' },
+              { icon: 'podium',     label: 'Play-off pavouk',    route: '/bracket' },
             ].map(a => (
               <Pressable key={a.route} style={s.actionBtn} onPress={() => router.push(a.route as any)}>
                 <Ionicons name={a.icon as any} size={20} color={Colors.pu} />
@@ -169,6 +171,24 @@ export default function DashboardScreen() {
                 <Ionicons name="chevron-forward" size={14} color={Colors.di} />
               </Pressable>
             ))}
+          </View>
+
+          <Text style={[s.section, { marginTop: 20 }]}>Export dat</Text>
+          <View style={s.exportRow}>
+            <Pressable style={s.exportBtn} onPress={() => {
+              const url = statsApi.exportUrl('players');
+              Linking.openURL(url).catch(() => Alert.alert('Chyba', 'Nelze otevřít odkaz'));
+            }}>
+              <Ionicons name="people-outline" size={18} color={Colors.go} />
+              <Text style={s.exportTxt}>Hráči CSV</Text>
+            </Pressable>
+            <Pressable style={s.exportBtn} onPress={() => {
+              const url = statsApi.exportUrl('referees');
+              Linking.openURL(url).catch(() => Alert.alert('Chyba', 'Nelze otevřít odkaz'));
+            }}>
+              <Ionicons name="shield-outline" size={18} color={Colors.go} />
+              <Text style={s.exportTxt}>Rozhodčí CSV</Text>
+            </Pressable>
           </View>
           <View style={{ height: 32 }} />
         </ScrollView>
@@ -194,4 +214,7 @@ const s = StyleSheet.create({
   actionTxt:   { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
   alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B18', borderWidth: 1, borderColor: '#F59E0B44', borderRadius: Radius.md, padding: 12, marginBottom: 16 },
   alertTxt:    { flex: 1, fontSize: Fonts.sizes.sm, color: '#F59E0B', fontWeight: '600' },
+  exportRow:   { flexDirection: 'row', gap: 10 },
+  exportBtn:   { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14 },
+  exportTxt:   { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.go },
 });

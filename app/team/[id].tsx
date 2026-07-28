@@ -209,7 +209,7 @@ export default function TeamDetailScreen() {
                   </Pressable>
                 );
               })
-            }
+            )}
             </>
           )}
         </View>

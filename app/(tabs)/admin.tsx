@@ -285,6 +285,12 @@ export default function AdminScreen() {
           </View>
         )}
 
+        {/* Nastavení */}
+        <Pressable style={styles.settingsBtn} onPress={() => router.push('/settings' as any)}>
+          <Ionicons name="settings-outline" size={16} color={Colors.mu} />
+          <Text style={styles.logoutText}>Nastavení</Text>
+        </Pressable>
+
         {/* Odhlásit */}
         <Pressable style={styles.logoutBtn} onPress={logout}>
           <Text style={styles.logoutText}>Odhlásit se</Text>
@@ -334,6 +340,7 @@ const styles = StyleSheet.create({
   btnText:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   leaveBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: Colors.red, borderRadius: Radius.md, padding: 14, marginTop: 8 },
   leaveTxt:     { fontSize: Fonts.sizes.md, color: Colors.red, fontWeight: '600' },
+  settingsBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, marginTop: 8 },
   logoutBtn:    { borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, alignItems: 'center', marginTop: 8 },
   logoutText:   { fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '600' },
   seasonInput:  { backgroundColor: Colors.c2, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.sm, padding: 12, color: Colors.wh, fontSize: Fonts.sizes.md, marginBottom: 10 },

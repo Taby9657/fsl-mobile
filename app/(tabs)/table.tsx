@@ -51,7 +51,9 @@ export default function TableScreen() {
   const title = division ?? 'Tabulka';
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator color={Colors.go} size="large" /></View>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.center}><ActivityIndicator color={Colors.go} size="large" /></View>
+    </SafeAreaView>
   );
 
   if (error) return (

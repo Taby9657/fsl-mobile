@@ -92,8 +92,13 @@ export default function LiveScoreScreen() {
   }
 
   async function submitGoal() {
-    if (!goalMinute || !goalScorer) {
-      Alert.alert('Chybí údaje', 'Zadej minutu a střelce');
+    const minuteNum = parseInt(goalMinute);
+    if (!goalMinute || isNaN(minuteNum) || minuteNum < 0 || minuteNum > 200) {
+      Alert.alert('Chybí údaje', 'Zadej platnou minutu (0–200)');
+      return;
+    }
+    if (!goalScorer) {
+      Alert.alert('Chybí údaje', 'Vyber střelce');
       return;
     }
     const teamId = goalTeam === 'home' ? match.homeTeamId : match.awayTeamId;
@@ -101,7 +106,7 @@ export default function LiveScoreScreen() {
     try {
       await matchesApi.addEvent(id!, {
         type:    'GOAL',
-        minute:  parseInt(goalMinute),
+        minute:  minuteNum,
         period:  parseInt(goalPeriod),
         teamId,
         scorerId:  goalScorer  || undefined,
@@ -117,8 +122,13 @@ export default function LiveScoreScreen() {
   }
 
   async function submitPenalty() {
-    if (!penMinute || !penPlayer) {
-      Alert.alert('Chybí údaje', 'Zadej minutu a hráče');
+    const penMinuteNum = parseInt(penMinute);
+    if (!penMinute || isNaN(penMinuteNum) || penMinuteNum < 0 || penMinuteNum > 200) {
+      Alert.alert('Chybí údaje', 'Zadej platnou minutu (0–200)');
+      return;
+    }
+    if (!penPlayer) {
+      Alert.alert('Chybí údaje', 'Vyber hráče');
       return;
     }
     const teamId = penTeam === 'home' ? match.homeTeamId : match.awayTeamId;
@@ -126,7 +136,7 @@ export default function LiveScoreScreen() {
     try {
       await matchesApi.addEvent(id!, {
         type:        'PENALTY',
-        minute:      parseInt(penMinute),
+        minute:      penMinuteNum,
         period:      1,
         teamId,
         penaltyId:   penPlayer   || undefined,

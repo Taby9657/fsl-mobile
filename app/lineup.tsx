@@ -46,7 +46,7 @@ export default function LineupScreen() {
   }
 
   function isLicensed(p: any) {
-    return ['PAID', 'EXEMPT'].includes(p.payment?.licStatus);
+    return ['PAID', 'WAIVED'].includes(p.payment?.licStatus);
   }
 
   async function doSubmit(force = false) {

@@ -235,6 +235,10 @@ export default function StatsScreen() {
       {/* Hlavička + season selector */}
       <View style={styles.titleRow}>
         <Text style={styles.title}>Statistiky</Text>
+        <Pressable onPress={() => router.push('/compare' as any)} style={styles.compareBtn}>
+          <Ionicons name="git-compare-outline" size={16} color={Colors.go} />
+          <Text style={styles.compareTxt}>Porovnat</Text>
+        </Pressable>
         {seasons.length > 1 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }}>
             {seasons.map(s => (
@@ -306,7 +310,9 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: Colors.bg },
   titleRow:     { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingTop: 16, paddingBottom: 8, gap: 12 },
-  title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh },
+  title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, flex: 1 },
+  compareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: `${Colors.go}18`, borderRadius: Radius.full, borderWidth: 1, borderColor: `${Colors.go}44`, marginRight: 16 },
+  compareTxt:   { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
   seasonChip:   { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
   seasonTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },

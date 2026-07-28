@@ -23,7 +23,8 @@ interface AuthState {
   refreshUser: () => Promise<void>;
 }
 
-const TESTER_USER: User = {
+// SEC-01: TESTER_USER je dostupný pouze v development buildu
+const TESTER_USER: User | null = __DEV__ ? {
   id: 'tester-001',
   email: 'tester@fsl.cz',
   player: {
@@ -47,7 +48,7 @@ const TESTER_USER: User = {
       team: { id: 'tester-team', name: 'Testovací tým', abbr: 'TST', color: '#00C851' },
     },
   ],
-};
+} : null;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user:    null,
@@ -70,6 +71,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loginAsTester: () => {
+    if (!__DEV__ || !TESTER_USER) return; // SEC-01: blokováno v produkci
     set({ token: 'TESTER_TOKEN', user: TESTER_USER, isGuest: false, loading: false });
   },
 
@@ -77,9 +79,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const token = await SecureStore.getItemAsync('fsl_token');
       if (!token) { set({ loading: false }); return; }
-      // Tester token – nevytahuj z API
+      // Tester token – nevytahuj z API (pouze __DEV__)
       if (token === 'TESTER_TOKEN') {
-        set({ token, user: TESTER_USER, loading: false });
+        if (__DEV__ && TESTER_USER) {
+          set({ token, user: TESTER_USER, loading: false });
+        } else {
+          // Produkce: tester token není platný → odhlásit
+          await SecureStore.deleteItemAsync('fsl_token');
+          set({ token: null, user: null, loading: false });
+        }
         return;
       }
       set({ token });

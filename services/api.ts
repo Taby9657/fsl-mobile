@@ -97,6 +97,7 @@ export const playersApi = {
 // ==================== ZÁPASY ====================
 export const matchesApi = {
   list:            (params?: any)  => api.get('/matches', { params }),
+  bracket:         (division?: string, season?: string) => api.get('/matches/bracket', { params: { division, season } }),
   get:             (id: string)    => api.get(`/matches/${id}`),
   create:          (data: any)     => api.post('/matches', data),
   update:          (id: string, data: any) => api.put(`/matches/${id}`, data),
@@ -145,6 +146,11 @@ export const statsApi = {
   points:   (division?: string, season?: string) => api.get('/stats/points',   { params: { division, season } }),
   mvp:      (division?: string, season?: string) => api.get('/stats/mvp',      { params: { division, season } }),
   referees: (season?: string)                    => api.get('/stats/referees', { params: { season } }),
+  exportUrl:(type: string, division?: string, season?: string) => {
+    const base = api.defaults.baseURL ?? '';
+    const params = new URLSearchParams({ type, ...(division ? { division } : {}), ...(season ? { season } : {}) });
+    return `${base}/stats/export?${params.toString()}`;
+  },
 };
 
 // ==================== PUSH TOKEN ====================
@@ -231,4 +237,8 @@ export const supervisorApi = {
   // Sezóna
   newSeason: (newSeason: string, cancelPending?: boolean) =>
     api.post('/supervisor/new-season', { newSeason, cancelPending }),
+
+  // Žádosti
+  requests: (status?: string) => api.get('/supervisor/requests', { params: status ? { status } : {} }),
+  updateRequest: (id: string, data: any) => api.put(`/supervisor/requests/${id}`, data),
 };

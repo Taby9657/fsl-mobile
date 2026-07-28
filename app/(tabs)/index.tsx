@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
+import { cacheGet, cacheSet } from '../../utils/cache';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { LiveBadge } from '../../components/LiveBadge';
 import { SkeletonMatchCard, SkeletonTableRow, SkeletonHighlightCard } from '../../components/SkeletonCard';
@@ -48,6 +49,19 @@ export default function HomeScreen() {
   }
 
   async function load() {
+    // Zobraz cache okamžitě (rychlý start)
+    const [cachedMatches, cachedTable, cachedHighlights, cachedSeasons] = await Promise.all([
+      cacheGet<any[]>('home_matches'),
+      cacheGet<any[]>('home_table'),
+      cacheGet<any[]>('home_highlights'),
+      cacheGet<string[]>('home_seasons'),
+    ]);
+    if (cachedMatches)   setMatches(cachedMatches);
+    if (cachedTable)     setTable(cachedTable);
+    if (cachedHighlights) setHighlights(cachedHighlights);
+    if (cachedSeasons?.length) setCurrentSeason(cachedSeasons[0]);
+    if (cachedMatches || cachedTable) setLoading(false);
+
     const [mRes, lRes, tRes, hRes, nRes, sRes] = await Promise.allSettled([
       matchesApi.list({ limit: '3', status: 'UPCOMING' }),
       matchesApi.list({ status: 'LIVE' }),
@@ -56,16 +70,26 @@ export default function HomeScreen() {
       (!isGuest && user) ? notificationsApi.list() : Promise.resolve(null),
       statsApi.seasons(),
     ]);
-    if (mRes.status === 'fulfilled') setMatches(mRes.value.data ?? []);
+    if (mRes.status === 'fulfilled') {
+      setMatches(mRes.value.data ?? []);
+      cacheSet('home_matches', mRes.value.data ?? []);
+    }
     if (lRes.status === 'fulfilled') setLiveMatches(lRes.value.data ?? []);
-    if (tRes.status === 'fulfilled') setTable((tRes.value.data ?? []).slice(0, 5));
-    if (hRes.status === 'fulfilled') setHighlights(hRes.value.data ?? []);
+    if (tRes.status === 'fulfilled') {
+      const t = (tRes.value.data ?? []).slice(0, 5);
+      setTable(t);
+      cacheSet('home_table', t);
+    }
+    if (hRes.status === 'fulfilled') {
+      setHighlights(hRes.value.data ?? []);
+      cacheSet('home_highlights', hRes.value.data ?? []);
+    }
     if (nRes.status === 'fulfilled' && nRes.value) {
       setNotifs((nRes.value.data ?? []).filter((n: any) => !n.read).slice(0, 3));
     }
     if (sRes.status === 'fulfilled') {
       const ss: string[] = sRes.value.data ?? [];
-      if (ss.length > 0) setCurrentSeason(ss[0]);
+      if (ss.length > 0) { setCurrentSeason(ss[0]); cacheSet('home_seasons', ss); }
     }
     setLoading(false);
     setRefresh(false);
