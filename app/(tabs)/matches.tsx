@@ -49,8 +49,8 @@ export default function MatchesScreen() {
     if (!isRefresh) { setLoading(true); setError(false); }
     try {
       const params: Record<string, string> = { status: filter, limit: '50' };
-      if (division) params.division = division;
-      if (season)   params.season   = season;
+      if (division)                params.division = division;
+      if (season && filter === 'DONE') params.season = season; // season filter platí jen pro odehrané
       const r = await matchesApi.list(params);
       setMatches(r.data);
     } catch {

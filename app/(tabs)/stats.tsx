@@ -6,13 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { statsApi, supervisorApi, playersApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
+import { SkeletonTableRow } from '../../components/SkeletonCard';
 
-type Tab = 'scorers' | 'assisters' | 'mvp' | 'referees' | 'mine';
+type Tab = 'scorers' | 'assisters' | 'body' | 'mvp' | 'referees' | 'mine';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'mine',      label: 'Moje' },
   { key: 'scorers',   label: 'Střelci' },
   { key: 'assisters', label: 'Nahrávači' },
+  { key: 'body',      label: 'Body' },
   { key: 'mvp',       label: 'MVP' },
   { key: 'referees',  label: 'Rozhodčí' },
 ];
@@ -89,6 +91,7 @@ export default function StatsScreen() {
       const call =
         tab === 'scorers'   ? statsApi.scorers(div, season)
         : tab === 'assisters' ? statsApi.assisters(div, season)
+        : tab === 'body'      ? statsApi.points(div, season)
         : tab === 'mvp'       ? statsApi.mvp(div, season)
         :                       statsApi.referees(season);
       const r = await call;
@@ -105,6 +108,7 @@ export default function StatsScreen() {
   function getValueLabel(item: any): string {
     if (tab === 'scorers')   return `${item.goals} G`;
     if (tab === 'assisters') return `${item.assists} A`;
+    if (tab === 'body')      return `${item.points ?? (item.goals + item.assists)} B`;
     if (tab === 'mvp')       return `${item.votes}×`;
     return '';
   }
@@ -120,7 +124,10 @@ export default function StatsScreen() {
           <Text style={styles.name}>
             {item.player?.firstName} {item.player?.lastName}
           </Text>
-          <Text style={styles.team}>{item.player?.team?.abbr}</Text>
+          <Text style={styles.team}>
+            {item.player?.team?.abbr}
+            {tab === 'body' ? `  ·  ${item.goals}G  ${item.assists}A` : ''}
+          </Text>
         </View>
         <Text style={styles.value}>{getValueLabel(item)}</Text>
       </Pressable>
@@ -270,7 +277,11 @@ export default function StatsScreen() {
       )}
 
       {tab === 'mine' ? renderMineContent() : loading ? (
-        <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
+        <View style={styles.skeletonCard}>
+          {Array.from({ length: 10 }).map((_, i) => (
+            <SkeletonTableRow key={i} last={i === 9} />
+          ))}
+        </View>
       ) : error ? (
         <ErrorView onRetry={() => load()} />
       ) : data.length === 0 ? (
@@ -343,4 +354,5 @@ const styles = StyleSheet.create({
   divChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
   divChipTxt:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
   divChipTxtActive: { color: Colors.bg },
+  skeletonCard:  { margin: 16, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
 });

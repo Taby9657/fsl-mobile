@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supervisorApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
+import { SkeletonBlock } from '../../components/SkeletonCard';
 
 interface Stats {
   pendingReferees: number;
@@ -31,16 +33,41 @@ function StatCard({ icon, label, value, color, route }: { icon: any; label: stri
   );
 }
 
-export default function DashboardScreen() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats]     = useState<Stats | null>(null);
+function SkeletonStatCard() {
+  return (
+    <View style={[s.statCard, { borderLeftColor: Colors.bd }]}>
+      <SkeletonBlock width={36} height={36} style={{ borderRadius: 8 }} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <SkeletonBlock width="40%" height={20} />
+        <SkeletonBlock width="70%" height={11} />
+      </View>
+    </View>
+  );
+}
 
-  useEffect(() => {
-    supervisorApi.dashboard()
-      .then(r => setStats(r.data))
-      .catch(() => Alert.alert('Chyba', 'Nepodařilo se načíst statistiky'))
-      .finally(() => setLoading(false));
-  }, []);
+export default function DashboardScreen() {
+  const [loading, setLoading]   = useState(true);
+  const [refresh, setRefresh]   = useState(false);
+  const [error, setError]       = useState(false);
+  const [stats, setStats]       = useState<Stats | null>(null);
+
+  async function load(isRefresh = false) {
+    if (!isRefresh) { setLoading(true); setError(false); }
+    try {
+      const r = await supervisorApi.dashboard();
+      setStats(r.data);
+    } catch {
+      if (!isRefresh) setError(true);
+      else Alert.alert('Chyba', 'Nepodařilo se obnovit statistiky');
+    } finally {
+      setLoading(false);
+      setRefresh(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const hasPending = (stats?.pendingReferees ?? 0) > 0 || (stats?.pendingRequests ?? 0) > 0;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -49,17 +76,50 @@ export default function DashboardScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.wh} />
         </Pressable>
         <Text style={s.title}>Dashboard</Text>
-        <View style={{ width: 40 }} />
+        <Pressable style={s.refreshBtn} onPress={() => { setRefresh(true); load(true); }}>
+          <Ionicons name="refresh" size={20} color={Colors.mu} />
+        </Pressable>
       </View>
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+          <View style={s.grid}>
+            <SkeletonStatCard /><SkeletonStatCard />
+          </View>
+          <View style={s.grid}>
+            <SkeletonStatCard /><SkeletonStatCard />
+          </View>
+          <SkeletonBlock height={14} width="50%" style={{ marginTop: 10, marginBottom: 6 }} />
+          <SkeletonStatCard />
+          <SkeletonStatCard />
+          <SkeletonBlock height={14} width="40%" style={{ marginTop: 10, marginBottom: 6 }} />
+          {[1, 2].map(i => <SkeletonBlock key={i} height={48} width="100%" style={{ borderRadius: 10 }} />)}
+        </ScrollView>
+      ) : error ? (
+        <ErrorView onRetry={() => load()} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
+        >
+          {/* Alert banner pokud čeká akce */}
+          {hasPending && (
+            <Pressable style={s.alertBanner} onPress={() => router.push('/supervisor/referees' as any)}>
+              <Ionicons name="warning" size={16} color='#F59E0B' />
+              <Text style={s.alertTxt}>
+                {[
+                  (stats?.pendingReferees ?? 0) > 0 && `${stats!.pendingReferees} rozhodčích čeká na schválení`,
+                  (stats?.pendingRequests ?? 0) > 0 && `${stats!.pendingRequests} žádostí čeká na vyřízení`,
+                ].filter(Boolean).join('  ·  ')}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color='#F59E0B' />
+            </Pressable>
+          )}
+
           <Text style={s.section}>Celkový přehled</Text>
           <View style={s.grid}>
-            <StatCard icon="people" label="Celkem hráčů"  value={stats?.totalPlayers ?? 0} />
-            <StatCard icon="shield" label="Celkem týmů"   value={stats?.totalTeams ?? 0} />
+            <StatCard icon="people"   label="Celkem hráčů"  value={stats?.totalPlayers ?? 0} />
+            <StatCard icon="shield"   label="Celkem týmů"   value={stats?.totalTeams ?? 0} />
           </View>
           <View style={s.grid}>
             <StatCard icon="football" label="Nadch. zápasů" value={stats?.upcomingMatches ?? 0} color={Colors.pu} />
@@ -71,7 +131,7 @@ export default function DashboardScreen() {
             icon="person-add"
             label="Rozhodčí čekají na schválení"
             value={stats?.pendingReferees ?? 0}
-            color={stats?.pendingReferees ? '#F59E0B' : Colors.green}
+            color={(stats?.pendingReferees ?? 0) > 0 ? '#F59E0B' : Colors.green}
             route="/supervisor/referees"
           />
           <View style={{ height: 10 }} />
@@ -79,14 +139,14 @@ export default function DashboardScreen() {
             icon="document-text"
             label="Otevřené žádosti"
             value={stats?.pendingRequests ?? 0}
-            color={stats?.pendingRequests ? '#F59E0B' : Colors.green}
+            color={(stats?.pendingRequests ?? 0) > 0 ? '#F59E0B' : Colors.green}
           />
 
           <Text style={[s.section, { marginTop: 20 }]}>Správa ligy</Text>
           <View style={s.actions}>
             {[
-              { icon: 'shield',        label: 'Správa týmů',        route: '/supervisor/teams',   color: Colors.go },
-              { icon: 'calendar',      label: 'Rozlosování',         route: '/supervisor/league',  color: Colors.go },
+              { icon: 'shield',   label: 'Správa týmů',  route: '/supervisor/teams',  color: Colors.go },
+              { icon: 'calendar', label: 'Rozlosování',  route: '/supervisor/league', color: Colors.go },
             ].map(a => (
               <Pressable key={a.route} style={s.actionBtn} onPress={() => router.push(a.route as any)}>
                 <Ionicons name={a.icon as any} size={20} color={a.color} />
@@ -118,18 +178,20 @@ export default function DashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  safe:       { flex: 1, backgroundColor: Colors.bg },
-  header:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
-  back:       { width: 40, height: 40, justifyContent: 'center' },
-  title:      { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
-  center:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  section:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  grid:       { flexDirection: 'row', gap: 10, marginBottom: 10 },
-  statCard:   { flex: 1, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, borderLeftWidth: 4, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  statIcon:   { width: 36, height: 36, borderRadius: Radius.sm, justifyContent: 'center', alignItems: 'center' },
-  statVal:    { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh },
-  statLabel:  { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
-  actions:    { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
-  actionBtn:  { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: Colors.bd },
-  actionTxt:  { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
+  safe:        { flex: 1, backgroundColor: Colors.bg },
+  header:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+  back:        { width: 40, height: 40, justifyContent: 'center' },
+  refreshBtn:  { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-end' },
+  title:       { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, flex: 1 },
+  section:     { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
+  grid:        { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  statCard:    { flex: 1, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, borderLeftWidth: 4, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statIcon:    { width: 36, height: 36, borderRadius: Radius.sm, justifyContent: 'center', alignItems: 'center' },
+  statVal:     { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh },
+  statLabel:   { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
+  actions:     { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
+  actionBtn:   { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderBottomWidth: 1, borderBottomColor: Colors.bd },
+  actionTxt:   { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
+  alertBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B18', borderWidth: 1, borderColor: '#F59E0B44', borderRadius: Radius.md, padding: 12, marginBottom: 16 },
+  alertTxt:    { flex: 1, fontSize: Fonts.sizes.sm, color: '#F59E0B', fontWeight: '600' },
 });

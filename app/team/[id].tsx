@@ -1,40 +1,70 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { teamsApi, matchesApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
+import { SkeletonBlock, SkeletonHeroCard } from '../../components/SkeletonCard';
 
 type Tab = 'roster' | 'matches';
+type MatchFilter = 'all' | 'UPCOMING' | 'DONE';
 
 const POS: Record<string, string> = { GK: 'Br', F: 'Ú', D: 'O' };
 
 export default function TeamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [loading, setLoading]   = useState(true);
-  const [team, setTeam]         = useState<any>(null);
-  const [matches, setMatches]   = useState<any[]>([]);
-  const [tab, setTab]           = useState<Tab>('roster');
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(false);
+  const [team, setTeam]             = useState<any>(null);
+  const [matches, setMatches]       = useState<any[]>([]);
+  const [tab, setTab]               = useState<Tab>('roster');
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>('all');
 
-  useEffect(() => {
+  function loadData() {
     if (!id) return;
+    setLoading(true); setError(false);
     Promise.all([
       teamsApi.get(id),
-      matchesApi.list({ teamId: id, limit: '20' }),
+      matchesApi.list({ teamId: id, limit: '30' }),
     ])
       .then(([tRes, mRes]) => {
         setTeam(tRes.data);
         setMatches(mRes.data);
       })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [id]);
+  }
+
+  useEffect(() => { loadData(); }, [id]);
 
   if (loading) return (
     <SafeAreaView style={s.safe}>
-      <View style={s.header}><Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable></View>
-      <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+      <View style={s.header}>
+        <Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+        <SkeletonHeroCard />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[1, 2, 3, 4].map(i => <SkeletonBlock key={i} height={54} style={{ flex: 1, borderRadius: 8 }} />)}
+        </View>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonBlock key={i} height={58} width="100%" style={{ borderRadius: 10 }} />
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  if (error) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.header}>
+        <Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable>
+        <Text style={s.title}>Chyba</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <ErrorView onRetry={loadData} />
     </SafeAreaView>
   );
 
@@ -49,17 +79,21 @@ export default function TeamDetailScreen() {
   );
 
   const players: any[] = team.players ?? [];
-  const wins   = matches.filter((m: any) => {
-    if (m.status !== 'DONE') return false;
+  const doneMathces = matches.filter((m: any) => m.status === 'DONE');
+  const wins   = doneMathces.filter((m: any) => {
     const isHome = m.homeTeamId === id;
     return isHome ? m.homeScore > m.awayScore : m.awayScore > m.homeScore;
   }).length;
-  const losses = matches.filter((m: any) => {
-    if (m.status !== 'DONE') return false;
+  const losses = doneMathces.filter((m: any) => {
     const isHome = m.homeTeamId === id;
     return isHome ? m.homeScore < m.awayScore : m.awayScore < m.homeScore;
   }).length;
-  const played = matches.filter((m: any) => m.status === 'DONE').length;
+  const played = doneMathces.length;
+  const draws  = played - wins - losses;
+
+  const filteredMatches = matchFilter === 'all'
+    ? matches
+    : matches.filter(m => m.status === matchFilter);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -88,6 +122,7 @@ export default function TeamDetailScreen() {
           <StatBox label="Hráčů"   value={players.length} />
           <StatBox label="Zápasů"  value={played} />
           <StatBox label="Výhry"   value={wins}   color={Colors.green} />
+          <StatBox label="Remízy"  value={draws}  color={Colors.mu} />
           <StatBox label="Prohry"  value={losses} color={Colors.red} />
         </View>
 
@@ -128,12 +163,21 @@ export default function TeamDetailScreen() {
 
           {/* ── ZÁPASY ── */}
           {tab === 'matches' && (
-            matches.length === 0 ? (
+            <>
+              {/* Sub-filter */}
+              <View style={s.matchFilterRow}>
+                {([['all', 'Vše'], ['UPCOMING', 'Nadcházející'], ['DONE', 'Odehrané']] as [MatchFilter, string][]).map(([key, label]) => (
+                  <Pressable key={key} style={[s.filterChip, matchFilter === key && s.filterChipActive]} onPress={() => setMatchFilter(key)}>
+                    <Text style={[s.filterChipTxt, matchFilter === key && s.filterChipTxtActive]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {filteredMatches.length === 0 ? (
               <View style={s.center}>
                 <Text style={s.empty}>Žádné zápasy</Text>
               </View>
             ) : (
-              matches.map((m: any) => {
+              filteredMatches.map((m: any) => {
                 const isHome = m.homeTeamId === id;
                 const opp    = isHome ? m.awayTeam : m.homeTeam;
                 const myScore  = isHome ? m.homeScore : m.awayScore;
@@ -165,7 +209,8 @@ export default function TeamDetailScreen() {
                   </Pressable>
                 );
               })
-            )
+            }
+            </>
           )}
         </View>
 
@@ -212,6 +257,11 @@ const s = StyleSheet.create({
   playerPos:   { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   licDot:      { width: 8, height: 8, borderRadius: 4 },
   matchRow:    { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.c1, borderRadius: Radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.bd },
+  matchFilterRow:    { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  filterChip:        { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  filterChipActive:  { backgroundColor: Colors.go, borderColor: Colors.go },
+  filterChipTxt:     { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+  filterChipTxtActive: { color: Colors.bg },
   matchOpp:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
   matchDate:   { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   score:       { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },

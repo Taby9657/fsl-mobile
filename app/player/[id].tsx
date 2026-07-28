@@ -6,6 +6,7 @@ import { goBack } from '../../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { playersApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
 
 const POS: Record<string, string> = { GK: 'Brankář', F: 'Útočník', D: 'Obránce' };
 
@@ -22,11 +23,14 @@ export default function PlayerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [player, setPlayer]   = useState<any>(null);
+  const [error, setError]     = useState(false);
 
   useEffect(() => {
     if (!id) return;
+    setError(false);
     playersApi.get(id)
       .then(r => setPlayer(r.data))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -34,6 +38,15 @@ export default function PlayerDetailScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}><Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable></View>
       <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+    </SafeAreaView>
+  );
+
+  if (error) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.header}>
+        <Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable>
+      </View>
+      <ErrorView onRetry={() => { setLoading(true); setError(false); playersApi.get(id!).then(r => setPlayer(r.data)).catch(() => setError(true)).finally(() => setLoading(false)); }} />
     </SafeAreaView>
   );
 
