@@ -6,10 +6,11 @@ import { router } from 'expo-router';
 import { matchesApi, supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
+import { LiveBadge } from '../../components/LiveBadge';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
-const LIVE_POLL_INTERVAL = 15_000;
+const LIVE_POLL_INTERVAL = 10_000;
 
 type MatchStatus = 'UPCOMING' | 'LIVE' | 'DONE';
 
@@ -152,9 +153,7 @@ export default function MatchesScreen() {
                 <Text style={styles.date}>
                   {format(new Date(item.date), 'EEE d. M. · HH:mm', { locale: cs })}
                 </Text>
-                {item.status === 'LIVE' && (
-                  <View style={styles.liveBadge}><Text style={styles.liveText}>LIVE</Text></View>
-                )}
+                {item.status === 'LIVE' && <LiveBadge />}
               </View>
               <View style={styles.teams}>
                 <Text style={styles.teamName}>{item.homeTeam.name}</Text>
@@ -203,8 +202,6 @@ const styles = StyleSheet.create({
   },
   cardRow:   { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   date:      { fontSize: Fonts.sizes.xs, color: Colors.mu },
-  liveBadge: { backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
-  liveText:  { fontSize: 10, fontWeight: '700', color: Colors.white },
   teams:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
   teamName:  { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
   score:     { fontSize: Fonts.sizes.xl, fontWeight: '900', color: Colors.go, minWidth: 60, textAlign: 'center' },

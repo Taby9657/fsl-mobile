@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { LiveBadge } from '../../components/LiveBadge';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
@@ -28,23 +29,34 @@ export default function HomeScreen() {
   const isSupervisor = useIsSupervisor();
   const hasRole = !!(user?.player || user?.referee || user?.manager?.length);
 
-  const [matches,    setMatches]    = useState<any[]>([]);
-  const [table,      setTable]      = useState<any[]>([]);
-  const [notifs,     setNotifs]     = useState<any[]>([]);
-  const [highlights, setHighlights] = useState<any[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [refresh,    setRefresh]    = useState(false);
+  const [matches,      setMatches]      = useState<any[]>([]);
+  const [liveMatches,  setLiveMatches]  = useState<any[]>([]);
+  const [table,        setTable]        = useState<any[]>([]);
+  const [notifs,       setNotifs]       = useState<any[]>([]);
+  const [highlights,   setHighlights]   = useState<any[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [refresh,      setRefresh]      = useState(false);
   const [currentSeason, setCurrentSeason] = useState<string>('2025/26');
+  const livePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function loadLive() {
+    try {
+      const r = await matchesApi.list({ status: 'LIVE' });
+      setLiveMatches(r.data ?? []);
+    } catch {}
+  }
 
   async function load() {
-    const [mRes, tRes, hRes, nRes, sRes] = await Promise.allSettled([
+    const [mRes, lRes, tRes, hRes, nRes, sRes] = await Promise.allSettled([
       matchesApi.list({ limit: '3', status: 'UPCOMING' }),
+      matchesApi.list({ status: 'LIVE' }),
       statsApi.table(),
       highlightsApi.list(),
       (!isGuest && user) ? notificationsApi.list() : Promise.resolve(null),
       statsApi.seasons(),
     ]);
     if (mRes.status === 'fulfilled') setMatches(mRes.value.data ?? []);
+    if (lRes.status === 'fulfilled') setLiveMatches(lRes.value.data ?? []);
     if (tRes.status === 'fulfilled') setTable((tRes.value.data ?? []).slice(0, 5));
     if (hRes.status === 'fulfilled') setHighlights(hRes.value.data ?? []);
     if (nRes.status === 'fulfilled' && nRes.value) {
@@ -59,6 +71,15 @@ export default function HomeScreen() {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Poll live matches: 10s when there are live matches, 30s when quiet
+  const hasLive = liveMatches.length > 0;
+  useEffect(() => {
+    livePollRef.current = setInterval(loadLive, hasLive ? 10_000 : 30_000);
+    return () => {
+      if (livePollRef.current) { clearInterval(livePollRef.current); livePollRef.current = null; }
+    };
+  }, [hasLive]);
 
   if (loading) return (
     <View style={s.center}><ActivityIndicator color={Colors.go} size="large" /></View>
@@ -147,6 +168,28 @@ export default function HomeScreen() {
             <Ionicons name="add-circle-outline" size={18} color={Colors.go} />
             <Text style={s.addHighlightTxt}>Přidat highlight kola</Text>
           </Pressable>
+        )}
+
+        {/* ── LIVE ZÁPASY ── */}
+        {liveMatches.length > 0 && (
+          <>
+            <View style={s.sectionRow}>
+              <LiveBadge size="md" />
+              <Pressable onPress={() => router.push('/(tabs)/matches' as any)}>
+                <Text style={s.seeAll}>Zápasy →</Text>
+              </Pressable>
+            </View>
+            {liveMatches.map((m: any) => (
+              <Pressable key={m.id} style={s.liveMatchCard} onPress={() => router.push(`/match/${m.id}`)}>
+                <View style={s.liveMatchTeams}>
+                  <Text style={s.liveTeamName}>{m.homeTeam?.name ?? m.homeTeam?.abbr}</Text>
+                  <Text style={s.liveScoreText}>{m.homeScore ?? 0}:{m.awayScore ?? 0}</Text>
+                  <Text style={[s.liveTeamName, { textAlign: 'right' }]}>{m.awayTeam?.name ?? m.awayTeam?.abbr}</Text>
+                </View>
+                {m.venue && <Text style={s.venue}>{m.venue}</Text>}
+              </Pressable>
+            ))}
+          </>
         )}
 
         {/* ── NEJBLIŽŠÍ ZÁPASY ── */}
@@ -240,6 +283,12 @@ const s = StyleSheet.create({
 
   addHighlightBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, borderStyle: 'dashed', padding: 14, marginBottom: 4, marginTop: 16 },
   addHighlightTxt: { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600' },
+
+  // Live zápasy
+  liveMatchCard:  { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1.5, borderColor: `${Colors.red}55`, padding: 14, marginBottom: 8 },
+  liveMatchTeams: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  liveTeamName:   { flex: 1, fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
+  liveScoreText:  { fontSize: Fonts.sizes.xxl, fontWeight: '900', color: Colors.go, minWidth: 64, textAlign: 'center' },
 
   // Zápasy
   matchCard:  { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 8 },

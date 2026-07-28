@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { LiveBadge } from '../../components/LiveBadge';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
-import { matchesApi } from '../../services/api';
+import { matchesApi, refereesApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -26,9 +27,12 @@ export default function MatchDetailScreen() {
   const { id }       = useLocalSearchParams<{ id: string }>();
   const isSupervisor = useIsSupervisor();
   const { user }     = useAuthStore();
-  const [loading, setLoading] = useState(true);
-  const [match, setMatch]     = useState<any>(null);
-  const [tab, setTab]         = useState<Tab>('events');
+  const [loading, setLoading]         = useState(true);
+  const [match, setMatch]             = useState<any>(null);
+  const [tab, setTab]                 = useState<Tab>('events');
+  const [starRating, setStarRating]   = useState(0);
+  const [ratingDone, setRatingDone]   = useState(false);
+  const [ratingBusy, setRatingBusy]   = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchMatch(isBackground = false) {
@@ -38,7 +42,7 @@ export default function MatchDetailScreen() {
       setMatch(r.data);
       // Start/stop polling based on live status
       if (r.data.status === 'LIVE' && !pollRef.current) {
-        pollRef.current = setInterval(() => fetchMatch(true), 15_000);
+        pollRef.current = setInterval(() => fetchMatch(true), 10_000);
       } else if (r.data.status !== 'LIVE' && pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -77,6 +81,19 @@ export default function MatchDetailScreen() {
   const showScore = match.status === 'DONE' || match.status === 'LIVE';
   const isAssignedRef = user?.referee?.id && match.refereeId === user.referee.id;
   const canScore  = (isSupervisor || isAssignedRef) && (match.status === 'LIVE' || match.status === 'UPCOMING');
+  const isTeamManager = (user?.manager ?? []).some(
+    (m: any) => m.teamId === match.homeTeamId || m.teamId === match.awayTeamId
+  );
+
+  async function submitRating() {
+    if (!starRating || !match.referee) return;
+    setRatingBusy(true);
+    try {
+      await refereesApi.rate(match.referee.id, id, starRating);
+      setRatingDone(true);
+    } catch { /* tichá chyba */ }
+    setRatingBusy(false);
+  }
   const goals    = (match.events ?? []).filter((e: any) => e.type === 'GOAL');
   const penalties= (match.events ?? []).filter((e: any) => e.type === 'PENALTY');
 
@@ -95,9 +112,13 @@ export default function MatchDetailScreen() {
         <Pressable onPress={() => goBack()} style={s.back}>
           <Ionicons name="chevron-back" size={24} color={Colors.wh} />
         </Pressable>
-        <Text style={[s.statusBadge, { color: STATUS_COLOR[match.status] ?? Colors.mu }]}>
-          {STATUS_LABEL[match.status] ?? match.status}
-        </Text>
+        {match.status === 'LIVE' ? (
+          <LiveBadge size="md" />
+        ) : (
+          <Text style={[s.statusBadge, { color: STATUS_COLOR[match.status] ?? Colors.mu }]}>
+            {STATUS_LABEL[match.status] ?? match.status}
+          </Text>
+        )}
         {canScore ? (
           <Pressable style={s.scoreBtn} onPress={() => router.push(`/match/${id}/score` as any)}>
             <Ionicons name="football" size={14} color={Colors.bg} />
@@ -228,18 +249,57 @@ export default function MatchDetailScreen() {
 
           {/* ── INFO ── */}
           {tab === 'info' && (
-            <View style={s.infoCard}>
-              {match.venue && <InfoRow label="Hřiště" value={match.venue} />}
-              <InfoRow label="Datum" value={fmt(match.date)} />
-              <InfoRow label="Soutěž" value={match.competition ?? '—'} />
-              <InfoRow label="Divize" value={match.division ?? '—'} />
-              {match.round && <InfoRow label="Kolo" value={String(match.round)} />}
-              {match.referee && (
-                <Pressable onPress={() => router.push(`/referee/${match.referee.id}` as any)}>
-                  <InfoRow label="Rozhodčí" value={`${match.referee.firstName} ${match.referee.lastName} (${match.referee.level})`} link />
-                </Pressable>
+            <>
+              <View style={s.infoCard}>
+                {match.venue && <InfoRow label="Hřiště" value={match.venue} />}
+                <InfoRow label="Datum" value={fmt(match.date)} />
+                <InfoRow label="Soutěž" value={match.competition ?? '—'} />
+                <InfoRow label="Divize" value={match.division ?? '—'} />
+                {match.round && <InfoRow label="Kolo" value={String(match.round)} />}
+                {match.referee && (
+                  <Pressable onPress={() => router.push(`/referee/${match.referee.id}` as any)}>
+                    <InfoRow label="Rozhodčí" value={`${match.referee.firstName} ${match.referee.lastName} (${match.referee.level})`} link />
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Hodnocení rozhodčího — pouze manažer po skončení zápasu */}
+              {isPlayed && match.referee && isTeamManager && (
+                <View style={s.rateCard}>
+                  <Text style={s.rateTitle}>Hodnocení rozhodčího</Text>
+                  {ratingDone ? (
+                    <View style={s.rateSuccess}>
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
+                      <Text style={s.rateSuccessTxt}>Hodnocení odesláno</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={s.starsRow}>
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Pressable key={i} onPress={() => setStarRating(i)} hitSlop={8}>
+                            <Ionicons
+                              name={starRating >= i ? 'star' : 'star-outline'}
+                              size={30}
+                              color={Colors.go}
+                            />
+                          </Pressable>
+                        ))}
+                      </View>
+                      <Pressable
+                        style={[s.rateBtn, (!starRating || ratingBusy) && { opacity: 0.4 }]}
+                        disabled={!starRating || ratingBusy}
+                        onPress={submitRating}
+                      >
+                        {ratingBusy
+                          ? <ActivityIndicator color={Colors.bg} size="small" />
+                          : <Text style={s.rateBtnTxt}>Odeslat hodnocení</Text>
+                        }
+                      </Pressable>
+                    </>
+                  )}
+                </View>
               )}
-            </View>
+            </>
           )}
         </View>
       </ScrollView>
@@ -334,4 +394,11 @@ const s = StyleSheet.create({
   infoRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   infoLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu },
   infoValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '500', flex: 1, textAlign: 'right' },
+  rateCard:     { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 16, marginTop: 12 },
+  rateTitle:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.mu, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  starsRow:     { flexDirection: 'row', gap: 10, justifyContent: 'center', marginBottom: 14 },
+  rateBtn:      { backgroundColor: Colors.go, borderRadius: Radius.md, height: 42, alignItems: 'center', justifyContent: 'center' },
+  rateBtnTxt:   { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
+  rateSuccess:  { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center', paddingVertical: 8 },
+  rateSuccessTxt:{ fontSize: Fonts.sizes.sm, color: Colors.green, fontWeight: '600' },
 });
