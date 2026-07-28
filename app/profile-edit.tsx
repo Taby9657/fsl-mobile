@@ -12,8 +12,8 @@ import { Colors, Fonts, Radius } from '../constants/colors';
 import { validateName, validatePhone, validateJersey, firstError } from '../utils/validation';
 
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
+// POS_MAP pro zpětnou kompatibilitu (pokud DB obsahuje zkratky F/D/GK ze starých dat)
 const POS_MAP: Record<string, string> = { F: 'Útočník', D: 'Obránce', GK: 'Brankář' };
-const POS_REV: Record<string, string> = { 'Útočník': 'F', 'Obránce': 'D', 'Brankář': 'GK' };
 
 export default function ProfileEditScreen() {
   const { user, refreshUser } = useAuthStore();
@@ -112,7 +112,7 @@ export default function ProfileEditScreen() {
         firstName: form.firstName,
         lastName:  form.lastName,
         jersey:    form.jersey ? parseInt(form.jersey) : undefined,
-        position:  POS_REV[form.position] ?? 'F',
+        position:  form.position,
         phone:     form.phone || undefined,
         birthdate: birthdate ? birthdate.toISOString() : undefined,
       });
