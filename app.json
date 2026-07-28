@@ -54,7 +54,15 @@
           "sounds": []
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "fsl-mobile",
+          "organization": "fsl"
+        }
+      ]
     ],
     "scheme": "fsl",
     "experiments": {
@@ -66,7 +74,8 @@
       },
       "eas": {
         "projectId": "c0ac3a9d-1c19-4b22-b4cf-f0fd29e535af"
-      }
+      },
+      "sentryDsn": ""
     }
   }
 }

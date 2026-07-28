@@ -3,17 +3,33 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/colors';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { OfflineBanner } from '../components/OfflineBanner';
+
+// Sentry inicializace – DSN z EAS env nebo app.json extra
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN
+  ?? Constants.expoConfig?.extra?.sentryDsn
+  ?? '';
+
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: __DEV__ ? 'development' : 'production',
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    enableNativeFramesTracking: !__DEV__,
+  });
+}
 
 function PushSetup() {
   usePushNotifications();
   return null;
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const loadFromStorage = useAuthStore(s => s.loadFromStorage);
 
   useEffect(() => {
@@ -66,3 +82,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry wrap — zachytí JS crashe s full stack trace
+export default SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;
