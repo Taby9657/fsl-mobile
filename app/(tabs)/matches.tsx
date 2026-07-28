@@ -7,6 +7,7 @@ import { matchesApi, supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 import { LiveBadge } from '../../components/LiveBadge';
+import { SkeletonMatchCard } from '../../components/SkeletonCard';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
@@ -124,7 +125,9 @@ export default function MatchesScreen() {
       )}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator color={Colors.go} /></View>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonMatchCard key={i} />)}
+        </ScrollView>
       ) : error ? (
         <ErrorView onRetry={() => load()} />
       ) : matches.length === 0 ? (

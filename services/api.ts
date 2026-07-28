@@ -222,4 +222,8 @@ export const supervisorApi = {
   // Rozlosování
   previewFixtures: (data: any)                   => api.post('/supervisor/fixtures/preview', data),
   generateFixtures:(data: any)                   => api.post('/supervisor/fixtures/generate', data),
+
+  // Sezóna
+  newSeason: (newSeason: string, cancelPending?: boolean) =>
+    api.post('/supervisor/new-season', { newSeason, cancelPending }),
 };

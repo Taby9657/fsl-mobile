@@ -7,6 +7,7 @@ import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../ser
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { LiveBadge } from '../../components/LiveBadge';
+import { SkeletonMatchCard, SkeletonTableRow, SkeletonHighlightCard } from '../../components/SkeletonCard';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
@@ -82,7 +83,17 @@ export default function HomeScreen() {
   }, [hasLive]);
 
   if (loading) return (
-    <View style={s.center}><ActivityIndicator color={Colors.go} size="large" /></View>
+    <SafeAreaView style={s.safe}>
+      <ScrollView style={s.scroll}>
+        <View style={{ height: 16 }} />
+        <SkeletonHighlightCard />
+        <SkeletonHighlightCard />
+        <View style={{ height: 8 }} />
+        <SkeletonMatchCard />
+        <SkeletonMatchCard />
+        <SkeletonMatchCard />
+      </ScrollView>
+    </SafeAreaView>
   );
 
   const unread = notifs.length;

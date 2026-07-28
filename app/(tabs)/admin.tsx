@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor } from '../../store/auth';
-import { playersApi } from '../../services/api';
+import { playersApi, supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 interface MenuItem {
@@ -22,14 +22,23 @@ export default function AdminScreen() {
   const isSupervisor = useIsSupervisor();
   const logout = useAuthStore(s => s.logout);
 
-  const [myStats, setMyStats]       = useState<any>(null);
+  const [myStats, setMyStats]         = useState<any>(null);
   const [leavingTeam, setLeavingTeam] = useState(false);
+  const [newSeason, setNewSeason]     = useState('');
+  const [seasonBusy, setSeasonBusy]   = useState(false);
+  const [currentSeason, setCurrentSeason] = useState<string>('');
 
   useEffect(() => {
     if (user?.player) {
       playersApi.myStats().then(r => setMyStats(r.data)).catch(() => {});
     }
-  }, [user?.player?.id]);
+    if (isSupervisor) {
+      statsApi.seasons().then(r => {
+        const ss: string[] = r.data ?? [];
+        if (ss.length > 0) setCurrentSeason(ss[0]);
+      }).catch(() => {});
+    }
+  }, [user?.player?.id, isSupervisor]);
 
   function confirmLeaveTeam() {
     Alert.alert(
@@ -53,6 +62,35 @@ export default function AdminScreen() {
           },
         },
       ],
+    );
+  }
+
+  async function startNewSeason(cancelPending: boolean) {
+    if (!/^\d{4}\/\d{2}$/.test(newSeason.trim())) {
+      Alert.alert('Neplatný formát', 'Zadej sezónu ve formátu "2026/27"'); return;
+    }
+    setSeasonBusy(true);
+    try {
+      const res = await supervisorApi.newSeason(newSeason.trim(), cancelPending);
+      Alert.alert('Hotovo', res.data.message);
+      setNewSeason('');
+      setCurrentSeason(newSeason.trim());
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se přepnout sezónu');
+    } finally {
+      setSeasonBusy(false);
+    }
+  }
+
+  function confirmNewSeason() {
+    Alert.alert(
+      'Nová sezóna',
+      `Přepnout na sezónu ${newSeason}?\n\nChceš zrušit dosud neplánované zápasy ze staré sezóny?`,
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        { text: 'Zachovat zápasy', onPress: () => startNewSeason(false) },
+        { text: 'Zrušit staré zápasy', style: 'destructive', onPress: () => startNewSeason(true) },
+      ]
     );
   }
 
@@ -84,8 +122,9 @@ export default function AdminScreen() {
     sections.push({
       title: 'Můj profil',
       items: [
-        { icon: 'person-circle', label: 'Upravit profil', desc: 'Jméno, telefon, číslo dresu', route: '/profile-edit' },
-        { icon: 'card', label: 'Platby', desc: 'Licence a poplatky', route: '/payments' },
+        { icon: 'person-circle', label: 'Upravit profil',  desc: 'Jméno, telefon, číslo dresu', route: '/profile-edit' },
+        { icon: 'card',          label: 'Platby',          desc: 'Licence a poplatky',           route: '/payments' },
+        { icon: 'star',          label: 'Draft profil',    desc: 'Zviditelni se pro vedoucí',     route: '/draft/profile-edit' },
       ],
     });
   }
@@ -210,6 +249,42 @@ export default function AdminScreen() {
           </Pressable>
         )}
 
+        {/* Nová sezóna (jen supervisor) */}
+        {isSupervisor && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sezóna</Text>
+            <View style={[styles.card, { padding: 14 }]}>
+              {currentSeason ? (
+                <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 10 }}>
+                  Aktuální sezóna: <Text style={{ color: Colors.go, fontWeight: '700' }}>{currentSeason}</Text>
+                </Text>
+              ) : null}
+              <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 8 }}>
+                Nová sezóna (formát 2026/27)
+              </Text>
+              <TextInput
+                style={styles.seasonInput}
+                value={newSeason}
+                onChangeText={setNewSeason}
+                placeholder="2026/27"
+                placeholderTextColor={Colors.di}
+                keyboardAppearance="dark"
+                autoCapitalize="none"
+              />
+              <Pressable
+                style={[styles.seasonBtn, (!newSeason || seasonBusy) && { opacity: 0.4 }]}
+                onPress={confirmNewSeason}
+                disabled={!newSeason || seasonBusy}
+              >
+                {seasonBusy
+                  ? <ActivityIndicator color={Colors.bg} size="small" />
+                  : <Text style={styles.seasonBtnTxt}>Spustit novou sezónu</Text>
+                }
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {/* Odhlásit */}
         <Pressable style={styles.logoutBtn} onPress={logout}>
           <Text style={styles.logoutText}>Odhlásit se</Text>
@@ -261,4 +336,7 @@ const styles = StyleSheet.create({
   leaveTxt:     { fontSize: Fonts.sizes.md, color: Colors.red, fontWeight: '600' },
   logoutBtn:    { borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, alignItems: 'center', marginTop: 8 },
   logoutText:   { fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '600' },
+  seasonInput:  { backgroundColor: Colors.c2, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.sm, padding: 12, color: Colors.wh, fontSize: Fonts.sizes.md, marginBottom: 10 },
+  seasonBtn:    { backgroundColor: Colors.pu, borderRadius: Radius.md, padding: 12, alignItems: 'center' },
+  seasonBtnTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.white },
 });
