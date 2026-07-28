@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { refereesApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { ErrorView } from '../../components/ErrorView';
+import { SkeletonBlock, SkeletonHeroCard } from '../../components/SkeletonCard';
 
 function fmt(iso: string) {
   const d = new Date(iso);
@@ -34,12 +36,14 @@ export default function RefereeDetailScreen() {
   const isSelf    = user?.referee?.id === id;
 
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(false);
   const [ref, setRef]           = useState<any>(null);
   const [matches, setMatches]   = useState<any[]>([]);
   const [tab, setTab]           = useState<'upcoming' | 'history' | 'ratings'>('upcoming');
 
-  useEffect(() => {
+  function loadData() {
     if (!id) return;
+    setError(false); setLoading(true);
     Promise.all([
       refereesApi.get(id),
       refereesApi.futureMatches(id),
@@ -48,8 +52,11 @@ export default function RefereeDetailScreen() {
         setRef(rRes.data);
         setMatches(mRes.data);
       })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [id]);
+  }
+
+  useEffect(() => { loadData(); }, [id]);
 
   const ratings: any[] = ref?.ratings ?? [];
   const avgRating = ratings.length > 0
@@ -73,7 +80,17 @@ export default function RefereeDetailScreen() {
       </View>
 
       {loading ? (
-        <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+          <SkeletonHeroCard />
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {[1, 2, 3].map(i => <SkeletonBlock key={i} height={34} style={{ flex: 1, borderRadius: 8 }} />)}
+          </View>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonBlock key={i} height={60} width="100%" style={{ borderRadius: 10 }} />
+          ))}
+        </ScrollView>
+      ) : error ? (
+        <ErrorView onRetry={loadData} />
       ) : !ref ? (
         <View style={s.center}><Text style={s.empty}>Rozhodčí nenalezen</Text></View>
       ) : (

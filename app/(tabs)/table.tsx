@@ -117,6 +117,7 @@ export default function TableScreen() {
         <Text style={styles.col}>P</Text>
         <Text style={styles.col}>G</Text>
         <Text style={[styles.col, { color: Colors.go, fontWeight: '700' }]}>B</Text>
+        <Text style={[styles.col, { flex: 1.4 }]}>Forma</Text>
       </View>
 
       {table.length === 0 ? (
@@ -148,6 +149,14 @@ export default function TableScreen() {
               <Text style={styles.cell}>{item.l}</Text>
               <Text style={styles.cell}>{item.gf}:{item.ga}</Text>
               <Text style={[styles.cell, { color: Colors.go, fontWeight: '700' }]}>{item.pts}</Text>
+              {/* Forma — poslední zápasy */}
+              <View style={[styles.formRow, { flex: 1.4 }]}>
+                {(item.form ?? []).map((r: string, i: number) => (
+                  <View key={i} style={[styles.formDot, {
+                    backgroundColor: r === 'W' ? Colors.green : r === 'L' ? Colors.red : '#F59E0B',
+                  }]} />
+                ))}
+              </View>
             </Pressable>
           )}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
@@ -176,6 +185,8 @@ const styles = StyleSheet.create({
   teamName:  { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '600' },
   dot:       { width: 8, height: 8, borderRadius: 4 },
   sep:       { height: 1, backgroundColor: Colors.bd, marginHorizontal: 16 },
+  formRow:   { flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: 'center' },
+  formDot:   { width: 6, height: 6, borderRadius: 3 },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyText: { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.mu },
   emptyHint: { fontSize: Fonts.sizes.sm, color: Colors.di },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Image, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '../../utils/navigation';
@@ -86,7 +86,15 @@ export default function PlayerDetailScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.wh} />
         </Pressable>
         <Text style={s.title}>{player.firstName} {player.lastName}</Text>
-        <View style={{ width: 40 }} />
+        <Pressable
+          style={{ width: 40, alignItems: 'flex-end' }}
+          onPress={() => Share.share({
+            message: `${player.firstName} ${player.lastName} – FSL hráč`,
+            url: `fsl://player/${id}`,
+          })}
+        >
+          <Ionicons name="share-outline" size={20} color={Colors.mu} />
+        </Pressable>
       </View>
 
       <ScrollView>

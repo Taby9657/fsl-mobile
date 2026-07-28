@@ -112,12 +112,17 @@ export default function HomeScreen() {
             </Text>
             <Text style={s.season}>Sezona {currentSeason}</Text>
           </View>
-          <Pressable onPress={() => router.push('/notifications')} style={s.bell}>
-            <Ionicons name="notifications" size={22} color={unread > 0 ? Colors.go : Colors.mu} />
-            {unread > 0 && (
-              <View style={s.badge}><Text style={s.badgeText}>{unread}</Text></View>
-            )}
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Pressable onPress={() => router.push('/search' as any)} style={s.bell}>
+              <Ionicons name="search" size={22} color={Colors.mu} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/notifications')} style={s.bell}>
+              <Ionicons name="notifications" size={22} color={unread > 0 ? Colors.go : Colors.mu} />
+              {unread > 0 && (
+                <View style={s.badge}><Text style={s.badgeText}>{unread}</Text></View>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         {/* Onboarding banner */}

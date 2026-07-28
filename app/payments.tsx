@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView,
-  ActivityIndicator, Alert, Linking, Image,
+  ActivityIndicator, Alert, Linking, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { goBack } from '../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { paymentsApi, matchesApi } from '../services/api';
+import { SkeletonBlock } from '../components/SkeletonCard';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
 
@@ -128,6 +129,7 @@ export default function PaymentsScreen() {
   const managerTeamId = user?.manager?.[0]?.teamId ?? null;
 
   const [loading, setLoading]       = useState(true);
+  const [refresh, setRefresh]       = useState(false);
   const [player, setPlayer]         = useState<PlayerPayment | null>(null);
   const [teams, setTeams]           = useState<TeamPayment[]>([]);
   const [homeMatches, setHomeMatches] = useState<HomeMatch[]>([]);
@@ -135,7 +137,8 @@ export default function PaymentsScreen() {
 
   useEffect(() => { load(); }, []);
 
-  async function load() {
+  async function load(isRefresh = false) {
+    if (!isRefresh) setLoading(true);
     try {
       const [payRes, matchRes] = await Promise.allSettled([
         paymentsApi.me(),
@@ -157,9 +160,10 @@ export default function PaymentsScreen() {
         setHomeMatches(sorted);
       }
     } catch {
-      Alert.alert('Chyba', 'Nepodařilo se načíst platby');
+      if (!isRefresh) Alert.alert('Chyba', 'Nepodařilo se načíst platby');
     } finally {
       setLoading(false);
+      setRefresh(false);
     }
   }
 
@@ -194,7 +198,23 @@ export default function PaymentsScreen() {
   if (loading) return (
     <SafeAreaView style={s.safe}>
       <Header />
-      <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+        {[1, 2, 3].map(i => (
+          <View key={i} style={[s.card, { gap: 12 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <SkeletonBlock width={36} height={36} style={{ borderRadius: 8 }} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <SkeletonBlock width="50%" height={14} />
+                <SkeletonBlock width="30%" height={10} />
+              </View>
+              <SkeletonBlock width={80} height={24} style={{ borderRadius: 12 }} />
+            </View>
+            <SkeletonBlock width="100%" height={1} />
+            <SkeletonBlock width="60%" height={12} />
+            <SkeletonBlock width="80%" height={44} style={{ borderRadius: 8 }} />
+          </View>
+        ))}
+      </ScrollView>
     </SafeAreaView>
   );
 
@@ -203,7 +223,10 @@ export default function PaymentsScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <Header />
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16 }}
+        refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
+      >
 
         {/* ── HRÁČSKÁ LICENCE ── */}
         {player && (

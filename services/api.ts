@@ -197,6 +197,11 @@ export const draftApi = {
   rejectOffer:   (playerId: string, offerId: string)  => api.post(`/draft/${playerId}/offer/${offerId}/reject`),
 };
 
+// ==================== SEARCH ====================
+export const searchApi = {
+  search: (q: string) => api.get('/search', { params: { q } }),
+};
+
 // ==================== SUPERVISOR ====================
 export const supervisorApi = {
   dashboard:      ()                             => api.get('/supervisor/dashboard'),

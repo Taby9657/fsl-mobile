@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Share } from 'react-native';
 import { LiveBadge } from '../../components/LiveBadge';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -94,12 +94,8 @@ export default function MatchDetailScreen() {
     } catch { /* tichá chyba */ }
     setRatingBusy(false);
   }
-  const goals    = (match.events ?? []).filter((e: any) => e.type === 'GOAL');
-  const penalties= (match.events ?? []).filter((e: any) => e.type === 'PENALTY');
-
-  // Góly per tým
-  const homeGoals = goals.filter((g: any) => g.teamId === match.homeTeamId);
-  const awayGoals = goals.filter((g: any) => g.teamId === match.awayTeamId);
+  // Unified chronological timeline
+  const timeline = [...(match.events ?? [])].sort((a: any, b: any) => a.minute - b.minute);
 
   // Soupiska domácích/hostí
   const homeLineup = match.lineups?.find((l: any) => l.teamId === match.homeTeamId)?.players ?? [];
@@ -119,14 +115,23 @@ export default function MatchDetailScreen() {
             {STATUS_LABEL[match.status] ?? match.status}
           </Text>
         )}
-        {canScore ? (
-          <Pressable style={s.scoreBtn} onPress={() => router.push(`/match/${id}/score` as any)}>
-            <Ionicons name="football" size={14} color={Colors.bg} />
-            <Text style={s.scoreBtnTxt}>Skórovat</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {canScore && (
+            <Pressable style={s.scoreBtn} onPress={() => router.push(`/match/${id}/score` as any)}>
+              <Ionicons name="football" size={14} color={Colors.bg} />
+              <Text style={s.scoreBtnTxt}>Skórovat</Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={s.shareBtn}
+            onPress={() => Share.share({
+              message: `${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
+              url: `fsl://match/${id}`,
+            })}
+          >
+            <Ionicons name="share-outline" size={20} color={Colors.mu} />
           </Pressable>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
+        </View>
       </View>
 
       <ScrollView>
@@ -170,67 +175,64 @@ export default function MatchDetailScreen() {
         <View style={{ padding: 16 }}>
           {/* ── PRŮBĚH ── */}
           {tab === 'events' && (
-            goals.length === 0 && penalties.length === 0 ? (
+            timeline.length === 0 ? (
               <Empty text={isPlayed ? 'Žádné zaznamenané události' : 'Zápas ještě nezačal'} />
             ) : (
               <>
-                {/* Góly */}
-                {goals.length > 0 && (
-                  <>
-                    <Text style={s.section}>Góly</Text>
-                    {goals.map((g: any) => {
-                      const isHome = g.teamId === match.homeTeamId;
-                      return (
-                        <View key={g.id} style={[s.eventRow, isHome ? s.eventRowHome : s.eventRowAway]}>
-                          {isHome && <Text style={s.eventMin}>{g.minute}'</Text>}
-                          <View style={[s.eventIcon, { backgroundColor: `${Colors.go}22` }]}>
-                            <Ionicons name="football" size={14} color={Colors.go} />
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[s.eventName, !isHome && { textAlign: 'right' }]}>
-                              {g.scorer?.firstName} {g.scorer?.lastName}
-                            </Text>
-                            {g.assist && (
-                              <Text style={[s.eventSub, !isHome && { textAlign: 'right' }]}>
-                                Asist: {g.assist.firstName} {g.assist.lastName}
-                              </Text>
-                            )}
-                          </View>
-                          {!isHome && <Text style={s.eventMin}>{g.minute}'</Text>}
-                        </View>
-                      );
-                    })}
-                  </>
-                )}
+                {/* Skóre headerbar */}
+                <View style={s.timelineHeader}>
+                  <Text style={s.timelineTeam} numberOfLines={1}>{match.homeTeam?.abbr}</Text>
+                  <View style={s.timelineDivider} />
+                  <Text style={[s.timelineTeam, { textAlign: 'right' }]} numberOfLines={1}>{match.awayTeam?.abbr}</Text>
+                </View>
 
-                {/* Tresty */}
-                {penalties.length > 0 && (
-                  <>
-                    <Text style={[s.section, { marginTop: 16 }]}>Tresty</Text>
-                    {penalties.map((p: any) => {
-                      const isHome = p.teamId === match.homeTeamId;
-                      return (
-                        <View key={p.id} style={[s.eventRow, isHome ? s.eventRowHome : s.eventRowAway]}>
-                          {isHome && <Text style={s.eventMin}>{p.minute}'</Text>}
-                          <View style={[s.eventIcon, { backgroundColor: `${Colors.red}22` }]}>
-                            <Ionicons name="warning" size={14} color={Colors.red} />
+                {timeline.map((e: any) => {
+                  const isHome  = e.teamId === match.homeTeamId;
+                  const isGoal  = e.type === 'GOAL';
+                  const iconName = isGoal ? 'football' : 'warning';
+                  const iconColor = isGoal ? Colors.go : Colors.red;
+                  const playerName = isGoal
+                    ? `${e.scorer?.firstName ?? ''} ${e.scorer?.lastName ?? ''}`.trim()
+                    : `${e.penalty?.firstName ?? ''} ${e.penalty?.lastName ?? ''}`.trim();
+                  const subText = isGoal && e.assist
+                    ? `Asist: ${e.assist.firstName} ${e.assist.lastName}`
+                    : !isGoal && e.penaltyType ? e.penaltyType : null;
+
+                  return (
+                    <View key={e.id} style={[s.eventRow, !isHome && s.eventRowAway]}>
+                      {/* Minuta + ikona na straně domácích */}
+                      {isHome ? (
+                        <>
+                          <View style={{ width: 28, alignItems: 'center' }}>
+                            <Text style={s.eventMin}>{e.minute}'</Text>
+                          </View>
+                          <View style={[s.eventIcon, { backgroundColor: `${iconColor}22` }]}>
+                            <Ionicons name={iconName} size={14} color={iconColor} />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={[s.eventName, !isHome && { textAlign: 'right' }]}>
-                              {p.penalty?.firstName} {p.penalty?.lastName}
-                            </Text>
-                            {p.penaltyType && (
-                              <Text style={[s.eventSub, !isHome && { textAlign: 'right' }]}>
-                                {p.penaltyType}
-                              </Text>
-                            )}
+                            <Text style={s.eventName}>{playerName}</Text>
+                            {subText && <Text style={s.eventSub}>{subText}</Text>}
                           </View>
-                          {!isHome && <Text style={s.eventMin}>{p.minute}'</Text>}
-                        </View>
-                      );
-                    })}
-                  </>
-                )}
+                          <View style={{ width: 28 + 28 + 10 }} />
+                        </>
+                      ) : (
+                        <>
+                          <View style={{ width: 28 + 28 + 10 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[s.eventName, { textAlign: 'right' }]}>{playerName}</Text>
+                            {subText && <Text style={[s.eventSub, { textAlign: 'right' }]}>{subText}</Text>}
+                          </View>
+                          <View style={[s.eventIcon, { backgroundColor: `${iconColor}22` }]}>
+                            <Ionicons name={iconName} size={14} color={iconColor} />
+                          </View>
+                          <View style={{ width: 28, alignItems: 'center' }}>
+                            <Text style={s.eventMin}>{e.minute}'</Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
               </>
             )
           )}
@@ -360,6 +362,7 @@ const s = StyleSheet.create({
   back:         { width: 40, height: 40, justifyContent: 'center' },
   scoreBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.go, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 6 },
   scoreBtnTxt:  { fontSize: 11, fontWeight: '700', color: Colors.bg },
+  shareBtn:     { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
   title:        { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   statusBadge:  { fontSize: Fonts.sizes.sm, fontWeight: '700' },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
@@ -378,9 +381,12 @@ const s = StyleSheet.create({
   tabTxt:       { fontSize: 11, color: Colors.mu, fontWeight: '600' },
   tabTxtActive: { color: Colors.bg },
   section:      { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  eventRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  timelineHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  timelineTeam:   { flex: 1, fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.mu, textTransform: 'uppercase', letterSpacing: 0.5 },
+  timelineDivider:{ width: 1, height: 14, backgroundColor: Colors.bd, marginHorizontal: 8 },
+  eventRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   eventRowHome: {},
-  eventRowAway: { flexDirection: 'row-reverse' },
+  eventRowAway: {},
   eventIcon:    { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   eventMin:     { width: 28, fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center' },
   eventName:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
