@@ -107,6 +107,8 @@ export const matchesApi = {
   endMatch:        (id: string)    => api.post(`/matches/${id}/end`),
   lineup:          (matchId: string, teamId: string, players: any[], force = false) =>
     api.put(`/matches/${matchId}/lineup/${teamId}`, { players, force }),
+  confirmLineup:   (matchId: string, teamId: string) =>
+    api.post(`/matches/${matchId}/lineup/${teamId}/confirm`),
   postmatch:       (matchId: string, teamId: string, data: any) =>
     api.put(`/matches/${matchId}/postmatch/${teamId}`, data),
   submitPostmatch: (matchId: string, teamId: string) =>
@@ -227,7 +229,7 @@ export const supervisorApi = {
   createTeam:     (data: any)                    => api.post('/supervisor/teams', data),
   updateTeam:     (id: string, data: any)        => api.put(`/supervisor/teams/${id}`, data),
   deleteTeam:     (id: string)                   => api.delete(`/supervisor/teams/${id}`),
-  divisions:      ()                             => api.get('/supervisor/divisions'),
+  divisions:      ()                             => api.get('/teams/divisions'),
   conferences:    ()                             => api.get('/supervisor/conferences'),
 
   // Rozlosování

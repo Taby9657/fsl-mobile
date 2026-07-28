@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -41,12 +41,12 @@ export default function HomeScreen() {
   const [currentSeason, setCurrentSeason] = useState<string>('2025/26');
   const livePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function loadLive() {
+  const loadLive = useCallback(async () => {
     try {
       const r = await matchesApi.list({ status: 'LIVE' });
       setLiveMatches(r.data ?? []);
     } catch {}
-  }
+  }, []);
 
   async function load() {
     // Zobraz cache okamžitě (rychlý start)

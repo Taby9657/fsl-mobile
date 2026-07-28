@@ -13,12 +13,13 @@ import { cs } from 'date-fns/locale';
 
 const LIVE_POLL_INTERVAL = 10_000;
 
-type MatchStatus = 'UPCOMING' | 'LIVE' | 'DONE';
+type MatchStatus = 'UPCOMING' | 'LIVE' | 'DONE' | 'CANCELLED';
 
 const STATUS_LABEL: Record<MatchStatus, string> = {
-  UPCOMING: 'Nadcházející',
-  LIVE:     'Právě hraje',
-  DONE:     'Odehrané',
+  UPCOMING:  'Nadcházející',
+  LIVE:      'Právě hraje',
+  DONE:      'Odehrané',
+  CANCELLED: 'Zrušeno',
 };
 
 export default function MatchesScreen() {

@@ -179,7 +179,7 @@ export default function MatchDetailScreen() {
             ) : (
               <Text style={s.scoreDate}>{fmt(match.date)}</Text>
             )}
-            <Text style={s.competition}>{match.competition} · kolo {match.round}</Text>
+            <Text style={s.competition}>{match.competition}{match.round != null ? ` · kolo ${match.round}` : ''}</Text>
           </View>
 
           <Pressable style={s.teamCol} onPress={() => router.push(`/team/${match.awayTeamId}` as any)}>

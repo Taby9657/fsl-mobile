@@ -47,11 +47,13 @@ export default function LiveScoreScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  // poll každých 15s (live refresh)
+  // poll každých 15s – zastaví se po ukončení nebo zrušení zápasu
+  const matchStatus = match?.status;
   useEffect(() => {
+    if (matchStatus === 'DONE' || matchStatus === 'CANCELLED') return;
     const iv = setInterval(load, 15_000);
     return () => clearInterval(iv);
-  }, [load]);
+  }, [load, matchStatus]);
 
   async function handleStart() {
     Alert.alert('Zahájit zápas?', 'Tím se zápas přepne na LIVE stav.', [
