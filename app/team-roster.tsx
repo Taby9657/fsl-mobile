@@ -10,7 +10,7 @@ import { SearchBar } from '../components/SearchBar';
 
 const POS: Record<string, string> = { GK: 'Brankář', F: 'Útočník', D: 'Obránce' };
 const LIC_COL: Record<string, string> = {
-  PAID: Colors.green, PENDING: '#F59E0B', FAILED: Colors.red, EXEMPT: Colors.mu,
+  PAID: Colors.green, PENDING: '#F59E0B', OVERDUE: Colors.red, WAIVED: Colors.mu,
 };
 
 export default function TeamRosterScreen() {
