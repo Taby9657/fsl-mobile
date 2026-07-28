@@ -240,7 +240,14 @@ export const supervisorApi = {
   newSeason: (newSeason: string, cancelPending?: boolean) =>
     api.post('/supervisor/new-season', { newSeason, cancelPending }),
 
-  // Žádosti
+  // Žádosti (supervisor vidí všechny, může je updatovat)
   requests: (status?: string) => api.get('/supervisor/requests', { params: status ? { status } : {} }),
   updateRequest: (id: string, data: any) => api.put(`/supervisor/requests/${id}`, data),
+};
+
+// ==================== ŽÁDOSTI (běžní uživatelé) ====================
+// Používá /api/requests – odděleně od supervisor routeru
+export const requestsApi = {
+  create: (data: { type: string; body: string; teamId?: string; matchId?: string }) =>
+    api.post('/requests', data),
 };
