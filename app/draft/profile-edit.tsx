@@ -34,7 +34,9 @@ export default function DraftProfileEdit() {
       .then(r => {
         const p = r.data;
         if (p) {
-          setHasProfile(true);
+          // Aktivní profil → editujeme (PUT). Neaktivní → data předvyplníme, ale
+          // hasProfile necháme false aby se zavolal POST (upsert s isActive: true + GM notifikace)
+          setHasProfile(p.isActive === true);
           setBio(p.bio ?? '');
           setPubSkill(p.pubSkill ?? '');
           setPosition(p.position ?? '');
