@@ -34,9 +34,11 @@ export default function LoginScreen() {
     try {
       const result = await promptGoogleAsync();
       if (result.type !== 'success') { setLoading(false); return; }
-      const { authentication } = result;
-      if (!authentication?.idToken) throw new Error('Chybí Google idToken');
-      const res = await authApi.google(authentication.idToken);
+      const { authentication, params } = result as any;
+      // authentication.idToken je null při code flow na iOS – fallback na params.id_token
+      const idToken = authentication?.idToken ?? params?.id_token;
+      if (!idToken) throw new Error('Chybí Google idToken');
+      const res = await authApi.google(idToken);
       await setAuth(res.data.token, res.data.user);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace('/(tabs)');

@@ -16,10 +16,14 @@
       "bundleIdentifier": "cz.fsl.app",
       "buildNumber": "1",
       "deploymentTarget": "15.1",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Potřebujeme přístup k fotoaparátu pro nahrání profilové fotky a skenování QR kódů.",
         "NSPhotoLibraryUsageDescription": "Potřebujeme přístup k fotkám pro nahrání profilové fotky a loga týmu.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLSchemes": [
+          "com.googleusercontent.apps.485204684397-7nfhv2bb26gv4rs29icooba0rhpdeevd"
+        ]
       }
     },
     "android": {
