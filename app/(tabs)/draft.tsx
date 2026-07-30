@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-         Image, RefreshControl, Alert } from 'react-native';
+         Image, RefreshControl, Alert, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +58,15 @@ export default function DraftScreen() {
   useFocusEffect(useCallback(() => {
     if (!isGuest && user) load();
   }, [load, isGuest, user]));
+
+  // Fallback: draft/profile-edit je v root Stacku – useFocusEffect ne vždy spustí po router.back()
+  // DeviceEventEmitter zajistí reload i bez focus eventu
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('draftProfileChanged', () => {
+      if (!isGuest && user) load(true);
+    });
+    return () => sub.remove();
+  }, [load, isGuest, user]);
 
   if (isGuest || !user) return (
     <SafeAreaView style={s.safe}>

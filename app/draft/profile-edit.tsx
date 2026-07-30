@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView, TextInput,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform, FlatList, Linking,
+  DeviceEventEmitter,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -53,6 +54,7 @@ export default function DraftProfileEdit() {
         await draftApi.createProfile({ bio, pubSkill, position });
         setHasProfile(true);
       }
+      DeviceEventEmitter.emit('draftProfileChanged');
       Alert.alert('Hotovo', 'Profil uložen!', [{ text: 'OK', onPress: () => router.back() }]);
     } catch (err: any) {
       Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se uložit');
