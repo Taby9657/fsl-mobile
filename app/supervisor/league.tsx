@@ -91,6 +91,7 @@ export default function SuperLeagueScreen() {
 
   // Konfigurace
   const [startDate, setStartDate] = useState<Date | null>(null);
+  const [season,    setSeason]    = useState('');
   const [interval,  setInterval]  = useState('7');
   const [time,      setTime]      = useState('18:00');
   const [venue,     setVenue]     = useState('');
@@ -188,6 +189,7 @@ export default function SuperLeagueScreen() {
       const r = await supervisorApi.generateFixtures({
         ...base,
         startDate:        d.toISOString(),
+        season:           season.trim() || null,
         roundIntervalDays: parseInt(interval) || 7,
         defaultTime:      time,
         defaultVenue:     venue.trim() || null,
@@ -463,6 +465,17 @@ export default function SuperLeagueScreen() {
 
             <Text style={s.fieldLabel}>Datum 1. kola *</Text>
             <DatePicker value={startDate} onChange={setStartDate} placeholder="Vybrat datum" />
+
+            <Text style={s.fieldLabel}>Sezóna (např. 2025/26)</Text>
+            <TextInput
+              style={s.input}
+              value={season}
+              onChangeText={setSeason}
+              placeholder="2025/26"
+              placeholderTextColor={Colors.di}
+              keyboardAppearance="dark"
+              autoCapitalize="none"
+            />
 
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>

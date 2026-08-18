@@ -301,8 +301,8 @@ export default function PaymentsScreen() {
                   disabled={!!paying}
                 >
                   {paying === 'super-license'
-                    ? <ActivityIndicator color={Colors.white} size="small" />
-                    : <><Ionicons name="star-outline" size={16} color={Colors.white} /><Text style={s.btnText}>Pořídit super licenci</Text></>
+                    ? <ActivityIndicator color={Colors.wh} size="small" />
+                    : <><Ionicons name="star-outline" size={16} color={Colors.wh} /><Text style={s.btnText}>Pořídit super licenci</Text></>
                   }
                 </Pressable>
               </>
@@ -380,7 +380,7 @@ export default function PaymentsScreen() {
                       disabled={!!paying}
                     >
                       {paying === m.id
-                        ? <ActivityIndicator color={Colors.white} size="small" style={{ width: 52 }} />
+                        ? <ActivityIndicator color={Colors.wh} size="small" style={{ width: 52 }} />
                         : <Text style={s.payBtnText}>Zaplatit</Text>
                       }
                     </Pressable>
@@ -436,7 +436,7 @@ const s = StyleSheet.create({
   infoLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu, flex: 1, lineHeight: 18 },
   infoValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '500' },
   btn:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: Radius.md },
-  btnText:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.white },
+  btnText:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
   transferBox:   { backgroundColor: Colors.c2, borderRadius: Radius.sm, padding: 12, marginTop: 10 },
   transferTitle: { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.mu, marginBottom: 8 },
   transferInner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
@@ -452,5 +452,5 @@ const s = StyleSheet.create({
   paidBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   paidText:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.green },
   payBtn:        { backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 8 },
-  payBtnText:    { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.white },
+  payBtnText:    { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
 });
