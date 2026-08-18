@@ -76,6 +76,7 @@ export const teamsApi = {
   },
   invite:     (id: string) => api.get(`/teams/${id}/invite`),
   join:       (code: string) => api.post(`/teams/join/${code}`),
+  appeal:     (id: string, appeal: string) => api.put(`/teams/${id}/appeal`, { appeal }),
 };
 
 // ==================== HRÁČI ====================
@@ -229,6 +230,8 @@ export const supervisorApi = {
   createTeam:     (data: any)                    => api.post('/supervisor/teams', data),
   updateTeam:     (id: string, data: any)        => api.put(`/supervisor/teams/${id}`, data),
   deleteTeam:     (id: string)                   => api.delete(`/supervisor/teams/${id}`),
+  approveTeam:    (id: string, note?: string)    => api.put(`/supervisor/teams/${id}/approve`, { note }),
+  rejectTeam:     (id: string, reason: string)   => api.put(`/supervisor/teams/${id}/reject`, { reason }),
   divisions:      ()                             => api.get('/teams/divisions'),
   conferences:    ()                             => api.get('/supervisor/conferences'),
 

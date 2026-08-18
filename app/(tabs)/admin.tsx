@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor, type ActiveRole } from '../../store/auth';
-import { playersApi, supervisorApi, statsApi } from '../../services/api';
+import { playersApi, supervisorApi, statsApi, teamsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 interface MenuItem {
@@ -30,11 +30,15 @@ export default function AdminScreen() {
   const isSupervisor = useIsSupervisor();
   const logout = useAuthStore(s => s.logout);
 
-  const [myStats, setMyStats]         = useState<any>(null);
-  const [leavingTeam, setLeavingTeam] = useState(false);
-  const [newSeason, setNewSeason]     = useState('');
-  const [seasonBusy, setSeasonBusy]   = useState(false);
+  const [myStats, setMyStats]           = useState<any>(null);
+  const [leavingTeam, setLeavingTeam]   = useState(false);
+  const [newSeason, setNewSeason]       = useState('');
+  const [seasonBusy, setSeasonBusy]     = useState(false);
   const [currentSeason, setCurrentSeason] = useState<string>('');
+  const [teamDetail, setTeamDetail]     = useState<any>(null);
+  const [appealText, setAppealText]     = useState('');
+  const [appealBusy, setAppealBusy]     = useState(false);
+  const [appealModal, setAppealModal]   = useState(false);
 
   useEffect(() => {
     if (user?.player) {
@@ -46,7 +50,29 @@ export default function AdminScreen() {
         if (ss.length > 0) setCurrentSeason(ss[0]);
       }).catch(() => {});
     }
-  }, [user?.player?.id, isSupervisor]);
+    // Načti detail týmu vedoucího (kvůli regStatus)
+    const managedTeamId = user?.manager?.[0]?.teamId;
+    if (isManager && managedTeamId) {
+      teamsApi.get(managedTeamId).then(r => setTeamDetail(r.data)).catch(() => {});
+    }
+  }, [user?.player?.id, isSupervisor, isManager]);
+
+  async function submitAppeal() {
+    if (!appealText.trim()) { Alert.alert('Chyba', 'Zadej text odvolání'); return; }
+    if (!teamDetail?.id) return;
+    setAppealBusy(true);
+    try {
+      const r = await teamsApi.appeal(teamDetail.id, appealText.trim());
+      setTeamDetail(r.data);
+      setAppealModal(false);
+      setAppealText('');
+      Alert.alert('Odesláno', 'Odvolání bylo odesláno supervisorovi.');
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odeslat odvolání');
+    } finally {
+      setAppealBusy(false);
+    }
+  }
 
   function confirmLeaveTeam() {
     Alert.alert(
@@ -143,11 +169,11 @@ export default function AdminScreen() {
       id: 'manager',
       title: 'Vedoucí týmu',
       items: [
-        { icon: 'people', label: 'Hráči', desc: 'Soupiska, pozvánkový kód', route: '/team-roster' },
-        { icon: 'qr-code', label: 'Pozvánkový kód', desc: 'Sdílej s hráči', route: '/invite-code' },
-        { icon: 'document-text', label: 'Soupisky', desc: 'Odeslání před zápasem', route: '/lineup' },
-        { icon: 'clipboard', label: 'Po-zápasový formulář', desc: 'MVP, rating rozhodčího', route: '/postmatch' },
-        { icon: 'card', label: 'Platby', desc: 'Licence, domácí zápas', route: '/payments' },
+        { icon: 'people',          label: 'Hráči',                 desc: 'Soupiska, pozvánkový kód',       route: '/team-roster'  },
+        { icon: 'qr-code',         label: 'Pozvánkový kód',        desc: 'Sdílej s hráči',                 route: '/invite-code'  },
+        { icon: 'document-text',   label: 'Soupisky',              desc: 'Odeslání před zápasem',          route: '/lineup'       },
+        { icon: 'clipboard',       label: 'Po-zápasový formulář',  desc: 'MVP, rating rozhodčího',         route: '/postmatch'    },
+        { icon: 'card',            label: 'Platby',                desc: 'Licence, domácí zápas',          route: '/payments'     },
       ],
     });
   }
@@ -255,6 +281,14 @@ export default function AdminScreen() {
           </View>
         )}
 
+        {/* Registrační status – jen pro manažera */}
+        {isManager && teamDetail && (activeRole === 'all' || activeRole === 'manager') && (
+          <RegStatusBanner
+            team={teamDetail}
+            onAppeal={() => { setAppealText(''); setAppealModal(true); }}
+          />
+        )}
+
         {sections.map(section => (
           <View key={section.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -345,9 +379,87 @@ export default function AdminScreen() {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Modal – odvolání vedoucího */}
+      <Modal visible={appealModal} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <Pressable style={styles.backdrop} onPress={() => setAppealModal(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Odvolání registrace</Text>
+            <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 12 }}>
+              Vysvětli, proč by měl být tým přijat do ligy. Odvolání bude odesláno supervisorovi.
+            </Text>
+            <TextInput
+              style={[styles.appealInput, { height: 100, textAlignVertical: 'top' }]}
+              value={appealText}
+              onChangeText={setAppealText}
+              placeholder="Napiš odvolání..."
+              placeholderTextColor={Colors.di}
+              keyboardAppearance="dark"
+              multiline
+            />
+            <Pressable
+              style={[styles.appealBtn, appealBusy && { opacity: 0.5 }]}
+              onPress={submitAppeal}
+              disabled={appealBusy}
+            >
+              {appealBusy
+                ? <ActivityIndicator color={Colors.bg} size="small" />
+                : <Text style={styles.appealBtnTxt}>Odeslat odvolání</Text>
+              }
+            </Pressable>
+            <View style={{ height: 16 }} />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+// ─── Registrační status banner pro vedoucího ───────────────────────────────
+function RegStatusBanner({ team, onAppeal }: { team: any; onAppeal: () => void }) {
+  const rs: string = team.regStatus ?? 'APPROVED';
+  if (rs === 'APPROVED') return null; // schváleno → nezobrazovat
+
+  const configs: Record<string, { icon: keyof typeof Ionicons.glyphMap; title: string; color: string; bg: string }> = {
+    PENDING:   { icon: 'time-outline',           title: 'Čeká na schválení',  color: Colors.mu,  bg: `${Colors.mu}18`  },
+    REJECTED:  { icon: 'close-circle-outline',   title: 'Registrace zamítnuta', color: Colors.red, bg: `${Colors.red}18` },
+    APPEALING: { icon: 'chatbubble-ellipses-outline', title: 'Odvolání odesláno', color: '#F59E0B', bg: '#F59E0B18' },
+  };
+  const cfg = configs[rs] ?? configs.PENDING;
+
+  return (
+    <View style={[rbs.banner, { backgroundColor: cfg.bg, borderColor: `${cfg.color}44` }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <Ionicons name={cfg.icon} size={18} color={cfg.color} />
+        <Text style={[rbs.title, { color: cfg.color }]}>{cfg.title}</Text>
+      </View>
+      {rs === 'PENDING' && (
+        <Text style={rbs.desc}>Tým čeká na schválení supervisorem. Obdržíš notifikaci po vyřízení.</Text>
+      )}
+      {rs === 'REJECTED' && team.regNote && (
+        <Text style={rbs.desc}>Důvod: {team.regNote}</Text>
+      )}
+      {rs === 'REJECTED' && (
+        <Pressable style={rbs.appealBtn} onPress={onAppeal}>
+          <Text style={rbs.appealBtnTxt}>Podat odvolání</Text>
+        </Pressable>
+      )}
+      {rs === 'APPEALING' && team.regAppeal && (
+        <Text style={rbs.desc}>Tvé odvolání: {team.regAppeal}</Text>
+      )}
+    </View>
+  );
+}
+
+const rbs = StyleSheet.create({
+  banner:     { borderRadius: Radius.md, borderWidth: 1, padding: 14, marginBottom: 16 },
+  title:      { fontSize: Fonts.sizes.sm, fontWeight: '700' },
+  desc:       { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18, marginTop: 2 },
+  appealBtn:  { marginTop: 10, backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 16, paddingVertical: 9, alignSelf: 'flex-start' },
+  appealBtnTxt: { fontSize: Fonts.sizes.xs, fontWeight: '700', color: '#fff' },
+});
 
 function StatBox({ label, value, last }: { label: string; value: number; last?: boolean }) {
   return (
@@ -397,4 +509,13 @@ const styles = StyleSheet.create({
   roleChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
   roleChipTxt:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.mu },
   roleChipTxtActive:{ color: Colors.bg },
+
+  // Appeal modal
+  backdrop:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },
+  sheet:        { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: Colors.c1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  sheetHandle:  { width: 40, height: 4, backgroundColor: Colors.bd, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 8 },
+  appealInput:  { backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 12, fontSize: Fonts.sizes.md, color: Colors.wh, marginTop: 8 },
+  appealBtn:    { backgroundColor: Colors.red, borderRadius: Radius.md, padding: 14, alignItems: 'center', marginTop: 14 },
+  appealBtnTxt: { fontSize: Fonts.sizes.md, fontWeight: '700', color: '#fff' },
 });

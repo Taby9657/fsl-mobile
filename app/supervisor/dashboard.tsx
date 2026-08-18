@@ -15,6 +15,8 @@ interface Stats {
   totalTeams: number;
   totalPlayers: number;
   unpaidLicenses: number;
+  pendingTeams: number;
+  appealingTeams: number;
 }
 
 function StatCard({ icon, label, value, color, route }: { icon: any; label: string; value: number; color?: string; route?: string }) {
@@ -67,7 +69,8 @@ export default function DashboardScreen() {
 
   useEffect(() => { load(); }, []);
 
-  const hasPending = (stats?.pendingReferees ?? 0) > 0 || (stats?.pendingRequests ?? 0) > 0;
+  const hasPending = (stats?.pendingReferees ?? 0) > 0 || (stats?.pendingRequests ?? 0) > 0
+    || (stats?.pendingTeams ?? 0) > 0 || (stats?.appealingTeams ?? 0) > 0;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -108,8 +111,10 @@ export default function DashboardScreen() {
               <Ionicons name="warning" size={16} color='#F59E0B' />
               <Text style={s.alertTxt}>
                 {[
-                  (stats?.pendingReferees ?? 0) > 0 && `${stats!.pendingReferees} rozhodčích čeká na schválení`,
-                  (stats?.pendingRequests ?? 0) > 0 && `${stats!.pendingRequests} žádostí čeká na vyřízení`,
+                  (stats?.pendingReferees  ?? 0) > 0 && `${stats!.pendingReferees} rozhodčích čeká`,
+                  (stats?.pendingRequests  ?? 0) > 0 && `${stats!.pendingRequests} žádostí`,
+                  (stats?.pendingTeams     ?? 0) > 0 && `${stats!.pendingTeams} týmů čeká na schválení`,
+                  (stats?.appealingTeams   ?? 0) > 0 && `${stats!.appealingTeams} odvolání`,
                 ].filter(Boolean).join('  ·  ')}
               </Text>
               <Ionicons name="chevron-forward" size={14} color='#F59E0B' />
@@ -142,6 +147,26 @@ export default function DashboardScreen() {
             color={(stats?.pendingRequests ?? 0) > 0 ? '#F59E0B' : Colors.green}
             route="/supervisor/requests"
           />
+          <View style={{ height: 10 }} />
+          <StatCard
+            icon="shield-outline"
+            label="Týmy čekají na registraci"
+            value={stats?.pendingTeams ?? 0}
+            color={(stats?.pendingTeams ?? 0) > 0 ? '#F59E0B' : Colors.go}
+            route="/supervisor/teams"
+          />
+          {(stats?.appealingTeams ?? 0) > 0 && (
+            <>
+              <View style={{ height: 10 }} />
+              <StatCard
+                icon="chatbubble-ellipses-outline"
+                label="Odvolání registrací"
+                value={stats.appealingTeams}
+                color={Colors.red}
+                route="/supervisor/teams"
+              />
+            </>
+          )}
 
           <Text style={[s.section, { marginTop: 20 }]}>Správa ligy</Text>
           <View style={s.actions}>
