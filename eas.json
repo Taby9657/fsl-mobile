@@ -1,26 +1,40 @@
 {
-  "cli": { "version": ">= 10.0.0" },
+  "cli": {
+    "version": ">= 10.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": false }
+      "ios": {
+        "simulator": false
+      }
     },
     "simulator": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": { "simulator": true }
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "distribution": "internal",
-      "ios": { "simulator": false },
-      "env": { "SENTRY_DISABLE_AUTO_UPLOAD": "true" }
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
         "image": "latest",
-        "resourceClass": "m1-medium"
+        "resourceClass": "m-medium"
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
