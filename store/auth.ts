@@ -10,17 +10,21 @@ interface User {
   manager?: any[];
 }
 
+export type ActiveRole = 'all' | 'player' | 'manager' | 'referee' | 'supervisor';
+
 interface AuthState {
   user: User | null;
   token: string | null;
   isGuest: boolean;
   loading: boolean;
+  activeRole: ActiveRole;
   setAuth: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   loginAsGuest: () => void;
   loginAsTester: () => void;
   loadFromStorage: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  setActiveRole: (role: ActiveRole) => void;
 }
 
 // SEC-01: TESTER_USER je dostupný pouze v development buildu
@@ -51,10 +55,11 @@ const TESTER_USER: User | null = __DEV__ ? {
 } : null;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user:    null,
-  token:   null,
-  isGuest: false,
-  loading: true,
+  user:       null,
+  token:      null,
+  isGuest:    false,
+  loading:    true,
+  activeRole: 'all',
 
   setAuth: async (token, user) => {
     await SecureStore.setItemAsync('fsl_token', token);
@@ -106,6 +111,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: res.data.user });
     } catch {}
   },
+
+  setActiveRole: (role) => set({ activeRole: role }),
 }));
 
 // Pomocné selektory

@@ -155,6 +155,15 @@ export default function RefereeOnboardingScreen() {
               </View>
             </View>
 
+            <View style={styles.bankInfoBox}>
+              <Ionicons name="cash-outline" size={18} color='#3B82F6' style={{ marginTop: 1 }} />
+              <Text style={styles.bankInfoText}>
+                <Text style={{ fontWeight: '700', color: Colors.wh }}>Proč potřebujeme bankovní účet?{'\n'}</Text>
+                Za každý odpískaný zápas obdržíš odměnu (výši stanovuje FSL pro danou sezónu). Odměna se vyplácí převodem na tento účet — bez jeho zadání ti výplata nejde zpracovat.{'\n\n'}
+                Údaje jsou viditelné pouze supervisorovi FSL a zpracovávají se dle GDPR.
+              </Text>
+            </View>
+
             <Text style={styles.label}>Číslo bankovního účtu</Text>
             <TextInput style={styles.input} value={form.bankAccount} onChangeText={v => set('bankAccount', v)}
               placeholder="192000145399" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
@@ -166,7 +175,7 @@ export default function RefereeOnboardingScreen() {
               returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
             <Text style={styles.bankHint}>
-              Kód banky: ČS 0800, KB 0100, ČSOB 0300, Fio 2010, mBank 6210
+              Kód banky: ČS 0800 · KB 0100 · ČSOB 0300 · Fio 2010 · mBank 6210 · Air 3030
             </Text>
           </>
         )}
@@ -247,6 +256,8 @@ const styles = StyleSheet.create({
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 14, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
   bankHint:        { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 8, lineHeight: 18 },
+  bankInfoBox:     { flexDirection: 'row', gap: 10, backgroundColor: '#3B82F611', borderRadius: Radius.md, borderWidth: 1, borderColor: '#3B82F644', padding: 14, marginTop: 14, marginBottom: 4, alignItems: 'flex-start' },
+  bankInfoText:    { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
   summaryRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   summaryLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
   summaryValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, flex: 1, textAlign: 'right' },

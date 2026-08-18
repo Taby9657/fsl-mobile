@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, ActivityIndicator, TextInput, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor } from '../../store/auth';
+import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor, type ActiveRole } from '../../store/auth';
 import { playersApi, supervisorApi, statsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -15,8 +15,16 @@ interface MenuItem {
   color?: string;
 }
 
+const ROLE_TABS: { id: ActiveRole; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'all',        label: 'Vše',       icon: 'apps'         },
+  { id: 'player',     label: 'Hráč',      icon: 'person'       },
+  { id: 'manager',    label: 'Vedoucí',   icon: 'shield'       },
+  { id: 'referee',    label: 'Rozhodčí',  icon: 'flag'         },
+  { id: 'supervisor', label: 'Supervisor', icon: 'star'        },
+];
+
 export default function AdminScreen() {
-  const { user, isGuest, refreshUser } = useAuthStore();
+  const { user, isGuest, refreshUser, activeRole, setActiveRole } = useAuthStore();
   const isManager    = useIsManager();
   const isReferee    = useIsReferee();
   const isSupervisor = useIsSupervisor();
@@ -115,11 +123,12 @@ export default function AdminScreen() {
   }
 
   // Sekce podle role
-  const sections: { title: string; items: MenuItem[] }[] = [];
+  const allSections: { id: ActiveRole; title: string; items: MenuItem[] }[] = [];
 
   // Profil sekce pro hráče
   if (user?.player) {
-    sections.push({
+    allSections.push({
+      id: 'player',
       title: 'Můj profil',
       items: [
         { icon: 'person-circle', label: 'Upravit profil',  desc: 'Jméno, telefon, číslo dresu', route: '/profile-edit' },
@@ -130,7 +139,8 @@ export default function AdminScreen() {
   }
 
   if (isManager) {
-    sections.push({
+    allSections.push({
+      id: 'manager',
       title: 'Vedoucí týmu',
       items: [
         { icon: 'people', label: 'Hráči', desc: 'Soupiska, pozvánkový kód', route: '/team-roster' },
@@ -143,7 +153,8 @@ export default function AdminScreen() {
   }
 
   if (isReferee) {
-    sections.push({
+    allSections.push({
+      id: 'referee',
       title: 'Rozhodčí',
       items: [
         { icon: 'calendar', label: 'Moje nasazení', desc: 'Nadcházející zápasy', route: `/referee/${user?.referee?.id}` },
@@ -153,7 +164,8 @@ export default function AdminScreen() {
   }
 
   if (isSupervisor) {
-    sections.push({
+    allSections.push({
+      id: 'supervisor',
       title: 'Supervisor',
       items: [
         { icon: 'stats-chart', label: 'Dashboard', desc: 'Přehled celé ligy', route: '/supervisor/dashboard', color: Colors.pu },
@@ -167,8 +179,13 @@ export default function AdminScreen() {
     });
   }
 
+  // Filtrování podle activeRole (jen pro supervisora)
+  const sections = isSupervisor && activeRole !== 'all'
+    ? allSections.filter(s => s.id === activeRole)
+    : allSections;
+
   // Pokud nemá žádnou roli → onboarding
-  if (!isManager && !isReferee && sections.length === 0) {
+  if (!isManager && !isReferee && allSections.length === 0) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
@@ -187,8 +204,38 @@ export default function AdminScreen() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Text style={styles.title}>Správa</Text>
 
-        {/* Moje statistiky (jen pro hráče) */}
-        {user?.player && (
+        {/* Role switcher – jen pro supervisora */}
+        {isSupervisor && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 20, marginHorizontal: -4 }}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+          >
+            {ROLE_TABS.map(tab => {
+              const active = activeRole === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={[styles.roleChip, active && styles.roleChipActive]}
+                  onPress={() => setActiveRole(tab.id)}
+                >
+                  <Ionicons
+                    name={tab.icon}
+                    size={14}
+                    color={active ? Colors.bg : Colors.mu}
+                  />
+                  <Text style={[styles.roleChipTxt, active && styles.roleChipTxtActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Moje statistiky (jen pro hráče + hráčský nebo all pohled) */}
+        {user?.player && (activeRole === 'all' || activeRole === 'player') && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Moje statistiky</Text>
             <View style={[styles.card, { flexDirection: 'row' }]}>
@@ -343,7 +390,11 @@ const styles = StyleSheet.create({
   settingsBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, marginTop: 8 },
   logoutBtn:    { borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, alignItems: 'center', marginTop: 8 },
   logoutText:   { fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '600' },
-  seasonInput:  { backgroundColor: Colors.c2, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.sm, padding: 12, color: Colors.wh, fontSize: Fonts.sizes.md, marginBottom: 10 },
-  seasonBtn:    { backgroundColor: Colors.pu, borderRadius: Radius.md, padding: 12, alignItems: 'center' },
-  seasonBtnTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.white },
+  seasonInput:      { backgroundColor: Colors.c2, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.sm, padding: 12, color: Colors.wh, fontSize: Fonts.sizes.md, marginBottom: 10 },
+  seasonBtn:        { backgroundColor: Colors.pu, borderRadius: Radius.md, padding: 12, alignItems: 'center' },
+  seasonBtnTxt:     { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
+  roleChip:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  roleChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
+  roleChipTxt:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.mu },
+  roleChipTxtActive:{ color: Colors.bg },
 });

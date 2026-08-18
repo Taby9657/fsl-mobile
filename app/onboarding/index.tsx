@@ -11,7 +11,8 @@ const ROLES = [
     id:    'player',
     icon:  'person' as const,
     title: 'Jsem hráč',
-    desc:  'Připoj se k týmu pomocí pozvánkového kódu od vedoucího.',
+    desc:  'Vedoucí týmu ti pošle 6místný pozvánkový kód. Zadáš ho tady a okamžitě jsi na soupisce.',
+    badge: 'Potřebuješ kód od vedoucího',
     route: '/onboarding/player-code',
     color: Colors.go,
   },
@@ -19,7 +20,8 @@ const ROLES = [
     id:    'manager',
     icon:  'shield' as const,
     title: 'Jsem vedoucí týmu',
-    desc:  'Zaregistruj nový tým a pozvi hráče.',
+    desc:  'Vytvoříš tým, spravuješ soupisku, odesíláš hráče před zápasem a platíš licence.',
+    badge: 'Plná správa týmu',
     route: '/onboarding/manager',
     color: Colors.pu,
   },
@@ -27,7 +29,8 @@ const ROLES = [
     id:    'referee',
     icon:  'flag' as const,
     title: 'Chci být rozhodčí',
-    desc:  'Vyplň osobní a HR údaje. Supervisor tě schválí.',
+    desc:  'Vyplníš osobní údaje a bankovní spojení pro výplatu odměn. Supervisor FSL tě do 48 h schválí.',
+    badge: 'Čeká na schválení supervisorem',
     route: '/onboarding/referee',
     color: '#3B82F6',
   },
@@ -66,6 +69,9 @@ export default function OnboardingIndex() {
               <View style={styles.cardText}>
                 <Text style={styles.cardTitle}>{role.title}</Text>
                 <Text style={styles.cardDesc}>{role.desc}</Text>
+                <View style={[styles.badge, { backgroundColor: `${role.color}18` }]}>
+                  <Text style={[styles.badgeTxt, { color: role.color }]}>{role.badge}</Text>
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.di} />
             </Pressable>
@@ -94,8 +100,10 @@ const styles = StyleSheet.create({
   cardPressed: { opacity: 0.7 },
   iconBox:     { width: 52, height: 52, borderRadius: Radius.md, justifyContent: 'center', alignItems: 'center' },
   cardText:    { flex: 1 },
-  cardTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 3 },
-  cardDesc:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 18 },
+  cardTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
+  cardDesc:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 18, marginBottom: 8 },
+  badge:       { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  badgeTxt:    { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
   logoutBtn:   { alignItems: 'center', marginTop: 28, paddingVertical: 8 },
   logoutText:  { fontSize: Fonts.sizes.sm, color: Colors.di },
 });
