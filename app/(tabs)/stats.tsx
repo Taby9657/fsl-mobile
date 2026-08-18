@@ -232,26 +232,28 @@ export default function StatsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Hlavička + season selector */}
+      {/* Hlavička */}
       <View style={styles.titleRow}>
         <Text style={styles.title}>Statistiky</Text>
-        <Pressable onPress={() => router.push('/compare' as any)} style={styles.compareBtn}>
-          <Ionicons name="git-compare-outline" size={16} color={Colors.go} />
-          <Text style={styles.compareTxt}>Porovnat</Text>
-        </Pressable>
-        {seasons.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingRight: 16 }}>
-            {seasons.map(s => (
-              <Pressable key={s} style={[styles.seasonChip, season === s && styles.seasonChipActive]} onPress={() => setSeason(s)}>
-                <Text style={[styles.seasonTxt, season === s && styles.seasonTxtActive]}>{s}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {seasons.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {seasons.map(s => (
+                <Pressable key={s} style={[styles.seasonChip, season === s && styles.seasonChipActive]} onPress={() => setSeason(s)}>
+                  <Text style={[styles.seasonTxt, season === s && styles.seasonTxtActive]}>{s}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          <Pressable onPress={() => router.push('/compare' as any)} style={styles.compareBtn}>
+            <Ionicons name="git-compare-outline" size={15} color={Colors.go} />
+            <Text style={styles.compareTxt}>Porovnat</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 6 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingVertical: 2 }}>
         {TABS.map(t => (
           <Pressable
             key={t.key}
@@ -267,17 +269,19 @@ export default function StatsScreen() {
 
       {/* Division filter (skryj pro rozhodčí a moje) */}
       {tab !== 'referees' && tab !== 'mine' && divisionList.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.divBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-          {divisionList.map(d => (
-            <Pressable
-              key={d}
-              style={[styles.divChip, division === d && styles.divChipActive]}
-              onPress={() => setDivision(d)}
-            >
-              <Text style={[styles.divChipTxt, division === d && styles.divChipTxtActive]}>{d}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <View style={styles.divBarWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingVertical: 2 }}>
+            {divisionList.map(d => (
+              <Pressable
+                key={d}
+                style={[styles.divChip, division === d && styles.divChipActive]}
+                onPress={() => setDivision(d)}
+              >
+                <Text style={[styles.divChipTxt, division === d && styles.divChipTxtActive]}>{d}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {tab === 'mine' ? renderMineContent() : loading ? (
@@ -309,23 +313,23 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: Colors.bg },
-  titleRow:     { flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingTop: 16, paddingBottom: 8, gap: 12 },
+  titleRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, gap: 10 },
   title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, flex: 1 },
-  compareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: `${Colors.go}18`, borderRadius: Radius.full, borderWidth: 1, borderColor: `${Colors.go}44`, marginRight: 16 },
+  compareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: `${Colors.go}18`, borderRadius: Radius.full, borderWidth: 1, borderColor: `${Colors.go}44` },
   compareTxt:   { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
-  seasonChip:   { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  seasonChip:   { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
   seasonTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },
   seasonTxtActive: { color: Colors.bg },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
   empty:        { fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' },
-  tabsBar:      { flexGrow: 0, marginBottom: 8 },
+  tabsBar:      { flexGrow: 0, marginBottom: 0 },
   tab: {
-    paddingHorizontal: 16, paddingVertical: 7, borderRadius: Radius.md,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.md,
     backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, alignItems: 'center',
   },
   tabActive:     { backgroundColor: Colors.go, borderColor: Colors.go },
-  tabText:       { fontSize: 11, color: Colors.mu, fontWeight: '600' },
+  tabText:       { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
   tabTextActive: { color: Colors.bg },
   // Moje statistiky
   statGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -355,10 +359,10 @@ const styles = StyleSheet.create({
   refCount: { fontSize: Fonts.sizes.xs, color: Colors.di },
   refScore: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   refMax:   { fontSize: Fonts.sizes.sm, color: Colors.mu },
-  divBar:        { flexGrow: 0, marginBottom: 4 },
-  divChip:       { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  divChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
-  divChipTxt:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
-  divChipTxtActive: { color: Colors.bg },
+  divBarWrap:    { borderTopWidth: 1, borderTopColor: Colors.bd, paddingVertical: 8 },
+  divChip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  divChipActive: { backgroundColor: Colors.pu, borderColor: Colors.pu },
+  divChipTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+  divChipTxtActive: { color: '#fff' },
   skeletonCard:  { margin: 16, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
 });
