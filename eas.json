@@ -42,8 +42,8 @@
     "production": {
       "ios": {
         "appleId": "j.tabasek96@gmail.com",
-        "ascAppId": "TVOJE_APP_ID_Z_APP_STORE_CONNECT",
-        "appleTeamId": "TVUJ_TEAM_ID"
+        "ascAppId": "DOPLNIT_ASC_APP_ID",
+        "appleTeamId": "Z7LH23AKR4"
       }
     }
   }
