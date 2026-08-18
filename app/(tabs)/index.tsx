@@ -290,7 +290,7 @@ const s = StyleSheet.create({
   season:  { fontSize: Fonts.sizes.sm, color: Colors.mu, marginTop: 2 },
   bell:    { position: 'relative', padding: 4 },
   badge:   { position: 'absolute', top: 0, right: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: Colors.red, justifyContent: 'center', alignItems: 'center' },
-  badgeText: { fontSize: 9, fontWeight: '700', color: Colors.white },
+  badgeText: { fontSize: 9, fontWeight: '700', color: Colors.wh },
 
   // Banners
   onboardBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.go, borderRadius: Radius.md, padding: 14, marginBottom: 8 },

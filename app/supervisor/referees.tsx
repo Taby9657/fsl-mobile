@@ -167,7 +167,7 @@ const s = StyleSheet.create({
   tab:        { flex: 1, paddingVertical: 7, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, alignItems: 'center' },
   tabActive:  { backgroundColor: Colors.pu, borderColor: Colors.pu },
   tabTxt:     { fontSize: 11, color: Colors.mu, fontWeight: '600' },
-  tabTxtActive:{ color: Colors.white },
+  tabTxtActive:{ color: Colors.wh },
   card:       { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14 },
   cardTop:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar:     { width: 40, height: 40, borderRadius: 20, backgroundColor: `${Colors.pu}22`, justifyContent: 'center', alignItems: 'center' },

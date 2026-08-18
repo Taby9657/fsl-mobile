@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supervisorApi, matchesApi, refereesApi } from '../../services/api';
+import { supervisorApi, matchesApi, refereesApi, statsApi } from '../../services/api';
 import { DatePicker } from '../../components/DatePicker';
 import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { Colors, Fonts, Radius } from '../../constants/colors';
@@ -29,7 +29,7 @@ function fmtDate(iso: string) {
 
 const EMPTY_FORM = {
   homeTeamId: '', awayTeamId: '', time: '18:00',
-  venue: '', round: '', division: 'Divize A', competition: 'FSL Liga', season: '2025/26',
+  venue: '', round: '', division: 'Divize A', competition: 'FSL Liga', season: '',
 };
 
 export default function SuperMatchesScreen() {
@@ -39,6 +39,8 @@ export default function SuperMatchesScreen() {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter]         = useState<StatusFilter>('UPCOMING');
+  const [seasons, setSeasons]       = useState<string[]>([]);
+  const [season, setSeason]         = useState<string | undefined>(undefined);
   const [modal, setModal]           = useState<ModalType>(null);
   const [editTarget, setEditTarget] = useState<any>(null);
   const [assignTarget, setAssignTarget] = useState<any>(null);
@@ -46,10 +48,20 @@ export default function SuperMatchesScreen() {
   const [matchDate, setMatchDate]   = useState<Date | null>(null);
   const [saving, setSaving]         = useState(false);
 
+  useEffect(() => {
+    statsApi.seasons().then(r => {
+      const ss: string[] = r.data ?? [];
+      setSeasons(ss);
+      if (ss.length > 0 && season === undefined) setSeason(ss[0]);
+    }).catch(() => {});
+  }, []);
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const params = filter === 'ALL' ? {} : { status: filter };
+      const params: Record<string, string> = {};
+      if (filter !== 'ALL') params.status = filter;
+      if (season) params.season = season;
       const [mRes, tRes, rRes] = await Promise.all([
         supervisorApi.matches(params),
         supervisorApi.teams(),
@@ -64,7 +76,7 @@ export default function SuperMatchesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter]);
+  }, [filter, season]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -86,7 +98,7 @@ export default function SuperMatchesScreen() {
       round:       match.round?.toString() ?? '',
       division:    match.division ?? 'Divize A',
       competition: match.competition ?? 'FSL Liga',
-      season:      match.season ?? '2025/26',
+      season:      match.season ?? '',
     });
     setEditTarget(match);
     setModal('edit');
@@ -112,7 +124,7 @@ export default function SuperMatchesScreen() {
         round:       form.round ? parseInt(form.round) : null,
         division:    form.division,
         competition: form.competition,
-        season:      form.season || '2025/26',
+        season:      form.season || null,
       };
       if (modal === 'add') {
         await matchesApi.create(data);
@@ -208,7 +220,7 @@ export default function SuperMatchesScreen() {
         </Pressable>
       </View>
 
-      {/* Filter tabs */}
+      {/* Status filter */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
         {FILTERS.map(f => (
           <Pressable
@@ -220,6 +232,21 @@ export default function SuperMatchesScreen() {
           </Pressable>
         ))}
       </ScrollView>
+
+      {/* Season filter */}
+      {seasons.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 4 }}>
+          {seasons.map(s2 => (
+            <Pressable
+              key={s2}
+              style={[s.chip, season === s2 && s.chipActive]}
+              onPress={() => setSeason(s2)}
+            >
+              <Text style={[s.chipText, season === s2 && s.chipTextActive]}>{s2}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
 
       {loading ? (
         <View style={s.center}><ActivityIndicator color={Colors.go} size="large" /></View>
