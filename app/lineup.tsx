@@ -21,6 +21,7 @@ export default function LineupScreen() {
   const [players, setPlayers]     = useState<any[]>([]);
   const [selected, setSelected]   = useState<any>(null);   // vybraný zápas
   const [picked, setPicked]       = useState<Set<string>>(new Set());
+  const [goalkeeper, setGoalkeeper] = useState<string>(''); // player ID brankáře
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -40,9 +41,19 @@ export default function LineupScreen() {
   function togglePlayer(id: string) {
     setPicked(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+        // odebrat brankáře pokud byl odebrán ze soupisky
+        if (goalkeeper === id) setGoalkeeper('');
+      } else {
+        next.add(id);
+      }
       return next;
     });
+  }
+
+  function toggleGoalkeeper(id: string) {
+    setGoalkeeper(prev => prev === id ? '' : id);
   }
 
   function isLicensed(p: any) {
@@ -55,7 +66,7 @@ export default function LineupScreen() {
       await matchesApi.lineup(
         selected!.id,
         teamId!,
-        [...picked].map(id => ({ playerId: id })),
+        [...picked].map(id => ({ playerId: id, isGoalkeeper: id === goalkeeper })),
         force,
       );
       Alert.alert('Hotovo', 'Soupiska odeslána!', [{ text: 'OK', onPress: () => router.back() }]);
@@ -86,6 +97,14 @@ export default function LineupScreen() {
       Alert.alert('Upozornění', 'Vyber zápas a aspoň jednoho hráče.');
       return;
     }
+    if (picked.size < 9) {
+      Alert.alert('Nedostatek hráčů', `Soupiska musí mít min. 9 hráčů (aktuálně ${picked.size}).`);
+      return;
+    }
+    if (!goalkeeper || !picked.has(goalkeeper)) {
+      Alert.alert('Chybí brankář', 'Označ jednoho hráče jako brankáře (GK).');
+      return;
+    }
     await doSubmit(false);
   }
 
@@ -114,7 +133,7 @@ export default function LineupScreen() {
             <Pressable
               key={m.id}
               style={[s.matchCard, selected?.id === m.id && s.matchCardActive]}
-              onPress={() => { setSelected(m); setPicked(new Set()); }}
+              onPress={() => { setSelected(m); setPicked(new Set()); setGoalkeeper(''); }}
             >
               <View style={{ flex: 1 }}>
                 <Text style={s.matchTeams}>{m.homeTeam?.abbr} vs {m.awayTeam?.abbr}</Text>
@@ -129,15 +148,16 @@ export default function LineupScreen() {
           {selected && (
             <>
               <Text style={[s.sectionTitle, { marginTop: 20 }]}>
-                2. Vyber hráče ({picked.size} vybráno)
+                2. Vyber hráče ({picked.size} vybráno{goalkeeper ? ' · GK ✓' : ' · GK chybí'})
               </Text>
               {players.map(p => {
                 const sel = picked.has(p.id);
                 const lic = isLicensed(p);
+                const isGK = goalkeeper === p.id;
                 return (
-                  <Pressable key={p.id} style={[s.playerRow, sel && s.playerRowSel]} onPress={() => togglePlayer(p.id)}>
-                    <View style={[s.jersey, { borderColor: lic ? Colors.go : Colors.red }]}>
-                      <Text style={s.jerseyNum}>{p.jersey ?? '–'}</Text>
+                  <Pressable key={p.id} style={[s.playerRow, sel && s.playerRowSel, isGK && s.playerRowGK]} onPress={() => togglePlayer(p.id)}>
+                    <View style={[s.jersey, { borderColor: isGK ? Colors.pu : lic ? Colors.go : Colors.red }]}>
+                      <Text style={[s.jerseyNum, isGK && { color: Colors.pu }]}>{p.jersey ?? '–'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.playerName, sel && { color: Colors.wh }]}>
@@ -147,10 +167,20 @@ export default function LineupScreen() {
                         <Text style={s.noLicTxt}>⚠️ bez licence</Text>
                       )}
                     </View>
+                    {sel && (
+                      <Pressable
+                        onPress={(e) => { e.stopPropagation(); toggleGoalkeeper(p.id); }}
+                        style={[s.gkBtn, isGK && s.gkBtnActive]}
+                        hitSlop={8}
+                      >
+                        <Text style={[s.gkBtnTxt, isGK && s.gkBtnTxtActive]}>GK</Text>
+                      </Pressable>
+                    )}
                     <Ionicons
                       name={sel ? 'checkmark-circle' : 'ellipse-outline'}
                       size={20}
                       color={sel ? Colors.go : Colors.di}
+                      style={{ marginLeft: 6 }}
                     />
                   </Pressable>
                 );
@@ -190,6 +220,11 @@ const s = StyleSheet.create({
   matchVenue:     { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 1 },
   playerRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.c1, borderRadius: Radius.md, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: Colors.bd },
   playerRowSel:   { borderColor: Colors.go, backgroundColor: Colors.c2 },
+  playerRowGK:    { borderColor: Colors.pu },
+  gkBtn:          { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: Colors.di },
+  gkBtnActive:    { backgroundColor: Colors.pu, borderColor: Colors.pu },
+  gkBtnTxt:       { fontSize: 10, fontWeight: '700', color: Colors.di },
+  gkBtnTxtActive: { color: Colors.wh },
   jersey:         { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5 },
   noLicTxt:       { fontSize: 10, color: Colors.red, marginTop: 1 },
   jerseyNum:      { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
