@@ -1,14 +1,38 @@
 import '../global.css';
-import { useEffect } from 'react';
+import { useEffect, Component, type ReactNode } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, Text, ScrollView } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/auth';
 import { Colors } from '../constants/colors';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { OfflineBanner } from '../components/OfflineBanner';
+
+// Error boundary – zobrazí JS crash na obrazovce místo černé
+class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      const err = this.state.error as Error;
+      return (
+        <View style={{ flex: 1, backgroundColor: '#0D0120', padding: 24, paddingTop: 60 }}>
+          <Text style={{ color: '#EF4444', fontSize: 18, fontWeight: '700', marginBottom: 12 }}>
+            🚨 JS Crash
+          </Text>
+          <ScrollView>
+            <Text style={{ color: '#F0E8FF', fontSize: 13, marginBottom: 8 }}>{err.message}</Text>
+            <Text style={{ color: '#9B8BC8', fontSize: 11 }}>{err.stack}</Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Sentry inicializace – DSN z EAS env nebo app.json extra
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN
@@ -37,6 +61,7 @@ function RootLayout() {
   }, []);
 
   return (
+    <AppErrorBoundary>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PushSetup />
       <OfflineBanner />
@@ -80,6 +105,7 @@ function RootLayout() {
         <Stack.Screen name="bracket"                 options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>
+    </AppErrorBoundary>
   );
 }
 
