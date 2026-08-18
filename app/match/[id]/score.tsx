@@ -357,7 +357,7 @@ export default function LiveScoreScreen() {
                   keyboardType="numeric" placeholder="0" placeholderTextColor={Colors.di} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.label}>Poločas</Text>
+                <Text style={s.label}>Třetina</Text>  {/* BUG-17 OPRAVA: FSL hraje třetiny, ne poločasy */}
                 <View style={s.toggleRow}>
                   {['1','2','3'].map(p => (
                     <Pressable key={p} style={[s.toggle, goalPeriod === p && s.toggleActive]} onPress={() => setGoalPeriod(p)}>

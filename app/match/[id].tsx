@@ -20,8 +20,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 function fmt(iso: string) {
+  // BUG-18 OPRAVA: hodiny také potřebují padStart (např. 9:05 → 09:05)
   const d = new Date(iso);
-  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}  ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}  ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 export default function MatchDetailScreen() {
@@ -29,6 +30,7 @@ export default function MatchDetailScreen() {
   const isSupervisor = useIsSupervisor();
   const { user }     = useAuthStore();
   const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(false); // BUG-12: error state pro retry UI
   const [match, setMatch]             = useState<any>(null);
   const [tab, setTab]                 = useState<Tab>('events');
   const [starRating, setStarRating]   = useState(0);
@@ -41,14 +43,18 @@ export default function MatchDetailScreen() {
     try {
       const r = await matchesApi.get(id);
       setMatch(r.data);
-      // Start/stop polling based on live status
+      if (!isBackground) setError(false); // BUG-12: resetuj chybu při úspěšném načtení
+      // Start/stop polling dle live stavu
       if (r.data.status === 'LIVE' && !pollRef.current) {
         pollRef.current = setInterval(() => fetchMatch(true), 10_000);
       } else if (r.data.status !== 'LIVE' && pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
-    } catch { /* silent on background refresh */ }
+    } catch {
+      // BUG-12 OPRAVA: nastav error stav pouze pro primární načtení (ne background polling)
+      if (!isBackground) setError(true);
+    }
     if (!isBackground) setLoading(false);
   }
 
@@ -74,6 +80,29 @@ export default function MatchDetailScreen() {
         <Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable>
       </View>
       <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+    </SafeAreaView>
+  );
+
+  // BUG-12 OPRAVA: zobraz chybovou obrazovku s retry tlačítkem při selhání načtení
+  if (error && !match) return (
+    <SafeAreaView style={s.safe}>
+      <View style={s.header}>
+        <Pressable onPress={() => goBack()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable>
+        <Text style={s.title}>Chyba načtení</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <View style={s.center}>
+        <Ionicons name="wifi-outline" size={48} color={Colors.mu} />
+        <Text style={{ fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' }}>
+          Nepodařilo se načíst detail zápasu
+        </Text>
+        <Pressable
+          style={{ backgroundColor: Colors.go, borderRadius: Radius.md, paddingHorizontal: 24, paddingVertical: 12, marginTop: 8 }}
+          onPress={() => { setLoading(true); setError(false); fetchMatch(); }}
+        >
+          <Text style={{ fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg }}>Zkusit znovu</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 
@@ -370,7 +399,7 @@ function LineupCol({ title, players }: { title: string; players: any[] }) {
         const lic = lp.player?.payment?.licStatus;
         const unlicensed = lic && !['PAID', 'WAIVED'].includes(lic);
         return (
-          <Pressable key={lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
+          <Pressable key={lp.id ?? lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
             <Text style={[s.lineupNum, unlicensed && { color: Colors.red }]}>{lp.player?.jersey}</Text>
             <Text style={s.lineupName} numberOfLines={1}>{lp.player?.lastName}</Text>
             {unlicensed && <Ionicons name="warning" size={12} color={Colors.red} />}

@@ -40,6 +40,18 @@ api.interceptors.response.use(
   async (err) => {
     if (err.response?.status === 401) {
       await SecureStore.deleteItemAsync('fsl_token');
+      // BUG-05 OPRAVA: Resetuj Zustand auth store a přesměruj na přihlašovací obrazovku
+      // Používáme lazy require() aby nedošlo k cyklické závislosti modulů (auth.ts → api.ts → auth.ts)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { useAuthStore } = require('../store/auth') as { useAuthStore: { setState: (s: object) => void } };
+        useAuthStore.setState({ token: null, user: null, isGuest: false, loading: false });
+      } catch { /* store nemusí být dostupný v každém kontextu */ }
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { router } = require('expo-router') as { router: { replace: (path: string) => void } };
+        router.replace('/(auth)/login');
+      } catch { /* navigace nemusí být dostupná při spuštění aplikace */ }
     }
     // Přidej přehlednou chybovou zprávu pokud server žádnou neposlal
     if (err.response && !err.response.data?.error) {
@@ -60,7 +72,9 @@ export const authApi = {
   google: (idToken: string) => api.post('/auth/google', { idToken }),
   apple:  (identityToken: string, firstName?: string, lastName?: string, email?: string) =>
     api.post('/auth/apple', { identityToken, firstName, lastName, email }),
-  me: () => api.get('/auth/me'),
+  me:     () => api.get('/auth/me'),
+  // BUG-04 OPRAVA: endpoint pro serverové odhlášení (invalidace session na backendu)
+  logout: () => api.post('/auth/logout'),
 };
 
 // ==================== TÝMY ====================

@@ -67,6 +67,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // BUG-04 OPRAVA: Zavolej backend logout endpoint před smazáním tokenu
+    // Neblokuj odhlášení při síťové chybě — try/catch zaručuje, že odhlášení proběhne vždy
+    try {
+      await authApi.logout();
+    } catch {
+      // Síťová chyba nevadí — token odstraníme z úložiště každopádně
+    }
     await SecureStore.deleteItemAsync('fsl_token');
     set({ token: null, user: null, isGuest: false, loading: false });
   },

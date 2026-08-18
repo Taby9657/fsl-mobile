@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert, Share, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, Alert, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supervisorApi, statsApi } from '../../services/api';
+import { supervisorApi, statsApi, api } from '../../services/api';
+import * as SecureStore from 'expo-secure-store';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 import { SkeletonBlock } from '../../components/SkeletonCard';
@@ -71,6 +72,28 @@ export default function DashboardScreen() {
 
   const hasPending = (stats?.pendingReferees ?? 0) > 0 || (stats?.pendingRequests ?? 0) > 0
     || (stats?.pendingTeams ?? 0) > 0 || (stats?.appealingTeams ?? 0) > 0;
+
+  // BUG-11 OPRAVA: CSV export s JWT autorizací + sdílení obsahu přes Share API
+  async function exportCSV(type: 'players' | 'referees') {
+    try {
+      // Axios interceptor přidá token automaticky — použijeme api instanci místo Linking.openURL
+      const response = await api.get('/stats/export', {
+        params: { type },
+        // Axios vrátí text/csv jako string
+        responseType: 'text',
+        headers: { Accept: 'text/csv' },
+      });
+      const csvText: string = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      const label = type === 'players' ? 'Hráči' : 'Rozhodčí';
+      // Sdílej obsah CSV přes nativní Share dialog (funguje bez expo-file-system)
+      await Share.share({
+        message: csvText,
+        title: `FSL ${label} export CSV`,
+      });
+    } catch (e: any) {
+      Alert.alert('Chyba exportu', e?.response?.data?.error ?? e?.message ?? 'Nepodařilo se exportovat data');
+    }
+  }
 
   return (
     <SafeAreaView style={s.safe}>
@@ -200,17 +223,11 @@ export default function DashboardScreen() {
 
           <Text style={[s.section, { marginTop: 20 }]}>Export dat</Text>
           <View style={s.exportRow}>
-            <Pressable style={s.exportBtn} onPress={() => {
-              const url = statsApi.exportUrl('players');
-              Linking.openURL(url).catch(() => Alert.alert('Chyba', 'Nelze otevřít odkaz'));
-            }}>
+            <Pressable style={s.exportBtn} onPress={() => exportCSV('players')}>
               <Ionicons name="people-outline" size={18} color={Colors.go} />
               <Text style={s.exportTxt}>Hráči CSV</Text>
             </Pressable>
-            <Pressable style={s.exportBtn} onPress={() => {
-              const url = statsApi.exportUrl('referees');
-              Linking.openURL(url).catch(() => Alert.alert('Chyba', 'Nelze otevřít odkaz'));
-            }}>
+            <Pressable style={s.exportBtn} onPress={() => exportCSV('referees')}>
               <Ionicons name="shield-outline" size={18} color={Colors.go} />
               <Text style={s.exportTxt}>Rozhodčí CSV</Text>
             </Pressable>
