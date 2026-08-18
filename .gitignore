@@ -4,3 +4,14 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Environment – obsahuje EXPO_PUBLIC_* klíče
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+node_modules/
+.expo/
+dist/
+build/

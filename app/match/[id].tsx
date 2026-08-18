@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Share, Linking, Alert } from 'react-native';
 import { LiveBadge } from '../../components/LiveBadge';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -51,6 +52,15 @@ export default function MatchDetailScreen() {
     if (!isBackground) setLoading(false);
   }
 
+  // Načti ratingDone z persistentního úložiště (aby přežil navigaci)
+  useEffect(() => {
+    if (id && user?.id) {
+      AsyncStorage.getItem(`rating_done_${id}_${user.id}`)
+        .then(v => { if (v === '1') setRatingDone(true); })
+        .catch(() => {});
+    }
+  }, [id, user?.id]);
+
   useEffect(() => {
     fetchMatch();
     return () => {
@@ -91,6 +101,10 @@ export default function MatchDetailScreen() {
     try {
       await refereesApi.rate(match.referee.id, id!, starRating);
       setRatingDone(true);
+      // Persist aby přežilo navigaci
+      if (user?.id) {
+        AsyncStorage.setItem(`rating_done_${id}_${user.id}`, '1').catch(() => {});
+      }
     } catch (e: any) {
       const msg = e?.response?.data?.error ?? 'Hodnocení se nepodařilo odeslat. Zkus to znovu.';
       Alert.alert('Chyba', msg);
