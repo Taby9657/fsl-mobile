@@ -5,6 +5,8 @@ import { authApi } from '../services/api';
 interface User {
   id: string;
   email: string;
+  /** Přichází z backendu — pokrývá i supervisory z env SUPERVISOR_USER_IDS, kteří nemají hráčský profil. */
+  isSupervisor?: boolean;
   player?: any;
   referee?: any;
   manager?: any[];
@@ -31,6 +33,7 @@ interface AuthState {
 const TESTER_USER: User | null = __DEV__ ? {
   id: 'tester-001',
   email: 'tester@fsl.cz',
+  isSupervisor: true,
   player: {
     id: 'tester-player',
     firstName: 'FSL',
@@ -130,7 +133,7 @@ export const useIsReferee = () =>
   useAuthStore(s => !!s.user?.referee);
 
 export const useIsSupervisor = () =>
-  useAuthStore(s => s.user?.player?.isSupervisor === true);
+  useAuthStore(s => s.user?.isSupervisor === true || s.user?.player?.isSupervisor === true);
 
 export const useMyTeamId = () =>
   useAuthStore(s => s.user?.manager?.[0]?.teamId ?? s.user?.player?.teamId ?? null);

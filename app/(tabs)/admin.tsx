@@ -38,6 +38,7 @@ export default function AdminScreen() {
   const [seasonBusy, setSeasonBusy]     = useState(false);
   const [currentSeason, setCurrentSeason] = useState<string>('');
   const [teamDetail, setTeamDetail]     = useState<any>(null);
+  const [queue, setQueue]               = useState<any>(null);
   const [appealText, setAppealText]     = useState('');
   const [appealBusy, setAppealBusy]     = useState(false);
   const [appealModal, setAppealModal]   = useState(false);
@@ -51,6 +52,7 @@ export default function AdminScreen() {
         const ss: string[] = r.data ?? [];
         if (ss.length > 0) setCurrentSeason(ss[0]);
       }).catch(() => {});
+      supervisorApi.dashboard().then(r => setQueue(r.data)).catch(() => {});
     }
     // Načti detail týmu vedoucího (kvůli regStatus)
     const managedTeamId = user?.manager?.[0]?.teamId;
@@ -194,14 +196,13 @@ export default function AdminScreen() {
   if (isSupervisor) {
     allSections.push({
       id: 'supervisor',
-      title: 'Supervisor',
+      title: 'Organizace ligy',
       items: [
         { icon: 'stats-chart', label: 'Dashboard', desc: 'Přehled celé ligy', route: '/supervisor/dashboard', color: Colors.pu },
-        { icon: 'person-add', label: 'Rozhodčí ke schválení', desc: 'Čekající registrace', route: '/supervisor/referees', color: Colors.pu },
-        { icon: 'football', label: 'Správa zápasů', desc: 'Přiřazení rozhodčích', route: '/supervisor/matches', color: Colors.pu },
-        { icon: 'cash',         label: 'Platby',          desc: 'Přehled a ruční sync',          route: '/supervisor/payments', color: Colors.pu },
-        { icon: 'shield',       label: 'Správa týmů',     desc: 'Přidání, editace, smazání týmů', route: '/supervisor/teams',    color: Colors.pu },
         { icon: 'git-branch',   label: 'Rozlosování',     desc: 'Generování rozpisu zápasů',      route: '/supervisor/league',      color: Colors.pu },
+        { icon: 'football', label: 'Správa zápasů', desc: 'Přiřazení rozhodčích, rušení', route: '/supervisor/matches', color: Colors.pu },
+        { icon: 'shield',       label: 'Správa týmů',     desc: 'Divize, přidání, editace, smazání', route: '/supervisor/teams',    color: Colors.pu },
+        { icon: 'cash',         label: 'Platby',          desc: 'Přehled a ruční sync',          route: '/supervisor/payments', color: Colors.pu },
         { icon: 'newspaper',    label: 'Highlights kola', desc: 'Aktuality viditelné na home screen', route: '/supervisor/highlights', color: Colors.pu },
       ],
     });
@@ -282,6 +283,11 @@ export default function AdminScreen() {
               );
             })}
           </ScrollView>
+        )}
+
+        {/* Fronta ke schválení – jen supervisor */}
+        {isSupervisor && (activeRole === 'all' || activeRole === 'supervisor') && (
+          <QueueSection queue={queue} />
         )}
 
         {/* Moje statistiky (jen pro hráče + hráčský nebo all pohled) */}
@@ -487,6 +493,59 @@ export default function AdminScreen() {
   );
 }
 
+// ─── Fronta ke schválení (supervisor) ──────────────────────────────────────
+function QueueSection({ queue }: { queue: any }) {
+  if (!queue) {
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Fronta ke schválení</Text>
+        <View style={[styles.card, { padding: 20, alignItems: 'center' }]}>
+          <ActivityIndicator color={Colors.pu} size="small" />
+        </View>
+      </View>
+    );
+  }
+
+  const items = [
+    { key: 'teams',    icon: 'shield'      as const, label: 'Týmy ke schválení',      count: queue.pendingTeams    ?? 0, route: '/supervisor/teams'    },
+    { key: 'appeals',  icon: 'chatbubble-ellipses' as const, label: 'Odvolání týmů',  count: queue.appealingTeams  ?? 0, route: '/supervisor/teams'    },
+    { key: 'referees', icon: 'flag'        as const, label: 'Rozhodčí ke schválení',  count: queue.pendingReferees ?? 0, route: '/supervisor/referees' },
+    { key: 'requests', icon: 'help-buoy'   as const, label: 'Žádosti hráčů a vedoucích', count: queue.pendingRequests ?? 0, route: '/supervisor/requests' },
+    { key: 'unpaid',   icon: 'cash'        as const, label: 'Nezaplacené licence',    count: queue.unpaidLicenses  ?? 0, route: '/supervisor/payments' },
+  ];
+
+  const pending = items.filter(i => i.count > 0);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Fronta ke schválení</Text>
+      <View style={styles.card}>
+        {pending.length === 0 ? (
+          <View style={styles.queueEmpty}>
+            <Ionicons name="checkmark-circle" size={20} color={Colors.green} />
+            <Text style={styles.queueEmptyTxt}>Vše vyřízeno, nic nečeká.</Text>
+          </View>
+        ) : pending.map((item, idx) => (
+          <Pressable
+            key={item.key}
+            style={[styles.item, idx < pending.length - 1 && styles.itemBorder]}
+            onPress={() => router.push(item.route as any)}
+          >
+            <View style={[styles.iconBox, { backgroundColor: `${Colors.pu}22` }]}>
+              <Ionicons name={item.icon} size={18} color={Colors.pu} />
+            </View>
+            <Text style={[styles.itemLabel, { flex: 1 }]}>{item.label}</Text>
+            <View style={styles.queueBadge}>
+              <Text style={styles.queueBadgeTxt}>{item.count}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 // ─── Registrační status banner pro vedoucího ───────────────────────────────
 function RegStatusBanner({ team, onAppeal }: { team: any; onAppeal: () => void }) {
   const rs: string = team.regStatus ?? 'APPROVED';
@@ -579,6 +638,10 @@ const styles = StyleSheet.create({
   roleChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
   roleChipTxt:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.mu },
   roleChipTxtActive:{ color: Colors.bg },
+  queueEmpty:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
+  queueEmptyTxt: { fontSize: Fonts.sizes.sm, color: Colors.mu },
+  queueBadge:    { minWidth: 26, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Radius.full, backgroundColor: Colors.pu, alignItems: 'center', marginRight: 4 },
+  queueBadgeTxt: { fontSize: Fonts.sizes.xs, fontWeight: '800', color: Colors.wh },
   fanBanner:    { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 20 },
   fanTitle:     { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
   fanDesc:      { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
