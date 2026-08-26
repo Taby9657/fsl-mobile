@@ -3,8 +3,9 @@ import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl, Activity
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { matchesApi, statsApi, notificationsApi, highlightsApi } from '../../services/api';
+import { matchesApi, statsApi, notificationsApi, highlightsApi, teamsApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
+import { useFanStore } from '../../store/fan';
 import { cacheGet, cacheSet } from '../../utils/cache';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { LiveBadge } from '../../components/LiveBadge';
@@ -30,6 +31,11 @@ export default function HomeScreen() {
   const { user, isGuest } = useAuthStore();
   const isSupervisor = useIsSupervisor();
   const hasRole = !!(user?.player || user?.referee || user?.manager?.length);
+  const favTeamId = useFanStore(s => s.favTeamId);
+
+  const [favTeam,     setFavTeam]     = useState<any>(null);
+  const [favUpcoming, setFavUpcoming] = useState<any>(null);
+  const [favLast,     setFavLast]     = useState<any>(null);
 
   const [matches,      setMatches]      = useState<any[]>([]);
   const [liveMatches,  setLiveMatches]  = useState<any[]>([]);
@@ -97,6 +103,24 @@ export default function HomeScreen() {
 
   useEffect(() => { load(); }, []);
 
+  // Oblíbený tým – nejbližší zápas a poslední výsledek
+  useEffect(() => {
+    if (!favTeamId) { setFavTeam(null); setFavUpcoming(null); setFavLast(null); return; }
+    let cancelled = false;
+    (async () => {
+      const [tRes, uRes, dRes] = await Promise.allSettled([
+        teamsApi.get(favTeamId),
+        matchesApi.list({ teamId: favTeamId, status: 'UPCOMING', limit: '1' }),
+        matchesApi.list({ teamId: favTeamId, status: 'DONE',     limit: '1' }),
+      ]);
+      if (cancelled) return;
+      if (tRes.status === 'fulfilled') setFavTeam(tRes.value.data ?? null);
+      if (uRes.status === 'fulfilled') setFavUpcoming((uRes.value.data ?? [])[0] ?? null);
+      if (dRes.status === 'fulfilled') setFavLast((dRes.value.data ?? [])[0] ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [favTeamId]);
+
   // Poll live matches: 10s when there are live matches, 30s when quiet
   const hasLive = liveMatches.length > 0;
   useEffect(() => {
@@ -132,7 +156,7 @@ export default function HomeScreen() {
         <View style={s.header}>
           <View>
             <Text style={s.greeting}>
-              Ahoj, {user?.player?.firstName ?? user?.referee?.firstName ?? (isGuest ? 'návštěvníku' : 'hráči')} 👋
+              Ahoj, {user?.player?.firstName ?? user?.referee?.firstName ?? (isGuest ? 'návštěvníku' : hasRole ? 'hráči' : 'fanoušku')} 👋
             </Text>
             <Text style={s.season}>Sezona {currentSeason}</Text>
           </View>
@@ -149,16 +173,82 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Onboarding banner */}
+        {/* Fanoušek bez role – nabídka zapojit se */}
         {!isGuest && !hasRole && (
-          <Pressable style={s.onboardBanner} onPress={() => router.push('/onboarding')}>
+          <Pressable style={s.onboardBanner} onPress={() => router.push('/(tabs)/admin' as any)}>
             <Ionicons name="person-add" size={20} color={Colors.bg} />
             <View style={{ flex: 1 }}>
-              <Text style={s.onboardTitle}>Dokonči registraci</Text>
-              <Text style={s.onboardDesc}>Připoj se k týmu nebo se zaregistruj jako rozhodčí</Text>
+              <Text style={s.onboardTitle}>Zapoj se do ligy</Text>
+              <Text style={s.onboardDesc}>Staň se hráčem, vedoucím týmu nebo rozhodčím</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={Colors.bg} />
           </Pressable>
+        )}
+
+        {/* Oblíbený tým */}
+        {!isGuest && !favTeamId && (
+          <Pressable style={s.favPrompt} onPress={() => router.push('/favorite-team' as any)}>
+            <Ionicons name="heart-outline" size={18} color={Colors.go} />
+            <Text style={s.favPromptTxt}>Vyber si oblíbený tým a měj jeho zápasy po ruce</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+          </Pressable>
+        )}
+
+        {favTeam && (
+          <>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>Můj tým</Text>
+              <Pressable onPress={() => router.push('/favorite-team' as any)}>
+                <Text style={s.seeAll}>Změnit →</Text>
+              </Pressable>
+            </View>
+            <Pressable style={s.favCard} onPress={() => router.push(`/team/${favTeam.id}` as any)}>
+              <View style={s.favHead}>
+                <View style={[s.favLogo, { borderColor: favTeam.color ?? Colors.bd }]}>
+                  <Text style={[s.favAbbr, { color: favTeam.color ?? Colors.go }]}>{favTeam.abbr}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.favName}>{favTeam.name}</Text>
+                  <Text style={s.favDivision}>{favTeam.division ?? 'Bez divize'}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+              </View>
+
+              <View style={s.favSplit}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.favLabel}>Nejbližší zápas</Text>
+                  {favUpcoming ? (
+                    <>
+                      <Text style={s.favValue}>
+                        {favUpcoming.homeTeam?.abbr} – {favUpcoming.awayTeam?.abbr}
+                      </Text>
+                      <Text style={s.favMeta}>
+                        {format(new Date(favUpcoming.date), 'EEE d. M. · HH:mm', { locale: cs })}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={s.favMeta}>Žádný naplánovaný</Text>
+                  )}
+                </View>
+                <View style={s.favDivider} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.favLabel}>Poslední výsledek</Text>
+                  {favLast ? (
+                    <>
+                      <Text style={s.favValue}>
+                        {favLast.homeScore}:{favLast.awayScore}
+                      </Text>
+                      <Text style={s.favMeta}>
+                        {favLast.homeTeam?.abbr} – {favLast.awayTeam?.abbr}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={s.favMeta}>Zatím nehrál</Text>
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          </>
         )}
 
         {/* Referee pending banner */}
@@ -296,6 +386,20 @@ const s = StyleSheet.create({
   onboardBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.go, borderRadius: Radius.md, padding: 14, marginBottom: 8 },
   onboardTitle:  { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
   onboardDesc:   { fontSize: Fonts.sizes.xs, color: `${Colors.bg}99` },
+
+  favPrompt:     { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 8 },
+  favPromptTxt:  { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },
+  favCard:       { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 8 },
+  favHead:       { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  favLogo:       { width: 40, height: 40, borderRadius: 20, borderWidth: 2, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.c2 },
+  favAbbr:       { fontSize: Fonts.sizes.xs, fontWeight: '800' },
+  favName:       { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
+  favDivision:   { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
+  favSplit:      { flexDirection: 'row', alignItems: 'flex-start', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.bd },
+  favDivider:    { width: 1, alignSelf: 'stretch', backgroundColor: Colors.bd, marginHorizontal: 12 },
+  favLabel:      { fontSize: 10, color: Colors.di, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  favValue:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.go },
+  favMeta:       { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   infoBanner:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F59E0B22', borderRadius: Radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F59E0B44' },
   infoBannerTxt: { flex: 1, fontSize: Fonts.sizes.xs, color: '#F59E0B', fontWeight: '600' },
 

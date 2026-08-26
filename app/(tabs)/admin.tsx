@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor, type ActiveRole } from '../../store/auth';
+import { useFanStore } from '../../store/fan';
 import { playersApi, supervisorApi, statsApi, teamsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -29,6 +30,7 @@ export default function AdminScreen() {
   const isReferee    = useIsReferee();
   const isSupervisor = useIsSupervisor();
   const logout = useAuthStore(s => s.logout);
+  const isFan  = useFanStore(s => s.isFan);
 
   const [myStats, setMyStats]           = useState<any>(null);
   const [leavingTeam, setLeavingTeam]   = useState(false);
@@ -210,25 +212,47 @@ export default function AdminScreen() {
     ? allSections.filter(s => s.id === activeRole)
     : allSections;
 
-  // Pokud nemá žádnou roli → onboarding
-  if (!isManager && !isReferee && allSections.length === 0) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Nemáš přiřazenou roli</Text>
-          <Text style={styles.emptyDesc}>Připoj se k týmu pomocí pozvánkového kódu nebo se zaregistruj jako rozhodčí.</Text>
-          <Pressable style={styles.btn} onPress={() => router.push('/onboarding')}>
-            <Text style={styles.btnText}>Začít registraci</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
+  // Role, které uživatel ještě nemá — může si je kdykoli doplnit
+  const addRoleItems: MenuItem[] = [];
+  if (!user?.player) {
+    addRoleItems.push({
+      icon: 'person-add', label: 'Stát se hráčem',
+      desc: 'Zadej pozvánkový kód od vedoucího týmu', route: '/onboarding/player-code',
+    });
   }
+  if (!isManager) {
+    addRoleItems.push({
+      icon: 'shield', label: 'Založit tým',
+      desc: 'Staň se vedoucím a spravuj soupisku', route: '/onboarding/manager', color: Colors.pu,
+    });
+  }
+  if (!isReferee) {
+    addRoleItems.push({
+      icon: 'flag', label: 'Přihlásit se jako rozhodčí',
+      desc: 'Supervisor přihlášku schválí do 48 hodin', route: '/onboarding/referee', color: '#3B82F6',
+    });
+  }
+
+  const hasNoRole = allSections.length === 0;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Text style={styles.title}>Správa</Text>
+
+        {/* Fanoušek – zatím bez role v lize */}
+        {hasNoRole && (
+          <View style={styles.fanBanner}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="eye" size={18} color={Colors.mu} />
+              <Text style={styles.fanTitle}>Sleduješ ligu jako fanoušek</Text>
+            </View>
+            <Text style={styles.fanDesc}>
+              Vidíš výsledky, tabulku i statistiky. Až budeš chtít hrát, vést tým nebo pískat,
+              vyber si roli níže — o nic nepřijdeš a role se dají kombinovat.
+            </Text>
+          </View>
+        )}
 
         {/* Role switcher – jen pro supervisora */}
         {isSupervisor && (
@@ -312,6 +336,52 @@ export default function AdminScreen() {
             </View>
           </View>
         ))}
+
+        {/* Doplnit roli – vždy, dokud nějaká chybí */}
+        {addRoleItems.length > 0 && (!isSupervisor || activeRole === 'all') && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {hasNoRole ? 'Zapojit se do ligy' : 'Přidat další roli'}
+            </Text>
+            <View style={styles.card}>
+              {addRoleItems.map((item, idx) => (
+                <Pressable
+                  key={item.route}
+                  style={[styles.item, idx < addRoleItems.length - 1 && styles.itemBorder]}
+                  onPress={() => router.push(item.route as any)}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: `${item.color ?? Colors.go}22` }]}>
+                    <Ionicons name={item.icon} size={18} color={item.color ?? Colors.go} />
+                  </View>
+                  <View style={styles.itemText}>
+                    <Text style={styles.itemLabel}>{item.label}</Text>
+                    <Text style={styles.itemDesc}>{item.desc}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Oblíbený tým – personalizace domovské obrazovky */}
+        {(!isSupervisor || activeRole === 'all') && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sledování</Text>
+            <View style={styles.card}>
+              <Pressable style={styles.item} onPress={() => router.push('/favorite-team' as any)}>
+                <View style={[styles.iconBox, { backgroundColor: `${Colors.go}22` }]}>
+                  <Ionicons name="heart" size={18} color={Colors.go} />
+                </View>
+                <View style={styles.itemText}>
+                  <Text style={styles.itemLabel}>Oblíbený tým</Text>
+                  <Text style={styles.itemDesc}>Jeho zápasy uvidíš nahoře na domovské obrazovce</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Opustit tým (jen pro hráče kteří mají tým) */}
         {user?.player?.team && (
@@ -509,6 +579,9 @@ const styles = StyleSheet.create({
   roleChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
   roleChipTxt:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.mu },
   roleChipTxtActive:{ color: Colors.bg },
+  fanBanner:    { backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 14, marginBottom: 20 },
+  fanTitle:     { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
+  fanDesc:      { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
 
   // Appeal modal
   backdrop:     { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)' },

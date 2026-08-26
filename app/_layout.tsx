@@ -101,6 +101,7 @@ function RootLayout() {
         <Stack.Screen name="draft/[playerId]"        options={{ headerShown: false }} />
         <Stack.Screen name="draft/profile-edit"      options={{ headerShown: false }} />
         <Stack.Screen name="settings"                options={{ headerShown: false }} />
+        <Stack.Screen name="favorite-team"           options={{ headerShown: false }} />
         <Stack.Screen name="compare"                 options={{ headerShown: false }} />
         <Stack.Screen name="bracket"                 options={{ headerShown: false }} />
       </Stack>

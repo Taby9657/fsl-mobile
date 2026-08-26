@@ -5,9 +5,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth';
+import { useFanStore } from '../../store/fan';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 const ROLES = [
+  {
+    id:    'fan',
+    icon:  'eye' as const,
+    title: 'Jsem fanoušek',
+    desc:  'Chci jen sledovat ligu — výsledky, tabulku, statistiky a zápasy svého oblíbeného týmu. Žádnou registraci nevyplňuješ, jdeš rovnou do aplikace.',
+    need:  'Co budeš potřebovat: nic, hotovo jedním klepnutím',
+    route: null,
+    color: Colors.mu,
+  },
   {
     id:    'player',
     icon:  'person' as const,
@@ -40,7 +50,7 @@ const ROLES = [
 // POZOR: style NESMÍ být funkce ({ pressed }) => ... — NativeWind (jsxImportSource)
 // takový style prop zahodí a karta pak zůstane bez pozadí i bez flexDirection: 'row'.
 // Stav stisku proto držíme sami a předáváme pole stylů.
-function RoleCard({ role }: { role: (typeof ROLES)[number] }) {
+function RoleCard({ role, onPress }: { role: (typeof ROLES)[number]; onPress: () => void }) {
   const [pressed, setPressed] = useState(false);
 
   return (
@@ -49,7 +59,7 @@ function RoleCard({ role }: { role: (typeof ROLES)[number] }) {
       accessibilityLabel={`${role.title}. ${role.desc}`}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
-      onPress={() => router.push(role.route as any)}
+      onPress={onPress}
       style={[styles.card, pressed && styles.cardPressed]}
     >
       <View style={styles.cardHead}>
@@ -66,6 +76,16 @@ function RoleCard({ role }: { role: (typeof ROLES)[number] }) {
 
 export default function OnboardingIndex() {
   const logout = useAuthStore(s => s.logout);
+  const setFan = useFanStore(s => s.setFan);
+
+  async function choose(role: (typeof ROLES)[number]) {
+    if (role.id === 'fan') {
+      await setFan(true);
+      router.replace('/(tabs)');
+      return;
+    }
+    router.push(role.route as any);
+  }
 
   function handleLogout() {
     Alert.alert(
@@ -94,13 +114,14 @@ export default function OnboardingIndex() {
 
         <View style={styles.cards}>
           {ROLES.map(role => (
-            <RoleCard key={role.id} role={role} />
+            <RoleCard key={role.id} role={role} onPress={() => choose(role)} />
           ))}
         </View>
 
         <Text style={styles.help}>
-          Nevíš, co vybrat? Většina lidí je hráč. Pokud tvůj tým v lize ještě není,
-          založí ho vedoucí — a ten pak rozešle kód ostatním.
+          Nevíš, co vybrat? Začni jako fanoušek — uvidíš celou ligu a roli hráče, vedoucího
+          nebo rozhodčího si můžeš kdykoli později doplnit ve Správě. Pokud tvůj tým v lize
+          ještě není, založí ho vedoucí a ten pak rozešle pozvánkový kód ostatním.
         </Text>
 
         <Pressable onPress={handleLogout} style={styles.logoutBtn}>

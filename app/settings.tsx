@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { goBack } from '../utils/navigation';
 import { useAuthStore } from '../store/auth';
+import { useFanStore } from '../store/fan';
 import { Colors, Fonts, Radius } from '../constants/colors';
 import { cacheClearAll, cacheSize } from '../utils/cache';
 import { authApi } from '../services/api';
@@ -54,6 +55,7 @@ function SettingRow({ icon, label, description, right, onPress }: {
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
+  const favTeamId = useFanStore(s => s.favTeamId);
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [cacheCount, setCacheCount] = useState(0);
 
@@ -147,10 +149,34 @@ export default function SettingsScreen() {
                 </View>
                 <View style={s.roleBadge}>
                   <Text style={s.roleTxt}>
-                    {user.player ? 'Hráč' : user.referee ? 'Rozhodčí' : user.manager?.length ? 'Manažer' : 'Host'}
+                    {user.player ? 'Hráč' : user.referee ? 'Rozhodčí' : user.manager?.length ? 'Manažer' : 'Fanoušek'}
                   </Text>
                 </View>
               </View>
+            </View>
+          </>
+        )}
+
+        {/* Sledování */}
+        {user && (
+          <>
+            <SectionHeader label="Sledování" />
+            <View style={s.card}>
+              <SettingRow
+                icon="heart-outline"
+                label="Oblíbený tým"
+                description={favTeamId ? 'Zobrazuje se na domovské obrazovce' : 'Zatím nevybraný'}
+                right={<Ionicons name="chevron-forward" size={16} color={Colors.di} />}
+                onPress={() => router.push('/favorite-team' as any)}
+              />
+              <View style={s.divider} />
+              <SettingRow
+                icon="person-add-outline"
+                label="Role v lize"
+                description="Přidat roli hráče, vedoucího nebo rozhodčího"
+                right={<Ionicons name="chevron-forward" size={16} color={Colors.di} />}
+                onPress={() => router.push('/(tabs)/admin' as any)}
+              />
             </View>
           </>
         )}

@@ -1,13 +1,25 @@
+import { useEffect } from 'react';
 import { Tabs, Redirect } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useIsSupervisor, useIsReferee } from '../../store/auth';
+import { useFanStore } from '../../store/fan';
 import { Colors } from '../../constants/colors';
 
 export default function TabLayout() {
   const { user, isGuest, loading } = useAuthStore();
+  const { isFan, hydrated: fanHydrated, load: loadFan, setFan } = useFanStore();
 
-  if (loading) {
+  useEffect(() => { loadFan(); }, []);
+
+  const hasProfile = !!(user?.player || user?.referee || (user?.manager && user.manager.length > 0));
+
+  // Jakmile uživateli vznikne skutečná role, fanouškovský příznak už nemá smysl
+  useEffect(() => {
+    if (hasProfile && isFan) setFan(false);
+  }, [hasProfile, isFan]);
+
+  if (loading || !fanHydrated) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg }}>
         <ActivityIndicator color={Colors.go} size="large" />
@@ -18,11 +30,11 @@ export default function TabLayout() {
   // Ani přihlášený, ani host → login
   if (!user && !isGuest) return <Redirect href="/(auth)/login" />;
 
-  // Přihlášený, ale bez profilu → onboarding
-  if (user) {
-    const hasProfile = user.player || user.referee || (user.manager && user.manager.length > 0);
-    if (!hasProfile) return <Redirect href="/onboarding" />;
-  }
+  // Přihlášený, bez profilu a bez zvoleného fanouškovského režimu → onboarding
+  if (user && !hasProfile && !isFan) return <Redirect href="/onboarding" />;
+
+  // Fanoušek bez role nemá co dělat v draftu — je jen pro hráče a vedoucí
+  const showDraft = !user || hasProfile;
 
   return (
     <Tabs
@@ -72,6 +84,7 @@ export default function TabLayout() {
         name="draft"
         options={{
           title: 'Draft',
+          href: showDraft ? undefined : null,
           tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
         }}
       />
