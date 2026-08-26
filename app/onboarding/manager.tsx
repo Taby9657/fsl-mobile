@@ -18,8 +18,9 @@ export default function ManagerOnboardingScreen() {
   const [logo, setLogo]       = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState('');
 
+  // Divizi tým nedostává při registraci — přiděluje ji supervisor při schvalování
   const [form, setForm] = useState({
-    name: '', abbr: '', color: '#C9A140', division: 'Divize A',
+    name: '', abbr: '', color: '#C9A140',
   });
 
   function set(key: string, val: string) {
@@ -27,11 +28,24 @@ export default function ManagerOnboardingScreen() {
   }
 
   async function pickLogo() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['image'] as any,
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
-    });
-    if (!result.canceled) setLogo(result.assets[0].uri);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Přístup k fotkám',
+          'Pro nahrání loga potřebuje FSL přístup ke galerii. Povol ho v Nastavení → FSL → Fotky.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      setLogo(result.assets[0].uri);
+    } catch {
+      Alert.alert('Chyba', 'Nepodařilo se otevřít galerii. Zkus to prosím znovu.');
+    }
   }
 
   async function createTeam() {
@@ -47,12 +61,24 @@ export default function ManagerOnboardingScreen() {
       const teamId = res.data.team.id;
       const code   = res.data.inviteCode;
 
+      // Tým je založený i bez loga — případné selhání uploadu proto jen ohlásíme
+      let logoFailed = false;
       if (logo) {
-        await teamsApi.uploadLogo(teamId, logo).catch(() => {});
+        try {
+          await teamsApi.uploadLogo(teamId, logo);
+        } catch {
+          logoFailed = true;
+        }
       }
       setInviteCode(code);
       await refreshUser();
       setStep(2);
+      if (logoFailed) {
+        Alert.alert(
+          'Logo se nenahrálo',
+          'Tým je vytvořený, ale logo se nepodařilo uložit. Zkus ho nahrát znovu v soupisce týmu.',
+        );
+      }
     } catch (err: any) {
       Alert.alert('Chyba', err.response?.data?.error ?? 'Zkus to znovu');
     } finally {
@@ -147,15 +173,12 @@ export default function ManagerOnboardingScreen() {
           ))}
         </View>
 
-        {/* Divize */}
-        <Text style={styles.label}>Divize</Text>
-        <View style={styles.pills}>
-          {['Divize A', 'Divize B', 'Divize C'].map(d => (
-            <Pressable key={d} style={[styles.pill, form.division === d && styles.pillActive]}
-              onPress={() => set('division', d)}>
-              <Text style={[styles.pillText, form.division === d && styles.pillTextActive]}>{d}</Text>
-            </Pressable>
-          ))}
+        {/* Divizi přiděluje supervisor */}
+        <View style={styles.note}>
+          <Ionicons name="information-circle-outline" size={16} color={Colors.mu} />
+          <Text style={styles.noteTxt}>
+            Divizi týmu přidělí supervisor při schvalování registrace. Uvidíš ji pak ve Správě.
+          </Text>
         </View>
 
         <Pressable style={[styles.btnPrimary, loading && styles.btnDisabled]} onPress={createTeam} disabled={loading}>
@@ -187,11 +210,8 @@ const styles = StyleSheet.create({
   colorRow:        { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 6 },
   colorDot:        { width: 32, height: 32, borderRadius: 16 },
   colorDotActive:  { borderWidth: 3, borderColor: Colors.wh },
-  pills:           { flexDirection: 'row', gap: 8, marginTop: 6 },
-  pill:            { flex: 1, paddingVertical: 10, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, alignItems: 'center' },
-  pillActive:      { backgroundColor: Colors.go, borderColor: Colors.go },
-  pillText:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
-  pillTextActive:  { color: Colors.bg },
+  note:            { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 20, padding: 12, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd },
+  noteTxt:         { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
   btnPrimary:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 28, width: '100%' },
   btnText:         { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   btnDisabled:     { opacity: 0.5 },

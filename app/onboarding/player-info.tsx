@@ -31,11 +31,24 @@ export default function PlayerInfoScreen() {
   }
 
   async function pickPhoto() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['image'] as any,
-      allowsEditing: true, aspect: [1, 1], quality: 0.8,
-    });
-    if (!result.canceled) setPhoto(result.assets[0].uri);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Přístup k fotkám',
+          'Pro nahrání fotky potřebuje FSL přístup ke galerii. Povol ho v Nastavení → FSL → Fotky.',
+        );
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true, aspect: [1, 1], quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      setPhoto(result.assets[0].uri);
+    } catch {
+      Alert.alert('Chyba', 'Nepodařilo se otevřít galerii. Zkus to prosím znovu.');
+    }
   }
 
   async function submit() {

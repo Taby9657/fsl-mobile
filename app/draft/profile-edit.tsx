@@ -82,7 +82,7 @@ export default function DraftProfileEdit() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['video'] as any,
+      mediaTypes: ['videos'],
       allowsEditing: false,
       quality: 1,
     });
