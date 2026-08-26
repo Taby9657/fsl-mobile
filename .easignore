@@ -1,0 +1,35 @@
+# EAS Build – co se nenahrává do build archivu.
+#
+# Pozor: jakmile tenhle soubor existuje, EAS ignoruje .gitignore a řídí se
+# jen tímhle. Musí tu proto být všechno, co v archivu nemá co dělat.
+#
+# Důvod vzniku: node_modules jsou omylem verzované v gitu (44 404 souborů),
+# takže je .gitignore nevyřadí a archiv měl 187 MB / 3 minuty uploadu.
+# EAS si závislosti stejně instaluje sám z package-lock.json.
+
+node_modules/
+
+# Git a lokální stav
+.git/
+.expo/
+.vscode/
+.idea/
+
+# Build výstupy
+dist/
+build/
+web-build/
+*.ipa
+*.apk
+*.aab
+
+# Nástroje a smetí
+.DS_Store
+*.log
+*.patch
+coverage/
+
+# Dokumentace a poznámky – v buildu k ničemu
+docs/
+*.md
+!README.md
