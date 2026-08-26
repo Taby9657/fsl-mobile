@@ -204,6 +204,7 @@ export default function AdminScreen() {
         { icon: 'shield',       label: 'Správa týmů',     desc: 'Divize, přidání, editace, smazání', route: '/supervisor/teams',    color: Colors.pu },
         { icon: 'cash',         label: 'Platby',          desc: 'Přehled a ruční sync',          route: '/supervisor/payments', color: Colors.pu },
         { icon: 'newspaper',    label: 'Highlights kola', desc: 'Aktuality viditelné na home screen', route: '/supervisor/highlights', color: Colors.pu },
+        { icon: 'star',         label: 'Supervisoři',     desc: 'Přidat nebo odebrat organizátory ligy', route: '/supervisor/admins', color: Colors.pu },
       ],
     });
   }

@@ -251,6 +251,11 @@ export const supervisorApi = {
   divisions:      ()                             => api.get('/teams/divisions'),
   conferences:    ()                             => api.get('/supervisor/conferences'),
 
+  // Správa supervisorů
+  users:          (q?: string)                   => api.get('/supervisor/users', { params: q ? { q } : {} }),
+  setSupervisor:  (userId: string, isSupervisor: boolean) =>
+    api.put(`/supervisor/users/${userId}/supervisor`, { isSupervisor }),
+
   // Rozlosování
   previewFixtures: (data: any)                   => api.post('/supervisor/fixtures/preview', data),
   generateFixtures:(data: any)                   => api.post('/supervisor/fixtures/generate', data),

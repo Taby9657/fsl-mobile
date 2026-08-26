@@ -15,3 +15,6 @@ node_modules/
 .expo/
 dist/
 build/
+# Nativní projekty generuje prebuild
+ios/
+android/
