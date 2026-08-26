@@ -193,12 +193,12 @@ const s = StyleSheet.create({
   empty:       { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center' },
 
   tabs:        { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 4 },
-  tab:         { flex: 1, paddingVertical: 7, borderRadius: Radius.md, backgroundColor: Colors.card, alignItems: 'center' },
+  tab:         { flex: 1, paddingVertical: 7, borderRadius: Radius.md, backgroundColor: Colors.c1, alignItems: 'center' },
   tabActive:   { backgroundColor: Colors.go },
   tabTxt:      { fontSize: 11, fontWeight: '600', color: Colors.mu },
   tabTxtActive:{ color: Colors.bg },
 
-  card:        { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: 14, gap: 6 },
+  card:        { backgroundColor: Colors.c1, borderRadius: Radius.lg, padding: 14, gap: 6 },
   cardTop:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   typeLabel:   { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
   meta:        { fontSize: 11, color: Colors.mu },

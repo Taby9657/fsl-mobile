@@ -184,7 +184,7 @@ export default function DashboardScreen() {
               <StatCard
                 icon="chatbubble-ellipses-outline"
                 label="Odvolání registrací"
-                value={stats.appealingTeams}
+                value={stats?.appealingTeams ?? 0}
                 color={Colors.red}
                 route="/supervisor/teams"
               />

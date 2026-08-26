@@ -1,5 +1,6 @@
 // Výběr role – první obrazovka po přihlášení bez profilu
-import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,8 +12,8 @@ const ROLES = [
     id:    'player',
     icon:  'person' as const,
     title: 'Jsem hráč',
-    desc:  'Vedoucí týmu ti pošle 6místný pozvánkový kód. Zadáš ho tady a okamžitě jsi na soupisce.',
-    badge: 'Potřebuješ kód od vedoucího',
+    desc:  'Chci hrát za tým. Vedoucí týmu ti pošle 6místný pozvánkový kód — zadáš ho na další obrazovce a hned budeš na soupisce.',
+    need:  'Co budeš potřebovat: pozvánkový kód od vedoucího týmu',
     route: '/onboarding/player-code',
     color: Colors.go,
   },
@@ -20,8 +21,8 @@ const ROLES = [
     id:    'manager',
     icon:  'shield' as const,
     title: 'Jsem vedoucí týmu',
-    desc:  'Vytvoříš tým, spravuješ soupisku, odesíláš hráče před zápasem a platíš licence.',
-    badge: 'Plná správa týmu',
+    desc:  'Zakládám nový tým. Vyplníš název a zkratku, dostaneš pozvánkový kód pro hráče a pak spravuješ soupisku, sestavy a licence.',
+    need:  'Co budeš potřebovat: název týmu a jeho zkratku',
     route: '/onboarding/manager',
     color: Colors.pu,
   },
@@ -29,12 +30,39 @@ const ROLES = [
     id:    'referee',
     icon:  'flag' as const,
     title: 'Chci být rozhodčí',
-    desc:  'Vyplníš osobní údaje a bankovní spojení pro výplatu odměn. Supervisor FSL tě do 48 h schválí.',
-    badge: 'Čeká na schválení supervisorem',
+    desc:  'Budu pískat zápasy FSL. Vyplníš osobní údaje a bankovní spojení pro výplatu odměn. Supervisor FSL tvoji přihlášku schválí do 48 hodin.',
+    need:  'Co budeš potřebovat: osobní údaje a číslo účtu',
     route: '/onboarding/referee',
     color: '#3B82F6',
   },
 ];
+
+// POZOR: style NESMÍ být funkce ({ pressed }) => ... — NativeWind (jsxImportSource)
+// takový style prop zahodí a karta pak zůstane bez pozadí i bez flexDirection: 'row'.
+// Stav stisku proto držíme sami a předáváme pole stylů.
+function RoleCard({ role }: { role: (typeof ROLES)[number] }) {
+  const [pressed, setPressed] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${role.title}. ${role.desc}`}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onPress={() => router.push(role.route as any)}
+      style={[styles.card, pressed && styles.cardPressed]}
+    >
+      <View style={styles.cardHead}>
+        <Ionicons name={role.icon} size={16} color={role.color} style={styles.cardIcon} />
+        <Text style={[styles.cardTitle, { color: role.color }]}>{role.title}</Text>
+        <Ionicons name="chevron-forward" size={18} color={Colors.di} />
+      </View>
+
+      <Text style={styles.cardDesc}>{role.desc}</Text>
+      <Text style={styles.cardNeed}>{role.need}</Text>
+    </Pressable>
+  );
+}
 
 export default function OnboardingIndex() {
   const logout = useAuthStore(s => s.logout);
@@ -51,59 +79,59 @@ export default function OnboardingIndex() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.inner}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.title}>Vítej v FSL</Text>
-        <Text style={styles.subtitle}>Kdo jsi?</Text>
+        <Text style={styles.lead}>
+          Ještě nemáš v lize profil. Vyber si níže, kdo jsi — podle toho ti aplikaci nastavíme
+          a provedeme tě zbytkem registrace. Zabere to minutu.
+        </Text>
+
+        <Text style={styles.stepLabel}>Vyber jednu možnost</Text>
 
         <View style={styles.cards}>
           {ROLES.map(role => (
-            <Pressable
-              key={role.id}
-              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-              onPress={() => router.push(role.route as any)}
-            >
-              <View style={[styles.iconBox, { backgroundColor: `${role.color}22` }]}>
-                <Ionicons name={role.icon} size={28} color={role.color} />
-              </View>
-              <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{role.title}</Text>
-                <Text style={styles.cardDesc}>{role.desc}</Text>
-                <View style={[styles.badge, { backgroundColor: `${role.color}18` }]}>
-                  <Text style={[styles.badgeTxt, { color: role.color }]}>{role.badge}</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.di} />
-            </Pressable>
+            <RoleCard key={role.id} role={role} />
           ))}
         </View>
+
+        <Text style={styles.help}>
+          Nevíš, co vybrat? Většina lidí je hráč. Pokud tvůj tým v lize ještě není,
+          založí ho vedoucí — a ten pak rozešle kód ostatním.
+        </Text>
 
         <Pressable onPress={handleLogout} style={styles.logoutBtn}>
           <Text style={styles.logoutText}>Přihlásit se jiným účtem</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: Colors.bg },
-  inner:       { flex: 1, padding: 24, justifyContent: 'center' },
-  title:       { fontSize: Fonts.sizes.h1, fontWeight: '900', color: Colors.wh, marginBottom: 6 },
-  subtitle:    { fontSize: Fonts.sizes.xl, color: Colors.mu, marginBottom: 32 },
+  scroll:      { padding: 24, paddingTop: 32, paddingBottom: 40, flexGrow: 1 },
+  title:       { fontSize: Fonts.sizes.h1, fontWeight: '900', color: Colors.wh, marginBottom: 10 },
+  lead:        { fontSize: Fonts.sizes.md, color: Colors.mu, lineHeight: 22, marginBottom: 24 },
+  stepLabel: {
+    fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.di,
+    letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10,
+  },
   cards:       { gap: 12 },
   card: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: Colors.c1, borderRadius: Radius.lg,
     borderWidth: 1, borderColor: Colors.bd, padding: 18,
   },
   cardPressed: { opacity: 0.7 },
-  iconBox:     { width: 52, height: 52, borderRadius: Radius.md, justifyContent: 'center', alignItems: 'center' },
-  cardText:    { flex: 1 },
-  cardTitle:   { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 4 },
-  cardDesc:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 18, marginBottom: 8 },
-  badge:       { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  badgeTxt:    { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
-  logoutBtn:   { alignItems: 'center', marginTop: 28, paddingVertical: 8 },
-  logoutText:  { fontSize: Fonts.sizes.sm, color: Colors.di },
+  cardHead:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  cardIcon:    { marginTop: 1 },
+  cardTitle:   { flex: 1, fontSize: Fonts.sizes.xl, fontWeight: '800' },
+  cardDesc:    { fontSize: Fonts.sizes.md, color: Colors.wh, lineHeight: 21, marginBottom: 10 },
+  cardNeed:    { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 18 },
+  help:        { fontSize: Fonts.sizes.sm, color: Colors.di, lineHeight: 19, marginTop: 22 },
+  logoutBtn:   { alignItems: 'center', marginTop: 24, paddingVertical: 8 },
+  logoutText:  { fontSize: Fonts.sizes.sm, color: Colors.di, textDecorationLine: 'underline' },
 });

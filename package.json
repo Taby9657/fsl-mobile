@@ -10,7 +10,10 @@
     "build:dev": "eas build --platform ios --profile development",
     "build:ios": "eas build --platform ios --profile production",
     "build:android": "eas build --platform android --profile production",
-    "submit:ios": "eas submit --platform ios"
+    "submit:ios": "bash scripts/submit-ios.sh",
+    "preflight": "bash scripts/preflight.sh",
+    "check:tokens": "node scripts/check-tokens.js",
+    "release:ios": "bash scripts/release-ios.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
