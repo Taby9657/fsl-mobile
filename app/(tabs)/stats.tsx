@@ -270,7 +270,7 @@ export default function StatsScreen() {
       {/* Division filter (skryj pro rozhodčí a moje) */}
       {tab !== 'referees' && tab !== 'mine' && divisionList.length > 1 && (
         <View style={styles.divBarWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingVertical: 2 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingVertical: 4 }}>
             {divisionList.map(d => (
               <Pressable
                 key={d}
@@ -316,10 +316,10 @@ const styles = StyleSheet.create({
   titleRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10, gap: 10 },
   title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, flex: 1 },
   compareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: `${Colors.go}18`, borderRadius: Radius.full, borderWidth: 1, borderColor: `${Colors.go}44` },
-  compareTxt:   { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
+  compareTxt:   { fontSize: Fonts.sizes.xs, lineHeight: 16, fontWeight: '700', color: Colors.go },
   seasonChip:   { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
-  seasonTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },
+  seasonTxt:    { fontSize: Fonts.sizes.xs, lineHeight: 16, color: Colors.mu, fontWeight: '700' },
   seasonTxtActive: { color: Colors.bg },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
   empty:        { fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, alignItems: 'center',
   },
   tabActive:     { backgroundColor: Colors.go, borderColor: Colors.go },
-  tabText:       { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+  tabText:       { fontSize: Fonts.sizes.xs, lineHeight: 16, color: Colors.mu, fontWeight: '600' },
   tabTextActive: { color: Colors.bg },
   // Moje statistiky
   statGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -359,10 +359,10 @@ const styles = StyleSheet.create({
   refCount: { fontSize: Fonts.sizes.xs, color: Colors.di },
   refScore: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   refMax:   { fontSize: Fonts.sizes.sm, color: Colors.mu },
-  divBarWrap:    { borderTopWidth: 1, borderTopColor: Colors.bd, paddingVertical: 8 },
+  divBarWrap:    { borderTopWidth: 1, borderTopColor: Colors.bd, paddingTop: 8, paddingBottom: 10 },
   divChip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   divChipActive: { backgroundColor: Colors.pu, borderColor: Colors.pu },
-  divChipTxt:    { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600' },
+  divChipTxt:    { fontSize: Fonts.sizes.xs, lineHeight: 16, color: Colors.mu, fontWeight: '600' },
   divChipTxtActive: { color: '#fff' },
   skeletonCard:  { margin: 16, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
 });

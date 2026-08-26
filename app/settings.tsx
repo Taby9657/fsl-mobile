@@ -8,6 +8,7 @@ import { goBack } from '../utils/navigation';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
 import { cacheClearAll, cacheSize } from '../utils/cache';
+import { authApi } from '../services/api';
 
 const NOTIF_KEY = 'fsl_notif_prefs';
 
@@ -84,6 +85,29 @@ export default function SettingsScreen() {
       [
         { text: 'Zrušit', style: 'cancel' },
         { text: 'Odhlásit', style: 'destructive', onPress: () => { logout(); router.replace('/(auth)/login' as any); } },
+      ]
+    );
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Smazat účet',
+      'Opravdu chceš smazat svůj účet? Tato akce je nevratná – všechna tvá data budou trvale odstraněna.',
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Smazat účet',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await authApi.deleteAccount();
+              logout();
+              router.replace('/(auth)/login' as any);
+            } catch {
+              Alert.alert('Chyba', 'Účet se nepodařilo smazat. Zkus to znovu.');
+            }
+          },
+        },
       ]
     );
   }
@@ -228,6 +252,14 @@ export default function SettingsScreen() {
           </Pressable>
         )}
 
+        {/* Smazat účet */}
+        {user && (
+          <Pressable style={s.deleteBtn} onPress={handleDeleteAccount}>
+            <Ionicons name="trash-outline" size={18} color="#ff3b30" />
+            <Text style={s.deleteTxt}>Smazat účet</Text>
+          </Pressable>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -262,6 +294,8 @@ const s = StyleSheet.create({
   rowDesc:  { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   valueText:{ fontSize: Fonts.sizes.sm, color: Colors.mu },
 
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, margin: 16, marginTop: 24, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: `${Colors.red}44`, backgroundColor: `${Colors.red}11` },
-  logoutTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.red },
+  logoutBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, margin: 16, marginTop: 24, marginBottom: 0, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: `${Colors.red}44`, backgroundColor: `${Colors.red}11` },
+  logoutTxt:  { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.red },
+  deleteBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: '#ff3b3066', backgroundColor: '#ff3b3018' },
+  deleteTxt:  { fontSize: Fonts.sizes.sm, fontWeight: '700', color: '#ff3b30' },
 });

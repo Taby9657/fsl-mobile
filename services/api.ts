@@ -75,6 +75,8 @@ export const authApi = {
   me:     () => api.get('/auth/me'),
   // BUG-04 OPRAVA: endpoint pro serverové odhlášení (invalidace session na backendu)
   logout: () => api.post('/auth/logout'),
+  // Apple 5.1.1: mazání účtu
+  deleteAccount: () => api.delete('/auth/account'),
 };
 
 // ==================== TÝMY ====================
