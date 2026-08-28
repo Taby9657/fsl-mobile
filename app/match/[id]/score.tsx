@@ -101,7 +101,29 @@ export default function LiveScoreScreen() {
             await matchesApi.startMatch(id!);
             load();
           } catch (e: any) {
-            Alert.alert('Chyba', e?.response?.data?.error ?? 'Nepodařilo se zahájit');
+            const code = e?.response?.data?.code;
+            const msg  = e?.response?.data?.error ?? 'Nepodařilo se zahájit';
+
+            // Neuhrazený poplatek za domácí zápas může přebít jen supervizor.
+            if (code === 'HOME_FEE_UNPAID' && user?.isSupervisor) {
+              Alert.alert('Neuhrazený poplatek', `${msg}\n\nChceš zápas přesto zahájit?`, [
+                { text: 'Zrušit', style: 'cancel' },
+                {
+                  text: 'Zahájit i tak',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await matchesApi.startMatch(id!, true);
+                      load();
+                    } catch (err: any) {
+                      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se zahájit');
+                    }
+                  },
+                },
+              ]);
+            } else {
+              Alert.alert('Chyba', msg);
+            }
           } finally { setSaving(false); }
         },
       },

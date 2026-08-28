@@ -139,7 +139,7 @@ export const matchesApi = {
   update:          (id: string, data: any) => api.put(`/matches/${id}`, data),
   addEvent:        (id: string, data: any) => api.post(`/matches/${id}/events`, data),
   deleteEvent:     (id: string, eventId: string) => api.delete(`/matches/${id}/events/${eventId}`),
-  startMatch:      (id: string)    => api.post(`/matches/${id}/start`),
+  startMatch:      (id: string, force = false) => api.post(`/matches/${id}/start`, force ? { force: true } : {}),
   endMatch:        (id: string)    => api.post(`/matches/${id}/end`),
   lineup:          (matchId: string, teamId: string, players: any[], force = false) =>
     api.put(`/matches/${matchId}/lineup/${teamId}`, { players, force }),
