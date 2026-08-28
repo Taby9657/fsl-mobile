@@ -1,67 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Pressable, ScrollView, TextInput,
-  ActivityIndicator, Alert, Switch, Modal, FlatList, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { supervisorApi } from '../../services/api';
+import { supervisorApi, leaguesApi, type LeagueNode, type TeamPlacement } from '../../services/api';
 import { DatePicker } from '../../components/DatePicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 // ─── typy ────────────────────────────────────────────────────────────────────
 
 type Step = 'structure' | 'scope' | 'config' | 'preview' | 'done';
-type Scope = 'division' | 'conference' | 'custom';
+type Scope = 'league' | 'conference' | 'division' | 'custom';
 
 interface Team {
   id: string; name: string; abbr: string; color: string;
-  division: string | null; conference: string | null; venue: string | null;
-}
-
-interface ConferenceGroup {
-  name: string | null;   // null = nepřiřazené
-  divisions: { name: string; teams: Team[] }[];
+  placement: TeamPlacement | null;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-
-function parseDate(s: string): Date | null {
-  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!m) return null;
-  const d = new Date(+m[3], +m[2] - 1, +m[1]);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-function buildTree(teams: Team[]): ConferenceGroup[] {
-  const map: Record<string, Record<string, Team[]>> = {};
-  for (const t of teams) {
-    const conf = t.conference ?? '__none__';
-    const div  = t.division  ?? 'Bez divize';
-    if (!map[conf]) map[conf] = {};
-    if (!map[conf][div]) map[conf][div] = [];
-    map[conf][div].push(t);
-  }
-
-  const groups: ConferenceGroup[] = [];
-
-  // Konference seřazené abecedně, nepřiřazené nakonec
-  const confKeys = Object.keys(map).sort((a, b) => {
-    if (a === '__none__') return 1;
-    if (b === '__none__') return -1;
-    return a.localeCompare(b);
-  });
-
-  for (const conf of confKeys) {
-    const divisions = Object.entries(map[conf])
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, ts]) => ({ name, teams: ts.sort((a, b) => a.name.localeCompare(b.name)) }));
-    groups.push({ name: conf === '__none__' ? null : conf, divisions });
-  }
-
-  return groups;
-}
 
 function plural(n: number, s1: string, s2: string, s5: string) {
   if (n === 1) return `${n} ${s1}`;
@@ -72,26 +31,21 @@ function plural(n: number, s1: string, s2: string, s5: string) {
 // ─── komponenta ──────────────────────────────────────────────────────────────
 
 export default function SuperLeagueScreen() {
-  const [step, setStep]     = useState<Step>('structure');
+  const [step, setStep]         = useState<Step>('structure');
   const [allTeams, setAllTeams] = useState<Team[]>([]);
-  const [tree, setTree]     = useState<ConferenceGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tree, setTree]         = useState<LeagueNode[]>([]);
+  const [season, setSeason]     = useState('');
+  const [loading, setLoading]   = useState(true);
 
-  // Modal pro přesun týmu
-  const [moveTeam,  setMoveTeam]  = useState<Team | null>(null);
-  const [movingId,  setMovingId]  = useState<string | null>(null);
-  const [newDiv,    setNewDiv]    = useState('');
-  const [newConf,   setNewConf]   = useState('');
-
-  // Scope výběr
-  const [scope, setScope]         = useState<Scope>('division');
-  const [selDivision, setSelDiv]  = useState('');
-  const [selConf,     setSelConf] = useState('');
-  const [selTeamIds,  setSelTeamIds] = useState<string[]>([]);
+  // Scope výběr – pracujeme s ID ze soutěžní struktury
+  const [scope, setScope]        = useState<Scope>('league');
+  const [selLeague, setSelLeague] = useState<string>('');
+  const [selConf,   setSelConf]   = useState<string>('');
+  const [selDiv,    setSelDiv]    = useState<string>('');
+  const [selTeamIds, setSelTeamIds] = useState<string[]>([]);
 
   // Konfigurace
   const [startDate, setStartDate] = useState<Date | null>(null);
-  const [season,    setSeason]    = useState('');
   const [interval,  setInterval]  = useState('7');
   const [time,      setTime]      = useState('18:00');
   const [venue,     setVenue]     = useState('');
@@ -106,12 +60,12 @@ export default function SuperLeagueScreen() {
 
   const load = useCallback(async () => {
     try {
-      const r = await supervisorApi.conferences();
-      const teams: Team[] = r.data ?? [];
-      setAllTeams(teams);
-      setTree(buildTree(teams));
+      const [t, tm] = await Promise.all([leaguesApi.tree(), leaguesApi.teams()]);
+      setTree(t.data.leagues ?? []);
+      setAllTeams(tm.data.teams ?? []);
+      if (t.data.season) setSeason(t.data.season);
     } catch {
-      Alert.alert('Chyba', 'Nepodařilo se načíst strukturu ligy');
+      Alert.alert('Chyba', 'Nepodařilo se načíst strukturu soutěží');
     } finally {
       setLoading(false);
     }
@@ -119,57 +73,45 @@ export default function SuperLeagueScreen() {
 
   useEffect(() => { load(); }, []);
 
-  // Všechny konference a divize pro picker
-  const confNames = [...new Set(allTeams.map(t => t.conference).filter(Boolean) as string[])].sort();
-  // Nezařazené týmy nemají divizi — do výběru divizí nepatří
-  const divNames: string[] = [...new Set(allTeams.map(t => t.division))]
-    .filter((d): d is string => !!d)
-    .sort();
+  // Ligy a jejich části pro pickery
+  const ligy        = tree;
+  const konference  = tree.flatMap(l => l.conferences.map(k => ({ ...k, leagueName: l.name })));
+  const divize      = tree.flatMap(l => l.conferences.flatMap(k =>
+    k.divisions.map(d => ({ ...d, path: `${l.name} › ${k.name}` }))));
 
-  // Počet vybraných týmů
+  // Týmy spadající do zvoleného rozsahu
   const scopeTeams = (() => {
-    if (scope === 'division')   return allTeams.filter(t => t.division === selDivision);
-    if (scope === 'conference') return allTeams.filter(t => t.conference === selConf);
+    if (scope === 'league')     return allTeams.filter(t => t.placement?.leagueId === selLeague);
+    if (scope === 'conference') return allTeams.filter(t => t.placement?.conferenceId === selConf);
+    if (scope === 'division')   return allTeams.filter(t => t.placement?.divisionId === selDiv);
     return allTeams.filter(t => selTeamIds.includes(t.id));
   })();
 
-  // ── Přesun týmu ────────────────────────────────────────────────────────────
-
-  async function doMoveTeam() {
-    if (!moveTeam || !newDiv.trim()) return;
-    setMovingId(moveTeam.id);
-    try {
-      await supervisorApi.updateTeam(moveTeam.id, {
-        division:   newDiv.trim(),
-        conference: newConf.trim() || null,
-      });
-      const updated = allTeams.map(t =>
-        t.id === moveTeam.id ? { ...t, division: newDiv.trim(), conference: newConf.trim() || null } : t
-      );
-      setAllTeams(updated);
-      setTree(buildTree(updated));
-      setMoveTeam(null);
-    } catch (err: any) {
-      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se přesunout tým');
-    } finally {
-      setMovingId(null);
-    }
+  // Rozsah, který se posílá na backend
+  function scopePayload() {
+    if (scope === 'league')     return { leagueId: selLeague };
+    if (scope === 'conference') return { conferenceId: selConf };
+    if (scope === 'division')   return { divisionId: selDiv };
+    return { teamIds: selTeamIds, division: 'Mix' };
   }
+
+  const scopeVybran =
+    scope === 'league'     ? !!selLeague
+    : scope === 'conference' ? !!selConf
+    : scope === 'division'   ? !!selDiv
+    :                          selTeamIds.length >= 2;
 
   // ── Generování ─────────────────────────────────────────────────────────────
 
   async function loadPreview() {
-    const d = startDate;
-    if (!d) { Alert.alert('Chybné datum', 'Vyber datum 1. kola'); return; }
+    if (!startDate) { Alert.alert('Chybné datum', 'Vyber datum 1. kola'); return; }
     if (scopeTeams.length < 2) { Alert.alert('Málo týmů', 'Vyber alespoň 2 týmy'); return; }
 
     setPrevLoad(true);
     try {
-      const payload =
-        scope === 'division'   ? { division: selDivision, doubleRoundRobin: dbl }
-        : scope === 'conference' ? { conference: selConf,  doubleRoundRobin: dbl }
-        :                          { teamIds: selTeamIds,  doubleRoundRobin: dbl };
-      const r = await supervisorApi.previewFixtures(payload);
+      const r = await supervisorApi.previewFixtures({
+        ...scopePayload(), season: season || null, doubleRoundRobin: dbl,
+      });
       setPreview(r.data);
       setStep('preview');
     } catch (err: any) {
@@ -180,24 +122,18 @@ export default function SuperLeagueScreen() {
   }
 
   async function generate() {
-    const d = startDate;
-    if (!d) return;
+    if (!startDate) return;
     setGenerating(true);
     try {
-      const base =
-        scope === 'division'   ? { division: selDivision }
-        : scope === 'conference' ? { conference: selConf, division: selConf }
-        :                          { teamIds: selTeamIds, division: 'Mix' };
-
       const r = await supervisorApi.generateFixtures({
-        ...base,
-        startDate:        d.toISOString(),
-        season:           season.trim() || null,
+        ...scopePayload(),
+        startDate:         startDate.toISOString(),
+        season:            season.trim() || null,
         roundIntervalDays: parseInt(interval) || 7,
-        defaultTime:      time,
-        defaultVenue:     venue.trim() || null,
-        doubleRoundRobin: dbl,
-        deleteExisting:   delExist,
+        defaultTime:       time,
+        defaultVenue:      venue.trim() || null,
+        doubleRoundRobin:  dbl,
+        deleteExisting:    delExist,
       });
       setResult(r.data);
       setStep('done');
@@ -282,49 +218,63 @@ export default function SuperLeagueScreen() {
             {tree.length === 0 ? (
               <View style={s.emptyBox}>
                 <Ionicons name="git-network-outline" size={40} color={Colors.mu} />
-                <Text style={s.emptyTitle}>Žádné týmy</Text>
-                <Text style={s.emptyDesc}>Nejdřív přidej týmy ve Správě týmů.</Text>
+                <Text style={s.emptyTitle}>Žádná soutěž v sezóně {season}</Text>
+                <Text style={s.emptyDesc}>Nejdřív založ ligu ve Struktuře soutěží.</Text>
               </View>
             ) : (
-              tree.map((group, gi) => (
-                <View key={gi} style={{ marginBottom: 20 }}>
-                  {/* Konference hlavička */}
+              tree.map(liga => (
+                <View key={liga.id} style={{ marginBottom: 18 }}>
                   <View style={s.confHeader}>
                     <View style={s.confIcon}>
                       <Ionicons name="trophy-outline" size={14} color={Colors.go} />
                     </View>
-                    <Text style={s.confTitle}>
-                      {group.name ?? '⚠ Nepřiřazené týmy'}
-                    </Text>
-                    <Text style={s.confCount}>
-                      {plural(group.divisions.reduce((a, d) => a + d.teams.length, 0), 'tým', 'týmy', 'týmů')}
-                    </Text>
+                    <Text style={s.confTitle}>{liga.name}</Text>
+                    <Text style={s.confCount}>{plural(liga.teamCount ?? 0, 'tým', 'týmy', 'týmů')}</Text>
                   </View>
 
-                  {group.divisions.map((div, di) => (
-                    <View key={di} style={s.divBlock}>
-                      {/* Divize hlavička */}
+                  {liga.conferences.length === 0 && (
+                    <View style={s.divBlock}>
                       <View style={s.divHeader}>
-                        <Text style={s.divName}>{div.name}</Text>
-                        <Text style={s.divCount}>{plural(div.teams.length, 'tým', 'týmy', 'týmů')}</Text>
+                        <Text style={s.divName}>Bez konferencí</Text>
+                        <Text style={s.divCount}>{plural(liga.teamCount ?? 0, 'tým', 'týmy', 'týmů')}</Text>
                       </View>
-
-                      {/* Týmy */}
-                      {div.teams.map(team => (
+                      {allTeams.filter(t => t.placement?.leagueId === liga.id).map(team => (
                         <View key={team.id} style={s.teamRow}>
                           <View style={[s.teamDot, { backgroundColor: team.color }]} />
                           <Text style={s.teamName} numberOfLines={1}>{team.name}</Text>
                           <Text style={s.teamAbbr}>{team.abbr}</Text>
-                          <Pressable
-                            style={s.moveBtn}
-                            onPress={() => {
-                              setMoveTeam(team);
-                              setNewDiv(team.division ?? '');
-                              setNewConf(team.conference ?? '');
-                            }}
-                          >
-                            <Ionicons name="swap-horizontal-outline" size={16} color={Colors.go} />
-                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {liga.conferences.map(konf => (
+                    <View key={konf.id} style={s.divBlock}>
+                      <View style={s.divHeader}>
+                        <Text style={s.divName}>{konf.name}</Text>
+                        <Text style={s.divCount}>{plural(konf.teamCount ?? 0, 'tým', 'týmy', 'týmů')}</Text>
+                      </View>
+                      {konf.divisions.map(div => (
+                        <View key={div.id}>
+                          <View style={s.subDivHeader}>
+                            <Ionicons name="grid-outline" size={11} color={Colors.mu} />
+                            <Text style={s.subDivName}>{div.name}</Text>
+                            <Text style={s.divCount}>{plural(div.teamCount ?? 0, 'tým', 'týmy', 'týmů')}</Text>
+                          </View>
+                          {allTeams.filter(t => t.placement?.divisionId === div.id).map(team => (
+                            <View key={team.id} style={s.teamRow}>
+                              <View style={[s.teamDot, { backgroundColor: team.color }]} />
+                              <Text style={s.teamName} numberOfLines={1}>{team.name}</Text>
+                              <Text style={s.teamAbbr}>{team.abbr}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ))}
+                      {allTeams.filter(t => t.placement?.conferenceId === konf.id && !t.placement?.divisionId).map(team => (
+                        <View key={team.id} style={s.teamRow}>
+                          <View style={[s.teamDot, { backgroundColor: team.color }]} />
+                          <Text style={s.teamName} numberOfLines={1}>{team.name}</Text>
+                          <Text style={s.teamAbbr}>{team.abbr}</Text>
                         </View>
                       ))}
                     </View>
@@ -333,9 +283,24 @@ export default function SuperLeagueScreen() {
               ))
             )}
 
+            {allTeams.some(t => !t.placement) && (
+              <View style={s.infoBox}>
+                <Ionicons name="alert-circle-outline" size={16} color={Colors.go} />
+                <Text style={s.infoText}>
+                  {plural(allTeams.filter(t => !t.placement).length, 'tým není', 'týmy nejsou', 'týmů není')} zařazen
+                  do soutěže — do rozlosování se nedostane.
+                </Text>
+              </View>
+            )}
+
+            <Pressable style={s.secondaryBtn} onPress={() => router.push('/supervisor/leagues' as any)}>
+              <Text style={s.secondaryBtnText}>Upravit strukturu a zařazení týmů →</Text>
+            </Pressable>
+
             <Pressable
-              style={[s.primaryBtn, { marginTop: 8 }]}
+              style={[s.primaryBtn, tree.length === 0 && s.btnDisabled]}
               onPress={() => setStep('scope')}
+              disabled={tree.length === 0}
             >
               <Ionicons name="calendar-outline" size={18} color={Colors.bg} />
               <Text style={s.primaryBtnText}>Generovat rozlosování →</Text>
@@ -347,6 +312,63 @@ export default function SuperLeagueScreen() {
         {step === 'scope' && (
           <>
             <Text style={s.sectionTitle}>Vyber rozsah rozlosování</Text>
+
+            {/* Liga */}
+            <Pressable style={[s.scopeCard, scope === 'league' && s.scopeCardActive]} onPress={() => setScope('league')}>
+              <View style={s.scopeIcon}>
+                <Ionicons name="trophy-outline" size={20} color={scope === 'league' ? Colors.bg : Colors.go} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.scopeLabel, scope === 'league' && { color: Colors.bg }]}>Celá liga</Text>
+                <Text style={[s.scopeDesc, scope === 'league' && { color: `${Colors.bg}99` }]}>Každý s každým napříč celou ligou</Text>
+              </View>
+              {scope === 'league' && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
+            </Pressable>
+
+            {scope === 'league' && (
+              <View style={s.subPicker}>
+                <Text style={s.fieldLabel}>Vyber ligu</Text>
+                {ligy.map(l => (
+                  <Pressable key={l.id} style={[s.pickerChip, selLeague === l.id && s.pickerChipActive]} onPress={() => setSelLeague(l.id)}>
+                    <Text style={[s.pickerChipTxt, selLeague === l.id && s.pickerChipTxtActive]}>{l.name}</Text>
+                    <Text style={[s.pickerChipCount, selLeague === l.id && { color: `${Colors.bg}99` }]}>
+                      {plural(l.teamCount ?? 0, 'tým', 'týmy', 'týmů')}
+                    </Text>
+                  </Pressable>
+                ))}
+                {ligy.length === 0 && <Text style={s.noData}>Žádné ligy</Text>}
+              </View>
+            )}
+
+            {/* Konference */}
+            <Pressable style={[s.scopeCard, scope === 'conference' && s.scopeCardActive]} onPress={() => setScope('conference')}>
+              <View style={s.scopeIcon}>
+                <Ionicons name="git-branch-outline" size={20} color={scope === 'conference' ? Colors.bg : Colors.go} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.scopeLabel, scope === 'conference' && { color: Colors.bg }]}>Konference</Text>
+                <Text style={[s.scopeDesc, scope === 'conference' && { color: `${Colors.bg}99` }]}>Týmy jedné konference hrají křížově</Text>
+              </View>
+              {scope === 'conference' && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
+            </Pressable>
+
+            {scope === 'conference' && (
+              <View style={s.subPicker}>
+                <Text style={s.fieldLabel}>Vyber konferenci</Text>
+                {konference.map(k => (
+                  <Pressable key={k.id} style={[s.pickerChip, selConf === k.id && s.pickerChipActive]} onPress={() => setSelConf(k.id)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.pickerChipTxt, selConf === k.id && s.pickerChipTxtActive]}>{k.name}</Text>
+                      <Text style={[s.teamSubtitle, selConf === k.id && { color: `${Colors.bg}99` }]}>{k.leagueName}</Text>
+                    </View>
+                    <Text style={[s.pickerChipCount, selConf === k.id && { color: `${Colors.bg}99` }]}>
+                      {plural(k.teamCount ?? 0, 'tým', 'týmy', 'týmů')}
+                    </Text>
+                  </Pressable>
+                ))}
+                {konference.length === 0 && <Text style={s.noData}>Žádné konference — přidej je ve Struktuře soutěží.</Text>}
+              </View>
+            )}
 
             {/* Divize */}
             <Pressable style={[s.scopeCard, scope === 'division' && s.scopeCardActive]} onPress={() => setScope('division')}>
@@ -363,42 +385,18 @@ export default function SuperLeagueScreen() {
             {scope === 'division' && (
               <View style={s.subPicker}>
                 <Text style={s.fieldLabel}>Vyber divizi</Text>
-                {divNames.map(d => (
-                  <Pressable key={d} style={[s.pickerChip, selDivision === d && s.pickerChipActive]} onPress={() => setSelDiv(d)}>
-                    <Text style={[s.pickerChipTxt, selDivision === d && s.pickerChipTxtActive]}>{d}</Text>
-                    <Text style={[s.pickerChipCount, selDivision === d && { color: `${Colors.bg}99` }]}>
-                      {plural(allTeams.filter(t => t.division === d).length, 'tým', 'týmy', 'týmů')}
+                {divize.map(d => (
+                  <Pressable key={d.id} style={[s.pickerChip, selDiv === d.id && s.pickerChipActive]} onPress={() => setSelDiv(d.id)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.pickerChipTxt, selDiv === d.id && s.pickerChipTxtActive]}>{d.name}</Text>
+                      <Text style={[s.teamSubtitle, selDiv === d.id && { color: `${Colors.bg}99` }]}>{d.path}</Text>
+                    </View>
+                    <Text style={[s.pickerChipCount, selDiv === d.id && { color: `${Colors.bg}99` }]}>
+                      {plural(d.teamCount ?? 0, 'tým', 'týmy', 'týmů')}
                     </Text>
                   </Pressable>
                 ))}
-                {divNames.length === 0 && <Text style={s.noData}>Žádné divize</Text>}
-              </View>
-            )}
-
-            {/* Konference */}
-            <Pressable style={[s.scopeCard, scope === 'conference' && s.scopeCardActive]} onPress={() => setScope('conference')}>
-              <View style={s.scopeIcon}>
-                <Ionicons name="trophy-outline" size={20} color={scope === 'conference' ? Colors.bg : Colors.go} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[s.scopeLabel, scope === 'conference' && { color: Colors.bg }]}>Konference</Text>
-                <Text style={[s.scopeDesc, scope === 'conference' && { color: `${Colors.bg}99` }]}>Všechny týmy konference hrají křížově</Text>
-              </View>
-              {scope === 'conference' && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
-            </Pressable>
-
-            {scope === 'conference' && (
-              <View style={s.subPicker}>
-                <Text style={s.fieldLabel}>Vyber konferenci</Text>
-                {confNames.map(c => (
-                  <Pressable key={c} style={[s.pickerChip, selConf === c && s.pickerChipActive]} onPress={() => setSelConf(c)}>
-                    <Text style={[s.pickerChipTxt, selConf === c && s.pickerChipTxtActive]}>{c}</Text>
-                    <Text style={[s.pickerChipCount, selConf === c && { color: `${Colors.bg}99` }]}>
-                      {plural(allTeams.filter(t => t.conference === c).length, 'tým', 'týmy', 'týmů')}
-                    </Text>
-                  </Pressable>
-                ))}
-                {confNames.length === 0 && <Text style={s.noData}>Žádné konference — přiřaď týmům konferenci ve Správě týmů.</Text>}
+                {divize.length === 0 && <Text style={s.noData}>Žádné divize — přidej je ve Struktuře soutěží.</Text>}
               </View>
             )}
 
@@ -409,7 +407,7 @@ export default function SuperLeagueScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.scopeLabel, scope === 'custom' && { color: Colors.bg }]}>Vlastní výběr</Text>
-                <Text style={[s.scopeDesc, scope === 'custom' && { color: `${Colors.bg}99` }]}>Vyber konkrétní týmy napříč divizemi</Text>
+                <Text style={[s.scopeDesc, scope === 'custom' && { color: `${Colors.bg}99` }]}>Vyber konkrétní týmy napříč soutěžemi</Text>
               </View>
               {scope === 'custom' && <Ionicons name="checkmark-circle" size={22} color={Colors.bg} />}
             </Pressable>
@@ -419,6 +417,8 @@ export default function SuperLeagueScreen() {
                 <Text style={s.fieldLabel}>Vyber týmy ({selTeamIds.length} vybráno)</Text>
                 {allTeams.map(t => {
                   const sel = selTeamIds.includes(t.id);
+                  const cesta = [t.placement?.league?.name, t.placement?.conference?.name, t.placement?.division?.name]
+                    .filter(Boolean).join(' › ') || 'Nezařazeno';
                   return (
                     <Pressable
                       key={t.id}
@@ -430,7 +430,7 @@ export default function SuperLeagueScreen() {
                       <View style={[s.teamDot, { backgroundColor: t.color }]} />
                       <View style={{ flex: 1 }}>
                         <Text style={[s.teamName, sel && { color: Colors.go }]}>{t.name}</Text>
-                        <Text style={s.teamSubtitle}>{t.conference ? `${t.conference} · ` : ''}{t.division}</Text>
+                        <Text style={s.teamSubtitle}>{cesta}</Text>
                       </View>
                       <Ionicons
                         name={sel ? 'checkmark-circle' : 'ellipse-outline'}
@@ -444,10 +444,14 @@ export default function SuperLeagueScreen() {
             )}
 
             {/* Info */}
-            {scopeTeams.length >= 2 && (
+            {scopeVybran && (
               <View style={s.infoBox}>
                 <Ionicons name="people-outline" size={16} color={Colors.go} />
-                <Text style={s.infoText}>{plural(scopeTeams.length, 'tým', 'týmy', 'týmů')} vybráno</Text>
+                <Text style={s.infoText}>
+                  {scopeTeams.length >= 2
+                    ? `${plural(scopeTeams.length, 'tým', 'týmy', 'týmů')} vybráno`
+                    : 'Ve vybraném rozsahu jsou méně než 2 týmy — zařaď je ve Struktuře soutěží.'}
+                </Text>
               </View>
             )}
 
@@ -628,82 +632,6 @@ export default function SuperLeagueScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ══ MODAL: PŘESUN TÝMU ════════════════════════════════════════════ */}
-      <Modal visible={!!moveTeam} transparent animationType="slide">
-        <Pressable style={s.backdrop} onPress={() => setMoveTeam(null)} />
-        <View style={s.sheet}>
-          <View style={s.sheetHandle} />
-          <Text style={s.sheetTitle}>Přesunout tým</Text>
-          {moveTeam && (
-            <View style={s.moveTeamBadge}>
-              <View style={[s.teamDot, { width: 12, height: 12, borderRadius: 6, backgroundColor: moveTeam.color }]} />
-              <Text style={s.moveTeamName}>{moveTeam.name}</Text>
-            </View>
-          )}
-
-          <Text style={s.fieldLabel}>Konference (volitelné)</Text>
-          <View style={s.confChips}>
-            {confNames.map(c => (
-              <Pressable
-                key={c}
-                style={[s.pickerChip, newConf === c && s.pickerChipActive]}
-                onPress={() => setNewConf(newConf === c ? '' : c)}
-              >
-                <Text style={[s.pickerChipTxt, newConf === c && s.pickerChipTxtActive]}>{c}</Text>
-              </Pressable>
-            ))}
-            <Pressable
-              style={[s.pickerChip, newConf === '' && s.pickerChipActive]}
-              onPress={() => setNewConf('')}
-            >
-              <Text style={[s.pickerChipTxt, newConf === '' && s.pickerChipTxtActive]}>Bez konference</Text>
-            </Pressable>
-          </View>
-          <TextInput
-            style={[s.input, { marginTop: 6 }]}
-            value={newConf}
-            onChangeText={setNewConf}
-            placeholder="nebo napiš novou konferenci…"
-            placeholderTextColor={Colors.di}
-            keyboardAppearance="dark"
-          />
-
-          <Text style={[s.fieldLabel, { marginTop: 16 }]}>Divize *</Text>
-          <View style={s.confChips}>
-            {divNames.map(d => (
-              <Pressable
-                key={d}
-                style={[s.pickerChip, newDiv === d && s.pickerChipActive]}
-                onPress={() => setNewDiv(d)}
-              >
-                <Text style={[s.pickerChipTxt, newDiv === d && s.pickerChipTxtActive]}>{d}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <TextInput
-            style={[s.input, { marginTop: 6 }]}
-            value={newDiv}
-            onChangeText={setNewDiv}
-            placeholder="nebo napiš novou divizi…"
-            placeholderTextColor={Colors.di}
-            keyboardAppearance="dark"
-          />
-
-          <Pressable
-            style={[s.primaryBtn, (!newDiv.trim() || !!movingId) && s.btnDisabled]}
-            onPress={doMoveTeam}
-            disabled={!newDiv.trim() || !!movingId}
-          >
-            {movingId
-              ? <ActivityIndicator color={Colors.bg} />
-              : <Text style={s.primaryBtnText}>Přesunout</Text>
-            }
-          </Pressable>
-          <Pressable style={s.secondaryBtn} onPress={() => setMoveTeam(null)}>
-            <Text style={s.secondaryBtnText}>Zrušit</Text>
-          </Pressable>
-        </View>
-      </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -739,6 +667,8 @@ const s = StyleSheet.create({
   divHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8, backgroundColor: Colors.c2 },
   divName:    { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
   divCount:   { fontSize: Fonts.sizes.xs, color: Colors.mu },
+  subDivHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderTopWidth: 1, borderTopColor: Colors.bd },
+  subDivName:   { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },
   teamRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: Colors.bd },
   teamName:   { flex: 1, fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
   teamAbbr:   { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700', width: 30, textAlign: 'right' },
@@ -798,12 +728,4 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   emptyDesc:  { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center' },
 
-  // Modal
-  backdrop:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet:         { backgroundColor: Colors.c1, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, marginTop: 'auto' },
-  sheetHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.bd, alignSelf: 'center', marginBottom: 16 },
-  sheetTitle:    { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 16 },
-  moveTeamBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.c2, borderRadius: Radius.sm, padding: 10, marginBottom: 4 },
-  moveTeamName:  { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
-  confChips:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

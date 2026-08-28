@@ -163,6 +163,7 @@ export default function AdminScreen() {
       title: 'Organizace ligy',
       items: [
         { icon: 'stats-chart', label: 'Dashboard', desc: 'Přehled celé ligy', route: '/supervisor/dashboard', color: Colors.pu },
+        { icon: 'git-network',  label: 'Struktura soutěží', desc: 'Ligy, konference, divize a zařazení týmů', route: '/supervisor/leagues', color: Colors.pu },
         { icon: 'git-branch',   label: 'Rozlosování',     desc: 'Generování rozpisu zápasů',      route: '/supervisor/league',      color: Colors.pu },
         { icon: 'football', label: 'Správa zápasů', desc: 'Přiřazení rozhodčích, rušení', route: '/supervisor/matches', color: Colors.pu },
         { icon: 'shield',       label: 'Správa týmů',     desc: 'Divize, přidání, editace, smazání', route: '/supervisor/teams',    color: Colors.pu },

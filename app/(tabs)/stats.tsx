@@ -3,10 +3,11 @@ import { View, Text, FlatList, ScrollView, StyleSheet, Pressable, ActivityIndica
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { statsApi, supervisorApi, playersApi } from '../../services/api';
+import { statsApi, playersApi, type StatsScope } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
 import { SkeletonTableRow } from '../../components/SkeletonCard';
+import { CompetitionFilter } from '../../components/CompetitionFilter';
 
 type Tab = 'scorers' | 'assisters' | 'body' | 'mvp' | 'referees' | 'mine';
 
@@ -46,29 +47,15 @@ interface MyStats {
 
 export default function StatsScreen() {
   const [tab, setTab]             = useState<Tab>('mine');
-  const [seasons, setSeasons]     = useState<string[]>([]);
-  const [season, setSeason]       = useState<string | undefined>(undefined); // undefined = aktuální (první)
-  const [divisions, setDivisions] = useState<string[]>([]);
-  const [division, setDivision]   = useState<string>('Vše');
+  // Rozsah drží CompetitionFilter (sezóna → liga → konference → divize)
+  const [scope, setScope]         = useState<StatsScope>({});
+  const season                    = scope.season;
   const [data, setData]           = useState<any[]>([]);
   const [myStats, setMyStats]     = useState<MyStats | null>(null);
   const [myStatsErr, setMyStatsErr] = useState<'no_player' | 'error' | null>(null);
   const [loading, setLoading]     = useState(true);
   const [refresh, setRefresh]     = useState(false);
   const [error, setError]         = useState(false);
-
-  // Načti ročníky + divize jednou při startu
-  useEffect(() => {
-    statsApi.seasons().then(r => {
-      const s = r.data as string[];
-      setSeasons(s);
-      if (s.length > 0) setSeason(s[0]); // nejnovější první
-    }).catch(() => {});
-    supervisorApi.divisions().then(r => {
-      const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
-      setDivisions(divs);
-    }).catch(() => {});
-  }, []);
 
   async function loadMine(isRefresh = false) {
     if (!isRefresh) { setLoading(true); setMyStatsErr(null); }
@@ -86,13 +73,12 @@ export default function StatsScreen() {
     if (tab === 'mine') return loadMine(isRefresh);
     if (!isRefresh) { setLoading(true); setError(false); }
     setData([]);
-    const div = division === 'Vše' ? undefined : division;
     try {
       const call =
-        tab === 'scorers'   ? statsApi.scorers(div, season)
-        : tab === 'assisters' ? statsApi.assisters(div, season)
-        : tab === 'body'      ? statsApi.points(div, season)
-        : tab === 'mvp'       ? statsApi.mvp(div, season)
+        tab === 'scorers'   ? statsApi.scorers(scope)
+        : tab === 'assisters' ? statsApi.assisters(scope)
+        : tab === 'body'      ? statsApi.points(scope)
+        : tab === 'mvp'       ? statsApi.mvp(scope)
         :                       statsApi.referees(season);
       const r = await call;
       setData(r.data);
@@ -103,7 +89,7 @@ export default function StatsScreen() {
     setRefresh(false);
   }
 
-  useEffect(() => { load(); }, [tab, division, season]);
+  useEffect(() => { load(); }, [tab, scope]);
 
   function getValueLabel(item: any): string {
     if (tab === 'scorers')   return `${item.goals} G`;
@@ -228,28 +214,15 @@ export default function StatsScreen() {
     );
   }
 
-  const divisionList = ['Vše', ...divisions];
-
   return (
     <SafeAreaView style={styles.safe}>
       {/* Hlavička */}
       <View style={styles.titleRow}>
         <Text style={styles.title}>Statistiky</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {seasons.length > 1 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-              {seasons.map(s => (
-                <Pressable key={s} style={[styles.seasonChip, season === s && styles.seasonChipActive]} onPress={() => setSeason(s)}>
-                  <Text style={[styles.seasonTxt, season === s && styles.seasonTxtActive]}>{s}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-          <Pressable onPress={() => router.push('/compare' as any)} style={styles.compareBtn}>
-            <Ionicons name="git-compare-outline" size={15} color={Colors.go} />
-            <Text style={styles.compareTxt}>Porovnat</Text>
-          </Pressable>
-        </View>
+        <Pressable onPress={() => router.push('/compare' as any)} style={styles.compareBtn}>
+          <Ionicons name="git-compare-outline" size={15} color={Colors.go} />
+          <Text style={styles.compareTxt}>Porovnat</Text>
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -267,21 +240,9 @@ export default function StatsScreen() {
         ))}
       </ScrollView>
 
-      {/* Division filter (skryj pro rozhodčí a moje) */}
-      {tab !== 'referees' && tab !== 'mine' && divisionList.length > 1 && (
-        <View style={styles.divBarWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 6, paddingVertical: 4 }}>
-            {divisionList.map(d => (
-              <Pressable
-                key={d}
-                style={[styles.divChip, division === d && styles.divChipActive]}
-                onPress={() => setDivision(d)}
-              >
-                <Text style={[styles.divChipTxt, division === d && styles.divChipTxtActive]}>{d}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+      {/* Kaskádový filtr soutěže — u rozhodčích a „Moje" nedává smysl */}
+      {tab !== 'referees' && tab !== 'mine' && (
+        <CompetitionFilter collapsible onChange={setScope} />
       )}
 
       {tab === 'mine' ? renderMineContent() : loading ? (
@@ -317,10 +278,6 @@ const styles = StyleSheet.create({
   title:        { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, flex: 1 },
   compareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: `${Colors.go}18`, borderRadius: Radius.full, borderWidth: 1, borderColor: `${Colors.go}44` },
   compareTxt:   { fontSize: Fonts.sizes.xs, lineHeight: 16, fontWeight: '700', color: Colors.go },
-  seasonChip:   { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
-  seasonTxt:    { fontSize: Fonts.sizes.xs, lineHeight: 16, color: Colors.mu, fontWeight: '700' },
-  seasonTxtActive: { color: Colors.bg },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, padding: 32 },
   empty:        { fontSize: Fonts.sizes.md, color: Colors.mu, textAlign: 'center' },
   tabsBar:      { flexGrow: 0, marginBottom: 0 },
@@ -359,10 +316,5 @@ const styles = StyleSheet.create({
   refCount: { fontSize: Fonts.sizes.xs, color: Colors.di },
   refScore: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
   refMax:   { fontSize: Fonts.sizes.sm, color: Colors.mu },
-  divBarWrap:    { borderTopWidth: 1, borderTopColor: Colors.bd, paddingTop: 8, paddingBottom: 10 },
-  divChip:       { paddingHorizontal: 14, paddingVertical: 7, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  divChipActive: { backgroundColor: Colors.pu, borderColor: Colors.pu },
-  divChipTxt:    { fontSize: Fonts.sizes.xs, lineHeight: 16, color: Colors.mu, fontWeight: '600' },
-  divChipTxtActive: { color: '#fff' },
   skeletonCard:  { margin: 16, backgroundColor: Colors.c1, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, overflow: 'hidden' },
 });

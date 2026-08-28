@@ -1,41 +1,26 @@
 import { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { statsApi, supervisorApi } from '../../services/api';
+import { statsApi, type StatsScope } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { ErrorView } from '../../components/ErrorView';
+import { CompetitionFilter } from '../../components/CompetitionFilter';
 
 export default function TableScreen() {
-  const [table, setTable]         = useState<any[]>([]);
-  const [divisions, setDivisions] = useState<string[]>([]);
-  const [division, setDivision]   = useState<string | undefined>(undefined);
-  const [seasons, setSeasons]     = useState<string[]>([]);
-  const [season, setSeason]       = useState<string | undefined>(undefined);
-  const [loading, setLoading]     = useState(true);
+  const [table, setTable]     = useState<any[]>([]);
+  // Rozsah drží CompetitionFilter (sezóna → liga → konference → divize)
+  const [scope, setScope]     = useState<StatsScope>({});
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError]         = useState(false);
-
-  // Načti seznam divizí a sezón jednou při startu
-  useEffect(() => {
-    supervisorApi.divisions().then(r => {
-      const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
-      setDivisions(divs);
-      if (divs.length > 0 && division === undefined) setDivision(divs[0]);
-    }).catch(() => {});
-    statsApi.seasons().then(r => {
-      const ss: string[] = r.data ?? [];
-      setSeasons(ss);
-      if (ss.length > 0) setSeason(ss[0]);
-    }).catch(() => {});
-  }, []);
+  const [error, setError]     = useState(false);
 
   async function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
     else { setLoading(true); setError(false); }
     try {
-      const r = await statsApi.table(division, season);
+      const r = await statsApi.table(scope);
       setTable(r.data ?? []);
       setError(false);
     } catch {
@@ -46,68 +31,13 @@ export default function TableScreen() {
     }
   }
 
-  useEffect(() => { load(); }, [division, season]);
-
-  const title = division ?? 'Tabulka';
-
-  if (loading) return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.center}><ActivityIndicator color={Colors.go} size="large" /></View>
-    </SafeAreaView>
-  );
-
-  if (error) return (
-    <SafeAreaView style={styles.safe}>
-      <Text style={styles.title}>{title}</Text>
-      <View style={{ flex: 1, justifyContent: 'center' }}>
-        <ErrorView message="Nepodařilo se načíst tabulku" onRetry={() => load()} />
-      </View>
-    </SafeAreaView>
-  );
+  useEffect(() => { load(); }, [scope]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <Text style={styles.title}>Tabulka</Text>
 
-      {/* Division selector */}
-      {divisions.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.divBar}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        >
-          {divisions.map(d => (
-            <Pressable
-              key={d}
-              style={[styles.divChip, division === d && styles.divChipActive]}
-              onPress={() => setDivision(d)}
-            >
-              <Text style={[styles.divChipTxt, division === d && styles.divChipTxtActive]}>{d}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Season selector */}
-      {seasons.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.divBar, { marginBottom: 4 }]}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        >
-          {seasons.map(s => (
-            <Pressable
-              key={s}
-              style={[styles.divChip, season === s && styles.divChipActive]}
-              onPress={() => setSeason(s)}
-            >
-              <Text style={[styles.divChipTxt, season === s && styles.divChipTxtActive]}>{s}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
+      <CompetitionFilter onChange={setScope} />
 
       {/* Hlavička tabulky */}
       <View style={styles.header}>
@@ -122,11 +52,17 @@ export default function TableScreen() {
         <Text style={[styles.col, { flex: 1.4 }]}>Forma</Text>
       </View>
 
-      {table.length === 0 ? (
+      {loading ? (
+        <View style={styles.center}><ActivityIndicator color={Colors.go} size="large" /></View>
+      ) : error ? (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <ErrorView message="Nepodařilo se načíst tabulku" onRetry={() => load()} />
+        </View>
+      ) : table.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Ionicons name="trophy-outline" size={40} color={Colors.di} />
           <Text style={styles.emptyText}>Tabulka zatím prázdná</Text>
-          <Text style={styles.emptyHint}>Zobrazí se po odehrání prvních zápasů</Text>
+          <Text style={styles.emptyHint}>Zobrazí se po odehrání prvních zápasů v tomto rozsahu</Text>
         </View>
       ) : (
         <FlatList
@@ -172,11 +108,6 @@ const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: Colors.bg },
   center:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.bg },
   title:     { fontSize: Fonts.sizes.xl, fontWeight: '700', color: Colors.wh, padding: 16, paddingBottom: 8 },
-  divBar:    { flexGrow: 0, marginBottom: 8 },
-  divChip:   { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  divChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
-  divChipTxt:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
-  divChipTxtActive: { color: Colors.bg },
   header:    {
     flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8,
     borderBottomWidth: 1, borderBottomColor: Colors.bd,

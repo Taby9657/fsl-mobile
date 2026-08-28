@@ -164,18 +164,69 @@ export const paymentsApi = {
   qr:              (type: string, id: string) => api.get(`/payments/qr/${type}/${id}`),
 };
 
+// ==================== SOUTĚŽNÍ STRUKTURA ====================
+// Liga → konference → divize. Čtení je veřejné, zápis smí jen supervisor.
+export interface LeagueDivision   { id: string; name: string; teamCount?: number }
+export interface LeagueConference { id: string; name: string; divisions: LeagueDivision[]; teamCount?: number }
+export interface LeagueNode       { id: string; season: string; name: string; level: number; conferences: LeagueConference[]; teamCount?: number }
+
+export interface TeamPlacement {
+  leagueId: string; conferenceId: string | null; divisionId: string | null;
+  league?:     { id: string; name: string } | null;
+  conference?: { id: string; name: string } | null;
+  division?:   { id: string; name: string } | null;
+}
+
+export const leaguesApi = {
+  tree:   (season?: string) => api.get('/leagues',       { params: { season } }),
+  teams:  (season?: string) => api.get('/leagues/teams', { params: { season } }),
+
+  createLeague: (data: { name: string; level?: number; season?: string }) => api.post('/leagues', data),
+  updateLeague: (id: string, data: { name?: string; level?: number })     => api.put(`/leagues/${id}`, data),
+  deleteLeague: (id: string)                                              => api.delete(`/leagues/${id}`),
+
+  createConference: (leagueId: string, name: string) => api.post(`/leagues/${leagueId}/conferences`, { name }),
+  updateConference: (id: string, name: string)       => api.put(`/leagues/conferences/${id}`, { name }),
+  deleteConference: (id: string)                     => api.delete(`/leagues/conferences/${id}`),
+
+  createDivision: (conferenceId: string, name: string) => api.post(`/leagues/conferences/${conferenceId}/divisions`, { name }),
+  updateDivision: (id: string, name: string)           => api.put(`/leagues/divisions/${id}`, { name }),
+  deleteDivision: (id: string)                         => api.delete(`/leagues/divisions/${id}`),
+
+  // leagueId: null = vyřadit tým ze soutěže pro danou sezónu
+  setPlacement: (teamId: string, data: {
+    leagueId: string | null; conferenceId?: string | null; divisionId?: string | null; season?: string;
+  }) => api.put(`/leagues/placement/${teamId}`, data),
+};
+
 // ==================== STATISTIKY ====================
+// Rozsah filtru. Textová `division` zůstává kvůli zápasům bez nové struktury.
+export interface StatsScope {
+  division?:     string;
+  leagueId?:     string;
+  conferenceId?: string;
+  divisionId?:   string;
+  season?:       string;
+}
+
+// Volající smí předat scope objekt, nebo (kvůli starším obrazovkám) jen název divize
+function scopeParams(scope?: StatsScope | string, season?: string) {
+  const s = typeof scope === 'string' ? { division: scope } : (scope ?? {});
+  return { ...s, season: season ?? s.season };
+}
+
 export const statsApi = {
-  seasons:  ()                                  => api.get('/stats/seasons'),
-  table:    (division?: string, season?: string) => api.get('/stats/table',    { params: { division, season } }),
-  scorers:  (division?: string, season?: string) => api.get('/stats/scorers',  { params: { division, season } }),
-  assisters:(division?: string, season?: string) => api.get('/stats/assisters',{ params: { division, season } }),
-  points:   (division?: string, season?: string) => api.get('/stats/points',   { params: { division, season } }),
-  mvp:      (division?: string, season?: string) => api.get('/stats/mvp',      { params: { division, season } }),
-  referees: (season?: string)                    => api.get('/stats/referees', { params: { season } }),
-  exportUrl:(type: string, division?: string, season?: string) => {
-    const base = api.defaults.baseURL ?? '';
-    const params = new URLSearchParams({ type, ...(division ? { division } : {}), ...(season ? { season } : {}) });
+  seasons:  ()                                            => api.get('/stats/seasons'),
+  table:    (scope?: StatsScope | string, season?: string) => api.get('/stats/table',     { params: scopeParams(scope, season) }),
+  scorers:  (scope?: StatsScope | string, season?: string) => api.get('/stats/scorers',   { params: scopeParams(scope, season) }),
+  assisters:(scope?: StatsScope | string, season?: string) => api.get('/stats/assisters', { params: scopeParams(scope, season) }),
+  points:   (scope?: StatsScope | string, season?: string) => api.get('/stats/points',    { params: scopeParams(scope, season) }),
+  mvp:      (scope?: StatsScope | string, season?: string) => api.get('/stats/mvp',       { params: scopeParams(scope, season) }),
+  referees: (season?: string)                             => api.get('/stats/referees',   { params: { season } }),
+  exportUrl:(type: string, scope?: StatsScope | string, season?: string) => {
+    const base   = api.defaults.baseURL ?? '';
+    const params = new URLSearchParams({ type });
+    for (const [k, v] of Object.entries(scopeParams(scope, season))) if (v) params.set(k, String(v));
     return `${base}/stats/export?${params.toString()}`;
   },
 };
