@@ -24,7 +24,10 @@
         "CFBundleURLSchemes": [
           "com.googleusercontent.apps.485204684397-7nfhv2bb26gv4rs29icooba0rhpdeevd"
         ]
-      }
+      },
+      "associatedDomains": [
+        "applinks:fslleague.cz"
+      ]
     },
     "android": {
       "package": "cz.fsl.app",

@@ -1,19 +1,24 @@
 // Hráč zadá nebo naskenuje pozvánkový kód od vedoucího
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, scanFromURLAsync } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { teamsApi } from '../../services/api';
 import { useFanStore } from '../../store/fan';
+import { parseInviteCode, readPendingInvite, clearPendingInvite } from '../../utils/invite';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 export default function PlayerCodeScreen() {
   const setFan = useFanStore(s => s.setFan);
 
+  const params = useLocalSearchParams<{ code?: string }>();
+
   const [code, setCode]         = useState('');
   const [bezKodu, setBezKodu]   = useState(false);
+  const [zFotky, setZFotky]     = useState(false);
   const [loading, setLoading]   = useState(false);
   const [team, setTeam]         = useState<any>(null);
   const [scanning, setScanning] = useState(false);
@@ -21,21 +26,69 @@ export default function PlayerCodeScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
 
+  // Kód může přijít z pozvánkového odkazu, nebo čekat z doby před instalací
+  useEffect(() => {
+    (async () => {
+      const zParametru = parseInviteCode(params.code);
+      if (zParametru) { setCode(zParametru); verifyCode(zParametru); return; }
+
+      const cekajici = parseInviteCode(await readPendingInvite());
+      if (cekajici) { setCode(cekajici); verifyCode(cekajici); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.code]);
+
   async function verifyCode(rawCode?: string) {
-    const trimmed = (rawCode ?? code).trim().toUpperCase();
-    if (trimmed.length < 6) {
+    // Přijímáme holý kód i celý pozvánkový odkaz
+    const trimmed = parseInviteCode(rawCode ?? code);
+    if (!trimmed) {
       Alert.alert('Zadej platný kód', 'Kód má formát FSL-TM-XXXX');
       return;
     }
+    setCode(trimmed);
     setLoading(true);
     try {
       const res = await teamsApi.join(trimmed);
       setTeam(res.data.team);
       setScanning(false);
+      await clearPendingInvite();
     } catch (err: any) {
       Alert.alert('Neplatný kód', err.response?.data?.error ?? 'Zkus to znovu');
     } finally {
       setLoading(false);
+    }
+  }
+
+  /**
+   * QR z obrázku. Vedoucí posílá pozvánku ve zprávě a naskenovat vlastní
+   * displej nejde — kód proto načteme přímo z uloženého screenshotu.
+   */
+  async function nacistZFotky() {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Přístup k fotkám', 'Pro načtení QR z obrázku povol přístup ke galerii v Nastavení.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+
+      setZFotky(true);
+      const nalezene = await scanFromURLAsync(result.assets[0].uri, ['qr']);
+      const kod = parseInviteCode(nalezene?.[0]?.data);
+      if (!kod) {
+        Alert.alert('Nenašel jsem kód', 'Na obrázku není čitelný QR kód pozvánky. Zkus ho zadat ručně.');
+        return;
+      }
+      setCode(kod);
+      await verifyCode(kod);
+    } catch {
+      Alert.alert('Chyba', 'Obrázek se nepodařilo načíst.');
+    } finally {
+      setZFotky(false);
     }
   }
 
@@ -163,6 +216,19 @@ export default function PlayerCodeScreen() {
           <Text style={styles.scanBtnText}>Naskenovat QR kód</Text>
         </Pressable>
 
+        <Pressable style={styles.scanBtn} onPress={nacistZFotky} disabled={zFotky}>
+          {zFotky
+            ? <ActivityIndicator color={Colors.go} size="small" />
+            : <>
+                <Ionicons name="image-outline" size={22} color={Colors.go} />
+                <Text style={styles.scanBtnText}>Načíst QR z fotky</Text>
+              </>}
+        </Pressable>
+        <Text style={styles.scanNote}>
+          Když ti vedoucí poslal QR ve zprávě, ulož si ho do fotek a načti ho odsud —
+          vlastní displej naskenovat nejde.
+        </Text>
+
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>nebo zadat ručně</Text>
@@ -259,6 +325,7 @@ const styles = StyleSheet.create({
   scanBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: Colors.go, borderRadius: Radius.md, padding: 14, marginBottom: 20 },
   scanBtnText:     { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.go },
 
+  scanNote:        { fontSize: Fonts.sizes.xs, color: Colors.di, lineHeight: 17, marginTop: -12, marginBottom: 18 },
   divider:         { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
   dividerLine:     { flex: 1, height: 1, backgroundColor: Colors.bd },
   dividerText:     { fontSize: Fonts.sizes.xs, color: Colors.di },

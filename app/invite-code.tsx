@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { teamsApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
+import { inviteUrl } from '../utils/invite';
 import { Colors, Fonts, Radius } from '../constants/colors';
 
 function qrUrl(data: string) {
@@ -30,7 +31,7 @@ export default function InviteCodeScreen() {
   async function share() {
     try {
       await Share.share({
-        message: `Připoj se k týmu ${teamName} ve Floorball Stars Lize! 🏑\n\nPozvánkový kód: ${code}\n\nStáhni appku FSL:\niOS: https://apps.apple.com/app/fsl-liga/id6504321234\nAndroid: https://play.google.com/store/apps/details?id=cz.fsl.app`,
+        message: `Připoj se k týmu ${teamName} ve Floorball Stars Lize! 🏑\n\n${inviteUrl(code)}\n\nOdkaz tě rovnou vezme do registrace. Když aplikaci ještě nemáš, nejdřív si ji stáhneš a pak budeš pokračovat.\n\nPozvánkový kód pro ruční zadání: ${code}`,
         title:   'Pozvánka do FSL',
       });
     } catch {}
@@ -57,14 +58,17 @@ export default function InviteCodeScreen() {
               {/* Skutečný QR kód generovaný přes API */}
               <View style={s.qrWrap}>
                 <Image
-                  source={{ uri: qrUrl(code) }}
+                  source={{ uri: qrUrl(inviteUrl(code)) }}
                   style={s.qrImage}
                   resizeMode="contain"
                 />
               </View>
               <Text style={s.codeLabel}>Pozvánkový kód</Text>
               <Text style={s.code} selectable>{code}</Text>
-              <Text style={s.hint}>Hráč naskenuje QR kód nebo kód zadá ručně při registraci.</Text>
+              <Text style={s.hint}>
+                Hráč QR naskenuje, nebo si ho uloží z tvé zprávy a načte z fotek.
+                Kód jde vždycky zadat i ručně.
+              </Text>
             </View>
 
             <Pressable style={s.shareBtn} onPress={share}>
