@@ -9,7 +9,8 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
-      }
+      },
+      "channel": "development"
     },
     "simulator": {
       "developmentClient": true,
@@ -28,7 +29,8 @@
         "EXPO_PUBLIC_API_URL": "https://fsl-backhand-production.up.railway.app/api",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "485204684397-7nfhv2bb26gv4rs29icooba0rhpdeevd.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "485204684397-f5paghu6a59s4vq02jpqeil3l1mje677.apps.googleusercontent.com"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -41,7 +43,8 @@
         "EXPO_PUBLIC_API_URL": "https://fsl-backhand-production.up.railway.app/api",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "485204684397-7nfhv2bb26gv4rs29icooba0rhpdeevd.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "485204684397-f5paghu6a59s4vq02jpqeil3l1mje677.apps.googleusercontent.com"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

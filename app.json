@@ -3,6 +3,14 @@
     "name": "FSL",
     "slug": "fsl-liga",
     "version": "1.1.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c0ac3a9d-1c19-4b22-b4cf-f0fd29e535af",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "dark",
