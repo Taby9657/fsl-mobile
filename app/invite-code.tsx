@@ -31,7 +31,9 @@ export default function InviteCodeScreen() {
   async function share() {
     try {
       await Share.share({
-        message: `Připoj se k týmu ${teamName} ve Floorball Stars Lize! 🏑\n\n${inviteUrl(code)}\n\nOdkaz tě rovnou vezme do registrace. Když aplikaci ještě nemáš, nejdřív si ji stáhneš a pak budeš pokračovat.\n\nPozvánkový kód pro ruční zadání: ${code}`,
+        // Krátce. Odkaz zatím vede na nenasazený web, takže je až za kódem
+        // a bez vysvětlování — až bude fslleague.cz živý, dá se prohodit.
+        message: `Připoj se k týmu ${teamName} ve Floorball Stars Lize 🏑\n\nPozvánkový kód: ${code}\n\n${inviteUrl(code)}`,
         title:   'Pozvánka do FSL',
       });
     } catch {}
