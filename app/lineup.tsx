@@ -84,6 +84,19 @@ export default function LineupScreen() {
             { text: 'Odeslat přesto', style: 'destructive', onPress: () => doSubmit(true) },
           ],
         );
+      } else if (code === 'INELIGIBLE_PLAYERS') {
+        // Pravidla superlicence obejít nejde — nabízíme jen vysvětlení
+        const radky = (err.response.data.blocked as any[])
+          .map((b: any) => `${b.jersey ? `#${b.jersey} ` : ''}${b.firstName} ${b.lastName}\n   ${b.reason}`)
+          .join('\n\n');
+        Alert.alert(
+          'Tihle hráči nastoupit nemohou',
+          `${radky}\n\nVyřaď je ze sestavy a odešli znovu.`,
+          [
+            { text: 'Rozumím', style: 'cancel' },
+            { text: 'Proč?', onPress: () => router.push('/licence' as any) },
+          ],
+        );
       } else {
         Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se odeslat soupisku');
       }

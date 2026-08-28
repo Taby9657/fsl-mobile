@@ -164,6 +164,37 @@ export const paymentsApi = {
   qr:              (type: string, id: string) => api.get(`/payments/qr/${type}/${id}`),
 };
 
+// ==================== LICENCE ====================
+// Základní licence = smíš hrát. Superlicence = smíš hrát i za cizí týmy.
+export interface LicenceTeam {
+  id: string; name: string; abbr: string; color: string;
+  isHome: boolean; starts: number; playoffEligible: boolean;
+}
+
+export interface LicenceOverview {
+  season: string;
+  licStatus: string;
+  superStatus: string;
+  superLic: boolean;
+  homeTeam: { id: string; name: string; abbr: string; color: string } | null;
+  maxTeams: number;
+  minStarts: number;
+  teams: LicenceTeam[];
+  playoff: {
+    choice: any | null;
+    eligibleTeams: { id: string; name: string; abbr: string; color: string; starts: number }[];
+    secondaryUnlocked: boolean;
+  };
+}
+
+export const licenceApi = {
+  me:   (season?: string) => api.get('/licence/me', { params: { season } }),
+  team: (teamId: string, season?: string) => api.get(`/licence/team/${teamId}`, { params: { season } }),
+  setPlayoff: (data: { primaryTeamId: string; secondaryTeamId?: string | null; season?: string }) =>
+    api.put('/licence/playoff', data),
+  clearPlayoff: (season?: string) => api.delete('/licence/playoff', { params: { season } }),
+};
+
 // ==================== SOUTĚŽNÍ STRUKTURA ====================
 // Liga → konference → divize. Čtení je veřejné, zápis smí jen supervisor.
 export interface LeagueDivision   { id: string; name: string; teamCount?: number }

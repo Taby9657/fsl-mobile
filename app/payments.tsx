@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, Linking, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { goBack } from '../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { paymentsApi, matchesApi } from '../services/api';
@@ -281,12 +282,16 @@ export default function PaymentsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.cardTitle}>Super licence</Text>
-                <Text style={s.cardSub}>Play-off a pohárová soutěž</Text>
+                <Text style={s.cardSub}>Hraní i za cizí týmy</Text>
               </View>
               <StatusChip status={player.superStatus} />
             </View>
 
             <View style={s.hr} />
+            <Text style={s.superPopis}>
+              Se superlicencí smíš v základní části nastupovat až za 3 týmy a v playoff
+              za dva, které si po základní části zvolíš. Otevírá ti taky draft pool.
+            </Text>
             <InfoRow label="Výše poplatku" value={`${player.superFee} Kč`} />
             {player.superPaidAt && (
               <InfoRow label="Datum platby" value={new Date(player.superPaidAt).toLocaleDateString('cs-CZ')} />
@@ -309,6 +314,13 @@ export default function PaymentsScreen() {
             )}
           </View>
         )}
+
+        {/* Vysvětlení pravidel */}
+        <Pressable style={s.pravidlaBtn} onPress={() => router.push('/licence' as any)}>
+          <Ionicons name="information-circle-outline" size={16} color={Colors.go} />
+          <Text style={s.pravidlaTxt}>Jak licence fungují</Text>
+          <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+        </Pressable>
 
         {/* ── REGISTRACE TÝMU (vedoucí) ── */}
         {teams.map(tp => (
@@ -419,6 +431,9 @@ function Header() {
 }
 
 const s = StyleSheet.create({
+  superPopis:  { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18, marginBottom: 10 },
+  pravidlaBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, marginTop: 12 },
+  pravidlaTxt: { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '600' },
   safe:         { flex: 1, backgroundColor: Colors.bg },
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   back:         { width: 40, height: 40, justifyContent: 'center' },

@@ -127,6 +127,7 @@ export default function AdminScreen() {
       items: [
         { icon: 'person-circle', label: 'Upravit profil',  desc: 'Jméno, telefon, číslo dresu', route: '/profile-edit' },
         { icon: 'card',          label: 'Platby',          desc: 'Licence a poplatky',           route: '/payments' },
+        { icon: 'ribbon',        label: 'Licence a pravidla', desc: 'Kde smíš hrát, volba týmů do playoff', route: '/licence' },
         { icon: 'star',          label: 'Draft profil',    desc: 'Zviditelni se pro vedoucí',     route: '/draft/profile-edit' },
       ],
     });
@@ -142,6 +143,7 @@ export default function AdminScreen() {
         { icon: 'document-text',   label: 'Soupisky',              desc: 'Odeslání před zápasem',          route: '/lineup'       },
         { icon: 'clipboard',       label: 'Po-zápasový formulář',  desc: 'MVP, rating rozhodčího',         route: '/postmatch'    },
         { icon: 'card',            label: 'Platby',                desc: 'Licence, domácí zápas',          route: '/payments'     },
+        { icon: 'ribbon',          label: 'Licence a pravidla',    desc: 'Koho smíš postavit do sestavy',  route: '/licence'      },
       ],
     });
   }

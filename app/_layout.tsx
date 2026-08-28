@@ -90,6 +90,7 @@ function RootLayout() {
         <Stack.Screen name="notifications"       options={{ headerShown: false }} />
         <Stack.Screen name="search"              options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="profile-edit"        options={{ headerShown: false }} />
+        <Stack.Screen name="licence"    options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/dashboard" options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/referees"  options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/matches"   options={{ headerShown: false }} />
