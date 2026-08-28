@@ -22,8 +22,8 @@ export default function OnboardingCompleteScreen() {
     { icon: 'card'           , label: 'Zaplať registraci',        desc: 'přes Stripe nebo převodem', route: '/payments' },
     { icon: 'clipboard'      , label: 'Po-zápasový formulář',     desc: 'MVP a hodnocení rozhodčího', route: '/postmatch' },
   ] : isReferee ? [
-    { icon: 'person'         , label: 'Zkontroluj profil',        desc: 'zkontrolovat nebo upravit údaje', route: '/referee-profile' },
-    { icon: 'time'           , label: 'Čekej na schválení',       desc: 'supervisor tě musí nejdřív potvrdit', route: '/referee-profile' },
+    { icon: 'person'         , label: 'Zkontroluj profil',        desc: 'jméno, telefon a fotka', route: '/referee-profile' },
+    { icon: 'football'       , label: 'Prohlédni si zápasy',      desc: 'ať víš, do čeho jdeš', route: '/(tabs)' },
   ] : [
     { icon: 'card'           , label: 'Zaplať licenci',           desc: 'aktivuj svůj hráčský profil', route: '/payments' },
     { icon: 'person'         , label: 'Prohlédni si profil',      desc: 'statistiky a detaily', route: user?.player?.id ? `/player/${user.player.id}` : '/(tabs)' },
@@ -71,6 +71,10 @@ export default function OnboardingCompleteScreen() {
           ))}
         </View>
 
+        <Text style={s.poznamka}>
+          Nemusíš to řešit hned. Co zbývá, najdeš pak vždycky nahoře na domovské obrazovce.
+        </Text>
+
         <Pressable style={s.btn} onPress={() => router.replace('/(tabs)')}>
           <Text style={s.btnTxt}>Přejít do aplikace</Text>
         </Pressable>
@@ -92,6 +96,7 @@ const s = StyleSheet.create({
   stepIcon:  { width: 40, height: 40, borderRadius: 20, backgroundColor: `${Colors.go}22`, justifyContent: 'center', alignItems: 'center' },
   stepLabel: { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
   stepDesc:  { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
+  poznamka:  { fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center', lineHeight: 17, marginTop: -12, marginBottom: 20 },
   btn:       { width: '100%', backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center' },
   btnTxt:    { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
 });

@@ -10,6 +10,7 @@ import { cacheGet, cacheSet } from '../../utils/cache';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { LiveBadge } from '../../components/LiveBadge';
 import { SkeletonMatchCard, SkeletonTableRow, SkeletonHighlightCard } from '../../components/SkeletonCard';
+import { NextSteps } from '../../components/NextSteps';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 
@@ -251,24 +252,8 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Rozhodčí – čeká na schválení */}
-        {!isGuest && user?.referee?.status === 'PENDING' && (
-          <View style={s.infoBanner}>
-            <Ionicons name="time-outline" size={18} color="#F59E0B" />
-            <Text style={s.infoBannerTxt}>Přihláška rozhodčího čeká na schválení supervisorem</Text>
-          </View>
-        )}
-
-        {/* Rozhodčí – schválený, ale bez bankovního spojení */}
-        {!isGuest && user?.referee?.status === 'APPROVED' && !user?.referee?.bankAccount && (
-          <Pressable style={s.infoBanner} onPress={() => router.push('/referee-profile' as any)}>
-            <Ionicons name="cash-outline" size={18} color="#F59E0B" />
-            <Text style={s.infoBannerTxt}>
-              Doplň si bankovní spojení, jinak ti nepůjde vyplatit odměna za zápasy
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color={Colors.mu} />
-          </Pressable>
-        )}
+        {/* Co ještě zbývá vyřídit – řídí se skutečným stavem, mizí samo */}
+        <NextSteps />
 
         {/* ── HIGHLIGHTS KOLA ── */}
         {highlights.length > 0 && (
@@ -411,8 +396,6 @@ const s = StyleSheet.create({
   favLabel:      { fontSize: 10, color: Colors.di, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   favValue:      { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.go },
   favMeta:       { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
-  infoBanner:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#F59E0B22', borderRadius: Radius.md, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F59E0B44' },
-  infoBannerTxt: { flex: 1, fontSize: Fonts.sizes.xs, color: '#F59E0B', fontWeight: '600' },
 
   // Section
   sectionTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginTop: 16, marginBottom: 10 },
