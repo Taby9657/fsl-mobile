@@ -1,4 +1,8 @@
-// Onboarding rozhodčího – 3 kroky: osobní → HR/výplata → souhrn
+// Onboarding rozhodčího – 2 kroky: osobní údaje → souhrn.
+//
+// Rodné číslo, adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve
+// zkouší, jestli chce pískat, nemá důvod je vyplňovat dřív, než ho supervisor
+// schválí. Doplní je pak ve svém profilu — backend je má jako volitelné.
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,12 +14,10 @@ import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 interface FormData {
   firstName: string; lastName: string; phone: string;
-  birthNo: string; address: string; city: string; zip: string;
-  bankAccount: string; bankCode: string;
 }
 
 export default function RefereeOnboardingScreen() {
@@ -25,8 +27,6 @@ export default function RefereeOnboardingScreen() {
   const [loading, setLoading] = useState(false);
   const [form, setForm]       = useState<FormData>({
     firstName: '', lastName: '', phone: '',
-    birthNo: '', address: '', city: '', zip: '',
-    bankAccount: '', bankCode: '',
   });
 
   function set(key: keyof FormData, val: string) {
@@ -56,12 +56,11 @@ export default function RefereeOnboardingScreen() {
 
   function nextStep() {
     if (step === 1) {
-      if (!form.firstName || !form.lastName) {
+      if (!form.firstName.trim() || !form.lastName.trim()) {
         Alert.alert('Vyplň jméno a příjmení'); return;
       }
-      setStep(2); return;
+      setStep(2);
     }
-    if (step === 2) { setStep(3); return; }
   }
 
   async function submit() {
@@ -80,7 +79,7 @@ export default function RefereeOnboardingScreen() {
     }
   }
 
-  const STEPS = ['Osobní', 'HR údaje', 'Souhrn'];
+  const STEPS = ['Osobní údaje', 'Souhrn'];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -106,7 +105,11 @@ export default function RefereeOnboardingScreen() {
         {/* KROK 1 – Osobní údaje */}
         {step === 1 && (
           <>
-            <Text style={styles.title}>Osobní údaje</Text>
+            <Text style={styles.title}>Přihláška rozhodčího</Text>
+            <Text style={styles.subtitle}>
+              Zatím po tobě chceme jen jméno a kontakt. Rodné číslo a účet pro výplatu
+              odměn doplníš ve svém profilu, až tě supervisor schválí.
+            </Text>
 
             <Pressable style={styles.photoBtn} onPress={pickPhoto}>
               {photo ? (
@@ -140,72 +143,16 @@ export default function RefereeOnboardingScreen() {
           </>
         )}
 
-        {/* KROK 2 – HR / výplata */}
+        {/* KROK 2 – Souhrn */}
         {step === 2 && (
-          <>
-            <Text style={styles.title}>HR údaje</Text>
-            <Text style={styles.subtitle}>Potřebujeme je pro vyplácení odměn za zápasy.</Text>
-
-            <Text style={styles.label}>Rodné číslo</Text>
-            <TextInput style={styles.input} value={form.birthNo} onChangeText={v => set('birthNo', v)}
-              placeholder="950615/1234" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
-
-            <Text style={styles.label}>Ulice a číslo popisné</Text>
-            <TextInput style={styles.input} value={form.address} onChangeText={v => set('address', v)}
-              placeholder="Vinohradská 12" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
-
-            <View style={styles.row}>
-              <View style={{ flex: 2 }}>
-                <Text style={styles.label}>Město</Text>
-                <TextInput style={styles.input} value={form.city} onChangeText={v => set('city', v)}
-                  placeholder="Praha" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.label}>PSČ</Text>
-                <TextInput style={styles.input} value={form.zip} onChangeText={v => set('zip', v)}
-                  placeholder="12000" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
-                  returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
-              </View>
-            </View>
-
-            <View style={styles.bankInfoBox}>
-              <Ionicons name="cash-outline" size={18} color='#3B82F6' style={{ marginTop: 1 }} />
-              <Text style={styles.bankInfoText}>
-                <Text style={{ fontWeight: '700', color: Colors.wh }}>Proč potřebujeme bankovní účet?{'\n'}</Text>
-                Za každý odpískaný zápas obdržíš odměnu (výši stanovuje FSL pro danou sezónu). Odměna se vyplácí převodem na tento účet — bez jeho zadání ti výplata nejde zpracovat.{'\n\n'}
-                Údaje jsou viditelné pouze supervisorovi FSL a zpracovávají se dle GDPR.
-              </Text>
-            </View>
-
-            <Text style={styles.label}>Číslo bankovního účtu</Text>
-            <TextInput style={styles.input} value={form.bankAccount} onChangeText={v => set('bankAccount', v)}
-              placeholder="192000145399" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
-              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
-
-            <Text style={styles.label}>Kód banky</Text>
-            <TextInput style={styles.input} value={form.bankCode} onChangeText={v => set('bankCode', v)}
-              placeholder="0800" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
-              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
-
-            <Text style={styles.bankHint}>
-              Kód banky: ČS 0800 · KB 0100 · ČSOB 0300 · Fio 2010 · mBank 6210 · Air 3030
-            </Text>
-          </>
-        )}
-
-        {/* KROK 3 – Souhrn */}
-        {step === 3 && (
           <>
             <Text style={styles.title}>Zkontroluj údaje</Text>
 
             {photo && <Image source={{ uri: photo }} style={styles.photoLarge} />}
 
             {[
-              { label: 'Jméno',    value: `${form.firstName} ${form.lastName}` },
-              { label: 'Telefon',  value: form.phone || '—' },
-              { label: 'Rodné č.', value: form.birthNo || '—' },
-              { label: 'Adresa',   value: form.address ? `${form.address}, ${form.city} ${form.zip}` : '—' },
-              { label: 'Účet',     value: form.bankAccount ? `${form.bankAccount}/${form.bankCode}` : '—' },
+              { label: 'Jméno',   value: `${form.firstName} ${form.lastName}` },
+              { label: 'Telefon', value: form.phone || '—' },
             ].map(row => (
               <View key={row.label} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{row.label}</Text>
@@ -216,7 +163,9 @@ export default function RefereeOnboardingScreen() {
             <View style={styles.infoBox}>
               <Ionicons name="information-circle" size={18} color={Colors.go} />
               <Text style={styles.infoText}>
-                Po odeslání registrace ji musí schválit supervisor FSL. Dostaneš e-mail nebo notifikaci v aplikaci.
+                Přihlášku schvaluje supervisor FSL, obvykle do 48 hodin — přijde ti notifikace.
+                Než odpískáš první zápas, budeš v profilu potřebovat doplnit rodné číslo,
+                adresu a bankovní spojení pro výplatu odměn.
               </Text>
             </View>
           </>
@@ -229,7 +178,7 @@ export default function RefereeOnboardingScreen() {
               <Text style={styles.btnBackText}>Zpět</Text>
             </Pressable>
           )}
-          {step < 3 ? (
+          {step < 2 ? (
             <Pressable style={[styles.btnPrimary, { flex: 1 }]} onPress={nextStep}>
               <Text style={styles.btnText}>Pokračovat</Text>
             </Pressable>
@@ -268,9 +217,6 @@ const styles = StyleSheet.create({
   row:             { flexDirection: 'row', gap: 12 },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 14, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
-  bankHint:        { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 8, lineHeight: 18 },
-  bankInfoBox:     { flexDirection: 'row', gap: 10, backgroundColor: '#3B82F611', borderRadius: Radius.md, borderWidth: 1, borderColor: '#3B82F644', padding: 14, marginTop: 14, marginBottom: 4, alignItems: 'flex-start' },
-  bankInfoText:    { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
   summaryRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   summaryLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600' },
   summaryValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, flex: 1, textAlign: 'right' },

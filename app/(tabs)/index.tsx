@@ -251,12 +251,23 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Referee pending banner */}
+        {/* Rozhodčí – čeká na schválení */}
         {!isGuest && user?.referee?.status === 'PENDING' && (
           <View style={s.infoBanner}>
             <Ionicons name="time-outline" size={18} color="#F59E0B" />
-            <Text style={s.infoBannerTxt}>Registrace rozhodčího čeká na schválení supervisorem</Text>
+            <Text style={s.infoBannerTxt}>Přihláška rozhodčího čeká na schválení supervisorem</Text>
           </View>
+        )}
+
+        {/* Rozhodčí – schválený, ale bez bankovního spojení */}
+        {!isGuest && user?.referee?.status === 'APPROVED' && !user?.referee?.bankAccount && (
+          <Pressable style={s.infoBanner} onPress={() => router.push('/referee-profile' as any)}>
+            <Ionicons name="cash-outline" size={18} color="#F59E0B" />
+            <Text style={s.infoBannerTxt}>
+              Doplň si bankovní spojení, jinak ti nepůjde vyplatit odměna za zápasy
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.mu} />
+          </Pressable>
         )}
 
         {/* ── HIGHLIGHTS KOLA ── */}
