@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { teamsApi } from '../../services/api';
+import { teamsApi, seasonsApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { TeamColorPicker } from '../../components/TeamColorPicker';
@@ -22,6 +22,23 @@ export default function ManagerOnboardingScreen() {
   const [form, setForm] = useState<{ name: string; abbr: string; color: string; colorSecondary: string | null }>({
     name: '', abbr: '', color: '#C9A140', colorSecondary: '#F5F5F5',
   });
+
+  // Sezóna, do které se tým přihlašuje. Bez ní by spadl do té, kterou zrovna
+  // ukazuje liga, a při přepnutí sezóny by ze soutěže zmizel.
+  const [season, setSeason]   = useState<string | null>(null);
+  const [sezony, setSezony]   = useState<string[]>([]);
+
+  useEffect(() => {
+    seasonsApi.list()
+      .then(r => {
+        const { current, next, options } = r.data;
+        // Nabízíme aktuální a následující — zpětně se tým přihlašovat nemá proč
+        const nabidka = [current, next].filter(Boolean) as string[];
+        setSezony(nabidka.length > 0 ? nabidka : (options ?? []));
+        setSeason(current ?? nabidka[0] ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   // Kdyby odešel uprostřed, nabídneme mu příště pokračování
   useEffect(() => { saveDraft({ role: 'manager' }); }, []);
@@ -58,9 +75,12 @@ export default function ManagerOnboardingScreen() {
     if (form.abbr.length > 3) {
       Alert.alert('Zkratka', 'Zkratka týmu může mít maximálně 3 znaky.'); return;
     }
+    if (!season) {
+      Alert.alert('Vyber sezónu', 'Urči, do které sezóny tým přihlašuješ.'); return;
+    }
     setLoading(true);
     try {
-      const res = await teamsApi.create(form);
+      const res = await teamsApi.create({ ...form, season });
       const teamId = res.data.team.id;
       const code   = res.data.inviteCode;
 
@@ -179,6 +199,27 @@ export default function ManagerOnboardingScreen() {
           />
         </View>
 
+        {/* Sezóna */}
+        {sezony.length > 0 && (
+          <>
+            <Text style={styles.label}>Sezóna *</Text>
+            <View style={styles.seasonRow}>
+              {sezony.map(sz => (
+                <Pressable
+                  key={sz}
+                  style={[styles.seasonChip, season === sz && styles.seasonChipActive]}
+                  onPress={() => setSeason(sz)}
+                >
+                  <Text style={[styles.seasonTxt, season === sz && styles.seasonTxtActive]}>{sz}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.seasonHint}>
+              Tým se přihlašuje na jednu sezónu. Do další se přihlašuje znovu.
+            </Text>
+          </>
+        )}
+
         {/* Divizi přiděluje supervisor */}
         <View style={styles.note}>
           <Ionicons name="information-circle-outline" size={16} color={Colors.mu} />
@@ -211,6 +252,12 @@ const styles = StyleSheet.create({
   logoPlaceholder: { width: 96, height: 96, borderRadius: 16, backgroundColor: Colors.c1, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   logoAbbr:        { fontSize: Fonts.sizes.xxl, fontWeight: '900' },
   logoHint:        { fontSize: Fonts.sizes.xs, color: Colors.di },
+  seasonRow:        { flexDirection: 'row', gap: 8 },
+  seasonChip:       { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
+  seasonTxt:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '700' },
+  seasonTxtActive:  { color: Colors.bg },
+  seasonHint:       { fontSize: Fonts.sizes.xs, color: Colors.di, lineHeight: 16, marginTop: 6 },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 16, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
   note:            { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 20, padding: 12, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd },

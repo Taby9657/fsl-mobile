@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { goBack } from '../../utils/navigation';
-import { supervisorApi } from '../../services/api';
+import { supervisorApi, seasonsApi } from '../../services/api';
 import { DatePicker } from '../../components/DatePicker';
 import { ErrorView } from '../../components/ErrorView';
 import { Colors, Fonts, Radius } from '../../constants/colors';
@@ -45,6 +45,12 @@ export default function SeasonScreen() {
   const [busy,    setBusy]    = useState(false);
 
   const [season, setSeason] = useState('');
+
+  // Nastavení aktuální sezóny (jiná věc než přechod — nic neresetuje)
+  const [nabidka, setNabidka]       = useState<string[]>([]);
+  const [prepina, setPrepina]       = useState(false);
+  const [prihlasky, setPrihlasky]   = useState<{ registered: any[]; missing: any[] } | null>(null);
+  const [prihlasuje, setPrihlasuje] = useState(false);
   const [date,   setDate]   = useState<Date | null>(null);
   const [opis,   setOpis]   = useState('');
 
@@ -62,6 +68,56 @@ export default function SeasonScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const nactiSezony = useCallback(async () => {
+    try {
+      const [sez, tymy] = await Promise.all([seasonsApi.list(), seasonsApi.teams()]);
+      const { current, next, options } = sez.data;
+      setNabidka([...new Set([current, next, ...(options ?? [])].filter(Boolean))] as string[]);
+      setPrihlasky(tymy.data);
+    } catch { /* supervisor bez dat prostě neuvidí sekci */ }
+  }, []);
+
+  useEffect(() => { nactiSezony(); }, [nactiSezony]);
+
+  function prepniSezonu(cil: string) {
+    Alert.alert(
+      `Přepnout na ${cil}?`,
+      'Tohle jen změní, kterou sezónu liga ukazuje. Platby ani licence to neresetuje — '
+      + 'na to je Přechod sezóny níže. Ostatním supervisorům přijde upozornění.',
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Přepnout',
+          onPress: async () => {
+            setPrepina(true);
+            try {
+              await seasonsApi.setCurrent(cil);
+              await Promise.all([load(), nactiSezony()]);
+            } catch (err: any) {
+              Alert.alert('Nepodařilo se přepnout', err?.response?.data?.error ?? 'Zkus to znovu');
+            } finally {
+              setPrepina(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function prihlasVsechny() {
+    if (!prihlasky?.missing?.length) return;
+    setPrihlasuje(true);
+    try {
+      const r = await seasonsApi.register(prihlasky.missing.map((t: any) => t.id));
+      await nactiSezony();
+      Alert.alert('Hotovo', `Přihlášeno ${r.data.added} týmů.`);
+    } catch (err: any) {
+      Alert.alert('Nepodařilo se přihlásit', err?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setPrihlasuje(false);
+    }
+  }
 
   async function plan() {
     const s = season.trim();
@@ -165,6 +221,70 @@ export default function SeasonScreen() {
               Místo toho se odloží a přijde ti upozornění.
             </Text>
           </View>
+
+          {/* Přepnutí aktuální sezóny */}
+          {nabidka.length > 1 && (
+            <View style={s.card}>
+              <Text style={s.label}>Přepnout aktuální sezónu</Text>
+              <Text style={s.hint}>
+                Jen změní, kterou sezónu liga ukazuje — platby ani licence to neresetuje.
+                Na skutečný přechod sezóny je formulář níž.
+              </Text>
+              <View style={s.sezonyRada}>
+                {nabidka.map(sz => {
+                  const akt = sz === data.currentSeason;
+                  return (
+                    <Pressable
+                      key={sz}
+                      style={[s.sezonaChip, akt && s.sezonaChipActive]}
+                      onPress={() => !akt && prepniSezonu(sz)}
+                      disabled={prepina || akt}
+                    >
+                      <Text style={[s.sezonaTxt, akt && s.sezonaTxtActive]}>{sz}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Přihlášky týmů do sezóny */}
+          {prihlasky && (
+            <View style={s.card}>
+              <Text style={s.label}>Přihlášené týmy — {data.currentSeason ?? '—'}</Text>
+              <Text style={s.big}>{prihlasky.registered.length}</Text>
+
+              {prihlasky.missing.length > 0 ? (
+                <>
+                  <View style={s.divider} />
+                  <Text style={s.hint}>
+                    {prihlasky.missing.length}{' '}
+                    {prihlasky.missing.length === 1 ? 'tým hrál' : 'týmů hrálo'} dřív, ale do téhle
+                    sezóny přihlášku {prihlasky.missing.length === 1 ? 'nemá' : 'nemají'}.
+                    Do soutěže se tím pádem nepočítají.
+                  </Text>
+                  {prihlasky.missing.slice(0, 8).map((t: any) => (
+                    <View key={t.id} style={s.tymRadek}>
+                      <View style={[s.tecka, { backgroundColor: t.color }]} />
+                      <Text style={s.tymNazev}>{t.name}</Text>
+                      <Text style={s.tymMeta}>naposled {t.lastSeason}</Text>
+                    </View>
+                  ))}
+                  <Pressable
+                    style={[s.prihlasBtn, prihlasuje && { opacity: 0.6 }]}
+                    onPress={prihlasVsechny}
+                    disabled={prihlasuje}
+                  >
+                    {prihlasuje
+                      ? <ActivityIndicator color={Colors.bg} size="small" />
+                      : <Text style={s.prihlasTxt}>Přihlásit všechny do {data.currentSeason}</Text>}
+                  </Pressable>
+                </>
+              ) : (
+                <Text style={s.hint}>Všechny týmy z minulých sezón jsou přihlášené.</Text>
+              )}
+            </View>
+          )}
 
           {/* Naplánovaný přechod */}
           {data.planned ? (
@@ -282,6 +402,17 @@ export default function SeasonScreen() {
 }
 
 const s = StyleSheet.create({
+  sezonyRada:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  sezonaChip:       { paddingHorizontal: 16, paddingVertical: 9, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c2 },
+  sezonaChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
+  sezonaTxt:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '700' },
+  sezonaTxtActive:  { color: Colors.bg },
+  tymRadek:         { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
+  tecka:            { width: 8, height: 8, borderRadius: 4 },
+  tymNazev:         { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },
+  tymMeta:          { fontSize: Fonts.sizes.xs, color: Colors.di },
+  prihlasBtn:       { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 13, alignItems: 'center', marginTop: 12 },
+  prihlasTxt:       { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
   safe:         { flex: 1, backgroundColor: Colors.bg },
   header:       { flexDirection: 'row', alignItems: 'center', padding: 16 },
   back:         { width: 40, height: 40, justifyContent: 'center' },

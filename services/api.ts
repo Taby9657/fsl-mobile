@@ -178,6 +178,23 @@ export const paymentsApi = {
   qr:              (type: string, id: string) => api.get(`/payments/qr/${type}/${id}`),
 };
 
+// ==================== SEZÓNY ====================
+// Aktuální sezóna je uložená v nastavení ligy, ne odvozená ze zápasů.
+export interface SeasonOptions {
+  current: string | null;
+  next: string | null;
+  options: string[];
+}
+
+export const seasonsApi = {
+  list:       ()               => api.get('/seasons'),
+  setCurrent: (season: string) => api.put('/seasons/current', { season, confirm: true }),
+  // Přihlášky týmů do sezóny (supervisor)
+  teams:      (season?: string)                     => api.get('/seasons/teams', { params: { season } }),
+  register:   (teamIds: string[], season?: string)  => api.post('/seasons/teams', { teamIds, season }),
+  unregister: (teamId: string, season?: string)     => api.delete(`/seasons/teams/${teamId}`, { params: { season } }),
+};
+
 // ==================== LICENCE ====================
 // Základní licence = smíš hrát. Superlicence = smíš hrát i za cizí týmy.
 export interface LicenceTeam {
