@@ -421,6 +421,9 @@ function LineupCol({ title, players }: { title: string; players: any[] }) {
           <Pressable key={lp.id ?? lp.player?.id} style={s.lineupRow} onPress={() => lp.player?.id && router.push(`/player/${lp.player.id}` as any)}>
             <Text style={[s.lineupNum, unlicensed && { color: Colors.red }]}>{lp.player?.jersey}</Text>
             <Text style={s.lineupName} numberOfLines={1}>{lp.player?.lastName}</Text>
+            {lp.addedLate && (
+              <View style={s.lateTag}><Text style={s.lateTagTxt}>doplněn</Text></View>
+            )}
             {unlicensed && <Ionicons name="warning" size={12} color={Colors.red} />}
           </Pressable>
         );
@@ -485,6 +488,8 @@ const s = StyleSheet.create({
   eventMin:     { width: 28, fontSize: Fonts.sizes.xs, color: Colors.di, textAlign: 'center' },
   eventName:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
   eventSub:     { fontSize: Fonts.sizes.xs, color: Colors.mu },
+  lateTag:      { backgroundColor: `${Colors.go}22`, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  lateTagTxt:   { fontSize: 9, color: Colors.go, fontWeight: '700' },
   lineupRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: Colors.bd },
   lineupNum:    { width: 22, fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
   lineupName:   { flex: 1, fontSize: Fonts.sizes.sm, color: Colors.wh },

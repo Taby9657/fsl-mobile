@@ -134,6 +134,9 @@ export const matchesApi = {
     api.put(`/matches/${matchId}/lineup/${teamId}`, { players, force }),
   confirmLineup:   (matchId: string, teamId: string) =>
     api.post(`/matches/${matchId}/lineup/${teamId}/confirm`),
+  // Pozdní příchod za běhu zápasu – jen kmenový hráč vlastního týmu
+  addLatePlayer:   (matchId: string, teamId: string, playerId: string, isGoalkeeper = false) =>
+    api.post(`/matches/${matchId}/lineup/${teamId}/add`, { playerId, isGoalkeeper }),
   postmatch:       (matchId: string, teamId: string, data: any) =>
     api.put(`/matches/${matchId}/postmatch/${teamId}`, data),
   submitPostmatch: (matchId: string, teamId: string) =>

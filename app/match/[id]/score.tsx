@@ -6,12 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { matchesApi } from '../../../services/api';
+import { matchesApi, teamsApi } from '../../../services/api';
+import { useAuthStore } from '../../../store/auth';
 import { Colors, Fonts, Radius } from '../../../constants/colors';
 import * as Haptics from 'expo-haptics';
 
 type EventType = 'GOAL' | 'PENALTY';
-type ModalType = 'goal' | 'penalty' | null;
+type ModalType = 'goal' | 'penalty' | 'late' | null;
 
 const PENALTY_TYPES = ['2 min', '5 min', '10 min', 'DT'];
 
@@ -35,7 +36,14 @@ export default function LiveScoreScreen() {
   const [penPlayer,   setPenPlayer]   = useState('');
   const [penType,     setPenType]     = useState('2 min');
 
+  // doplnění pozdního příchodu — jen z vlastní soupisky
+  const [roster, setRoster]   = useState<any[]>([]);
+  const [lateAdding, setLateAdding] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
+
+  const user      = useAuthStore(st => st.user);
+  const myTeamIds = (user?.manager ?? []).map((m: any) => m.teamId);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -46,6 +54,32 @@ export default function LiveScoreScreen() {
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Soupiska vlastního týmu — zdroj pro doplnění pozdního příchodu
+  const myTeamId: string | undefined = match
+    ? myTeamIds.find((t: string) => t === match.homeTeamId || t === match.awayTeamId)
+    : undefined;
+
+  useEffect(() => {
+    if (!myTeamId) { setRoster([]); return; }
+    teamsApi.get(myTeamId)
+      .then(r => setRoster(r.data.players ?? []))
+      .catch(() => setRoster([]));
+  }, [myTeamId]);
+
+  async function addLate(playerId: string) {
+    if (!myTeamId) return;
+    setLateAdding(playerId);
+    try {
+      await matchesApi.addLatePlayer(id!, myTeamId, playerId);
+      load();
+      setModal(null);
+    } catch (e: any) {
+      Alert.alert('Nepodařilo se doplnit', e?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setLateAdding(null);
+    }
+  }
 
   // poll každých 15s – zastaví se po ukončení nebo zrušení zápasu
   const matchStatus = match?.status;
@@ -192,6 +226,56 @@ export default function LiveScoreScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}><Pressable onPress={() => router.back()} style={s.back}><Ionicons name="chevron-back" size={24} color={Colors.wh} /></Pressable></View>
       <View style={s.center}><ActivityIndicator color={Colors.go} /></View>
+
+      {/* ── Doplnění pozdního příchodu ── */}
+      <Modal visible={modal === 'late'} transparent animationType="slide">
+        <View style={s.overlay}>
+          <View style={s.sheet}>
+            <View style={s.sheetHeader}>
+              <Text style={s.sheetTitle}>Doplnit hráče</Text>
+              <Pressable onPress={() => setModal(null)}>
+                <Ionicons name="close" size={22} color={Colors.mu} />
+              </Pressable>
+            </View>
+
+            <Text style={s.lateHint}>
+              Za běhu zápasu můžeš doplnit jen hráče z vlastní soupisky s platnou licencí.
+              Hostující hráči se po zahájení přidat nedají. Doplnění zůstane v zápise vidět.
+            </Text>
+
+            <ScrollView style={{ maxHeight: 340 }}>
+              {roster
+                .filter((p: any) => !(myTeamId === match?.homeTeamId ? homeLineupPlayers : awayLineupPlayers)
+                  .some((lp: any) => lp.player?.id === p.id))
+                .map((p: any) => {
+                  const licence = ['PAID', 'WAIVED'].includes(p.payment?.licStatus);
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={[s.lateRow, !licence && { opacity: 0.45 }]}
+                      onPress={() => licence
+                        ? addLate(p.id)
+                        : Alert.alert('Bez licence', 'Tenhle hráč nemá zaplacenou licenci, doplnit ho nejde.')}
+                      disabled={!!lateAdding}
+                    >
+                      <Text style={s.lateNum}>{p.jersey}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.lateName}>{p.firstName} {p.lastName}</Text>
+                        {!licence && <Text style={s.lateWarn}>bez licence</Text>}
+                      </View>
+                      {lateAdding === p.id
+                        ? <ActivityIndicator color={Colors.go} size="small" />
+                        : <Ionicons name="add-circle-outline" size={20} color={Colors.go} />}
+                    </Pressable>
+                  );
+                })}
+              {roster.length === 0 && (
+                <Text style={s.lateHint}>Soupisku týmu se nepodařilo načíst.</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 
@@ -256,6 +340,12 @@ export default function LiveScoreScreen() {
                   <Ionicons name="stop" size={16} color={Colors.wh} />
                   <Text style={s.endBtnTxt}>Ukončit</Text>
                 </Pressable>
+                {myTeamId && (
+                  <Pressable style={s.lateBtn} onPress={() => setModal('late')}>
+                    <Ionicons name="person-add-outline" size={16} color={Colors.go} />
+                    <Text style={s.lateBtnTxt}>Doplnit</Text>
+                  </Pressable>
+                )}
               </>
             )}
           </View>
@@ -469,6 +559,13 @@ export default function LiveScoreScreen() {
 }
 
 const s = StyleSheet.create({
+  lateBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderColor: Colors.go, borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 11 },
+  lateBtnTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.go },
+  lateHint:   { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18, marginBottom: 12 },
+  lateRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: Colors.bd },
+  lateNum:    { width: 26, fontSize: Fonts.sizes.sm, fontWeight: '800', color: Colors.go },
+  lateName:   { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '600' },
+  lateWarn:   { fontSize: 10, color: Colors.red, marginTop: 2 },
   safe:          { flex: 1, backgroundColor: Colors.bg },
   header:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   back:          { width: 40, height: 40, justifyContent: 'center' },
