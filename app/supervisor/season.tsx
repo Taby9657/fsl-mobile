@@ -29,6 +29,9 @@ interface SeasonState {
   lastTransition: Transition | null;
   blockingMatches: number;
   blockingSample: any[];
+  supervisorCount: number;
+  canConfirm: boolean;
+  plannedByMe: boolean;
 }
 
 function formatDate(iso: string) {
@@ -180,10 +183,20 @@ export default function SeasonScreen() {
               <Text style={s.big}>{data.planned.newSeason}</Text>
               <Text style={s.plannedDate}>{formatDate(data.planned.scheduledAt)}</Text>
 
-              {data.planned.status === 'PENDING_CONFIRM' ? (
+              {data.planned.status === 'PENDING_CONFIRM' && !data.canConfirm ? (
+                <View style={s.warn}>
+                  <Ionicons name="people-outline" size={18} color="#F59E0B" />
+                  <Text style={s.warnTxt}>
+                    Přechod jsi naplánoval ty, takže ho musí potvrdit jiný supervisor.
+                    Pravidlo čtyř očí — nikdo nepřepne sezónu sám.
+                  </Text>
+                </View>
+              ) : data.planned.status === 'PENDING_CONFIRM' ? (
                 <>
                   <Text style={s.hint}>
-                    Druhý krok: pro potvrzení opiš přesně název sezóny. Bez toho se přechod nespustí.
+                    {data.supervisorCount < 2
+                      ? 'Druhý krok: pro potvrzení opiš přesně název sezóny. Jsi zatím jediný supervisor, takže potvrzuješ sám — jakmile přibude další, bude potvrzovat on.'
+                      : 'Druhý krok: pro potvrzení opiš přesně název sezóny. Bez toho se přechod nespustí.'}
                   </Text>
                   <TextInput
                     style={s.input}
@@ -291,4 +304,6 @@ const s = StyleSheet.create({
   btnOff:       { opacity: 0.4 },
   btnGhost:     { alignItems: 'center', paddingVertical: 12, marginTop: 6 },
   btnGhostTxt:  { fontSize: Fonts.sizes.sm, color: Colors.red, fontWeight: '600' },
+  warn:         { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#F59E0B18', borderWidth: 1, borderColor: '#F59E0B44', borderRadius: Radius.sm, padding: 12, marginTop: 12 },
+  warnTxt:      { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.wh, lineHeight: 18 },
 });

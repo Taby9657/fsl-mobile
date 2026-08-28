@@ -73,6 +73,11 @@ export const authApi = {
   apple:  (identityToken: string, firstName?: string, lastName?: string, email?: string) =>
     api.post('/auth/apple', { identityToken, firstName, lastName, email }),
   me:     () => api.get('/auth/me'),
+  // Klasické přihlášení e-mailem
+  register:       (email: string, password: string) => api.post('/auth/register', { email, password }),
+  login:          (email: string, password: string) => api.post('/auth/login', { email, password }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/auth/password', { currentPassword, newPassword }),
   // BUG-04 OPRAVA: endpoint pro serverové odhlášení (invalidace session na backendu)
   logout: () => api.post('/auth/logout'),
   // Apple 5.1.1: mazání účtu
