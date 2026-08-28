@@ -1,11 +1,15 @@
 // Výběr role – první obrazovka po přihlášení bez profilu
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/auth';
 import { useFanStore } from '../../store/fan';
+import {
+  readDraft, clearDraft, draftRoute, draftAge, DRAFT_LABELS,
+  type DraftRegistration,
+} from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 const ROLES = [
@@ -78,6 +82,24 @@ export default function OnboardingIndex() {
   const logout = useAuthStore(s => s.logout);
   const setFan = useFanStore(s => s.setFan);
 
+  // Rozdělaná registrace z minula – ať nezačíná od nuly
+  const [draft, setDraft] = useState<DraftRegistration | null>(null);
+  useEffect(() => { readDraft().then(setDraft); }, []);
+
+  function zahodDraft() {
+    Alert.alert(
+      'Začít znovu',
+      'Rozdělanou registraci zahodíme a vybereš si roli od začátku.',
+      [
+        { text: 'Zrušit', style: 'cancel' },
+        {
+          text: 'Začít znovu', style: 'destructive',
+          onPress: async () => { await clearDraft(); setDraft(null); },
+        },
+      ],
+    );
+  }
+
   async function choose(role: (typeof ROLES)[number]) {
     if (role.id === 'fan') {
       await setFan(true);
@@ -110,7 +132,30 @@ export default function OnboardingIndex() {
           a provedeme tě zbytkem registrace. Zabere to minutu.
         </Text>
 
-        <Text style={styles.stepLabel}>Vyber jednu možnost</Text>
+        {/* Navázání na rozdělanou registraci */}
+        {draft && (
+          <View style={styles.draftBox}>
+            <View style={styles.draftHead}>
+              <Ionicons name="refresh-circle-outline" size={20} color={Colors.go} />
+              <Text style={styles.draftTitle}>Máš rozdělanou registraci</Text>
+            </View>
+            <Text style={styles.draftDesc}>
+              Začal jsi registraci {DRAFT_LABELS[draft.role]}
+              {draft.teamName ? ` do týmu ${draft.teamName}` : ''} · {draftAge(draft.updatedAt)}.
+            </Text>
+            <Pressable
+              style={styles.draftBtn}
+              onPress={() => router.push(draftRoute(draft) as any)}
+            >
+              <Text style={styles.draftBtnTxt}>Pokračovat</Text>
+            </Pressable>
+            <Pressable onPress={zahodDraft} style={styles.draftLink}>
+              <Text style={styles.draftLinkTxt}>Začít znovu</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Text style={styles.stepLabel}>{draft ? 'Nebo si vyber jinou roli' : 'Vyber jednu možnost'}</Text>
 
         <View style={styles.cards}>
           {ROLES.map(role => (
@@ -142,6 +187,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 10,
   },
   cards:       { gap: 12 },
+  draftBox:    { backgroundColor: Colors.c2, borderRadius: Radius.lg, borderWidth: 1, borderColor: `${Colors.go}66`, padding: 16, marginBottom: 24 },
+  draftHead:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  draftTitle:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
+  draftDesc:   { fontSize: Fonts.sizes.sm, color: Colors.mu, lineHeight: 19, marginBottom: 14 },
+  draftBtn:    { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 13, alignItems: 'center' },
+  draftBtnTxt: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
+  draftLink:   { alignItems: 'center', paddingTop: 10 },
+  draftLinkTxt:{ fontSize: Fonts.sizes.sm, color: Colors.di, textDecorationLine: 'underline' },
   card: {
     backgroundColor: Colors.c1, borderRadius: Radius.lg,
     borderWidth: 1, borderColor: Colors.bd, padding: 18,

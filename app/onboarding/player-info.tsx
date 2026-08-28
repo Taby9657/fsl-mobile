@@ -9,6 +9,7 @@ import { DatePicker } from '../../components/DatePicker';
 import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { playersApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
+import { clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 import { validateName, validatePhone, validateJersey, firstError } from '../../utils/validation';
 
@@ -73,6 +74,7 @@ export default function PlayerInfoScreen() {
       if (photo) {
         await playersApi.uploadPhoto(res.data.id, photo).catch(() => {});
       }
+      await clearDraft();
       await refreshUser();
       router.replace('/onboarding/complete');
     } catch (err: any) {

@@ -1,5 +1,5 @@
 // Vedoucí registruje nový tým – 2 kroky
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { teamsApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
+import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { TeamColorPicker } from '../../components/TeamColorPicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
@@ -21,6 +22,9 @@ export default function ManagerOnboardingScreen() {
   const [form, setForm] = useState<{ name: string; abbr: string; color: string; colorSecondary: string | null }>({
     name: '', abbr: '', color: '#C9A140', colorSecondary: '#F5F5F5',
   });
+
+  // Kdyby odešel uprostřed, nabídneme mu příště pokračování
+  useEffect(() => { saveDraft({ role: 'manager' }); }, []);
 
   function set(key: string, val: string | null) {
     setForm(f => ({ ...f, [key]: val }));
@@ -70,6 +74,7 @@ export default function ManagerOnboardingScreen() {
         }
       }
       setInviteCode(code);
+      await clearDraft();
       await refreshUser();
       setStep(2);
       if (logoFailed) {

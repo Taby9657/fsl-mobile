@@ -3,7 +3,7 @@
 // Rodné číslo, adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve
 // zkouší, jestli chce pískat, nemá důvod je vyplňovat dřív, než ho supervisor
 // schválí. Doplní je pak ve svém profilu — backend je má jako volitelné.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { refereesApi } from '../../services/api';
 import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
+import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type Step = 1 | 2;
@@ -28,6 +29,9 @@ export default function RefereeOnboardingScreen() {
   const [form, setForm]       = useState<FormData>({
     firstName: '', lastName: '', phone: '',
   });
+
+  // Kdyby odešel uprostřed, nabídneme mu příště pokračování
+  useEffect(() => { saveDraft({ role: 'referee' }); }, []);
 
   function set(key: keyof FormData, val: string) {
     setForm(f => ({ ...f, [key]: val }));
@@ -70,6 +74,7 @@ export default function RefereeOnboardingScreen() {
       if (photo) {
         await refereesApi.uploadPhoto(res.data.id, photo).catch(() => {});
       }
+      await clearDraft();
       await refreshUser();
       router.replace('/onboarding/complete');
     } catch (err: any) {

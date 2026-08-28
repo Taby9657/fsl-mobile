@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { teamsApi } from '../../services/api';
 import { useFanStore } from '../../store/fan';
 import { parseInviteCode, readPendingInvite, clearPendingInvite } from '../../utils/invite';
+import { saveDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 export default function PlayerCodeScreen() {
@@ -52,6 +53,13 @@ export default function PlayerCodeScreen() {
       setTeam(res.data.team);
       setScanning(false);
       await clearPendingInvite();
+      // Kdyby teď odešel, ať víme kam navázat
+      await saveDraft({
+        role: 'player',
+        teamId: res.data.team.id,
+        teamName: res.data.team.name,
+        inviteCode: trimmed,
+      });
     } catch (err: any) {
       Alert.alert('Neplatný kód', err.response?.data?.error ?? 'Zkus to znovu');
     } finally {
