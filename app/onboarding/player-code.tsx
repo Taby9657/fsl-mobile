@@ -6,10 +6,14 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { teamsApi } from '../../services/api';
+import { useFanStore } from '../../store/fan';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 export default function PlayerCodeScreen() {
+  const setFan = useFanStore(s => s.setFan);
+
   const [code, setCode]         = useState('');
+  const [bezKodu, setBezKodu]   = useState(false);
   const [loading, setLoading]   = useState(false);
   const [team, setTeam]         = useState<any>(null);
   const [scanning, setScanning] = useState(false);
@@ -56,6 +60,11 @@ export default function PlayerCodeScreen() {
     verifyCode(parsed);
   }
 
+  async function pokracovatJakoFanousek() {
+    await setFan(true);
+    router.replace('/(tabs)');
+  }
+
   // Potvrzení týmu po verifikaci
   if (team) {
     return (
@@ -71,7 +80,7 @@ export default function PlayerCodeScreen() {
           <Text style={styles.confirm}>Připojuješ se k tomuto týmu?</Text>
           <Pressable
             style={styles.btnPrimary}
-            onPress={() => router.push({ pathname: '/onboarding/player-info', params: { teamId: team.id, teamName: team.name } })}
+            onPress={() => router.push({ pathname: '/onboarding/player-info', params: { teamId: team.id, teamName: team.name, inviteCode: code.trim().toUpperCase() } })}
           >
             <Text style={styles.btnPrimaryText}>Ano, pokračovat</Text>
           </Pressable>
@@ -125,7 +134,28 @@ export default function PlayerCodeScreen() {
         </Pressable>
 
         <Text style={styles.title}>Pozvánkový kód</Text>
-        <Text style={styles.subtitle}>Dostaneš ho od vedoucího svého týmu.</Text>
+        <Text style={styles.subtitle}>
+          Kód tě propojí s tvým týmem — díky němu tě vedoucí uvidí na soupisce
+          a můžeš nastupovat k zápasům.
+        </Text>
+
+        <View style={styles.infoBox}>
+          <View style={styles.infoRow}>
+            <Ionicons name="person-circle-outline" size={18} color={Colors.go} />
+            <Text style={styles.infoTxt}>
+              <Text style={styles.infoStrong}>Kdo ti ho dá: </Text>
+              vedoucí tvého týmu. Najde ho ve Správě pod Pozvánkový kód a může ti ho
+              poslat zprávou nebo ukázat jako QR.
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="text-outline" size={18} color={Colors.go} />
+            <Text style={styles.infoTxt}>
+              <Text style={styles.infoStrong}>Jak vypadá: </Text>
+              FSL, zkratka týmu a čtyři znaky — třeba FSL-BE-7K2P.
+            </Text>
+          </View>
+        </View>
 
         {/* QR scanner */}
         <Pressable style={styles.scanBtn} onPress={openScanner}>
@@ -163,6 +193,54 @@ export default function PlayerCodeScreen() {
             : <Text style={styles.btnPrimaryText}>Ověřit kód</Text>
           }
         </Pressable>
+
+        {/* Cesta ven pro toho, kdo kód nemá */}
+        {!bezKodu ? (
+          <Pressable onPress={() => setBezKodu(true)} style={styles.linkBtn}>
+            <Text style={styles.linkTxt}>Kód nemám</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.vyberBox}>
+            <Text style={styles.vyberTitle}>Nevadí, máš tři možnosti</Text>
+
+            <Pressable style={styles.vyberItem} onPress={pokracovatJakoFanousek}>
+              <Ionicons name="eye-outline" size={20} color={Colors.mu} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vyberLabel}>Zatím jen sledovat ligu</Text>
+                <Text style={styles.vyberDesc}>
+                  Pustíme tě dovnitř jako fanouška. Až kód seženeš, doplníš si roli hráče
+                  ve Správě.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+            </Pressable>
+
+            <Pressable
+              style={styles.vyberItem}
+              onPress={() => router.replace('/onboarding/manager')}
+            >
+              <Ionicons name="shield-outline" size={20} color={Colors.pu} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vyberLabel}>Můj tým v lize ještě není</Text>
+                <Text style={styles.vyberDesc}>
+                  Založ ho jako vedoucí. Dostaneš kód, který rozešleš spoluhráčům.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+            </Pressable>
+
+            <View style={styles.vyberItem}>
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={Colors.go} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vyberLabel}>Napiš vedoucímu</Text>
+                <Text style={styles.vyberDesc}>
+                  Stačí zpráva ve stylu: „Pošli mi prosím pozvánkový kód do FSL."
+                  Najde ho v aplikaci ve Správě → Pozvánkový kód.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -191,6 +269,17 @@ const styles = StyleSheet.create({
     color: Colors.wh, fontWeight: '700', textAlign: 'center',
     letterSpacing: 4, marginBottom: 16,
   },
+  infoBox:         { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, gap: 12, marginBottom: 22 },
+  infoRow:         { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  infoTxt:         { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
+  infoStrong:      { color: Colors.wh, fontWeight: '700' },
+  linkBtn:         { alignItems: 'center', paddingVertical: 14 },
+  linkTxt:         { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600', textDecorationLine: 'underline' },
+  vyberBox:        { marginTop: 8, gap: 10 },
+  vyberTitle:      { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh, marginBottom: 2 },
+  vyberItem:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14 },
+  vyberLabel:      { fontSize: Fonts.sizes.md, fontWeight: '600', color: Colors.wh },
+  vyberDesc:       { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 17, marginTop: 3 },
   btnPrimary:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', marginBottom: 10 },
   btnPrimaryText:  { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   btnDisabled:     { opacity: 0.4 },

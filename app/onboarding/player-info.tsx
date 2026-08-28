@@ -15,7 +15,7 @@ import { validateName, validatePhone, validateJersey, firstError } from '../../u
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 
 export default function PlayerInfoScreen() {
-  const { teamId, teamName } = useLocalSearchParams<{ teamId: string; teamName: string }>();
+  const { teamId, teamName, inviteCode } = useLocalSearchParams<{ teamId: string; teamName: string; inviteCode?: string }>();
   const refreshUser = useAuthStore(s => s.refreshUser);
 
   const [form, setForm] = useState({
@@ -68,6 +68,7 @@ export default function PlayerInfoScreen() {
         jersey: form.jersey, position: form.position,
         phone: form.phone || undefined, birthdate: birthdate ? birthdate.toISOString() : undefined,
         teamId,
+        inviteCode,
       });
       if (photo) {
         await playersApi.uploadPhoto(res.data.id, photo).catch(() => {});
