@@ -118,12 +118,19 @@ interface Props {
   disabled?: boolean;
   accent?: string;
   accentText?: string;
+  /** Ktere cesty jsou na backendu opravdu zapnute. */
+  methods?: { card: boolean; wallet: boolean; transfer: boolean };
 }
 
 export default function PayOptions({
   qrType, qrId, amount, onCheckout, busy, disabled,
   accent = Colors.go, accentText = Colors.bg,
+  methods,
 }: Props) {
+  // Dokud stav metod nedorazi, ukazujeme vsechny tri – at obrazovka neposkakuje.
+  const showCard     = methods?.card     ?? true;
+  const showWallet   = methods?.wallet   ?? true;
+  const showTransfer = methods?.transfer ?? true;
   const [open, setOpen]     = useState(false);
   const [qr, setQr]         = useState<QrData | null>(null);
   const [qrBusy, setQrBusy] = useState(false);
@@ -148,10 +155,18 @@ export default function PayOptions({
     }
   }
 
+  if (!showCard && !showWallet && !showTransfer) {
+    return (
+      <Text style={s.none}>
+        Platby zatím nejsou spuštěné. Ozveme se, jakmile půjde poplatek uhradit.
+      </Text>
+    );
+  }
+
   return (
     <View style={{ gap: 8 }}>
       {/* 1) Apple Pay / Google Pay */}
-      <Pressable
+      {showWallet && <Pressable
         style={[s.btn, isIOS ? s.walletIOS : s.walletAndroid, disabled && s.dim]}
         onPress={onCheckout}
         disabled={disabled}
@@ -168,10 +183,10 @@ export default function PayOptions({
             <Text style={[s.btnText, { color: isIOS ? '#fff' : '#1F1F1F' }]}>{walletName}</Text>
           </>
         )}
-      </Pressable>
+      </Pressable>}
 
       {/* 2) Karta */}
-      <Pressable
+      {showCard && <Pressable
         style={[s.btn, { backgroundColor: accent }, disabled && s.dim]}
         onPress={onCheckout}
         disabled={disabled}
@@ -184,16 +199,16 @@ export default function PayOptions({
             <Text style={[s.btnText, { color: accentText }]}>Zaplatit kartou</Text>
           </>
         )}
-      </Pressable>
+      </Pressable>}
 
       {/* 3) Převod + QR */}
-      <Pressable style={[s.btn, s.transferBtn]} onPress={toggleTransfer}>
+      {showTransfer && <Pressable style={[s.btn, s.transferBtn]} onPress={toggleTransfer}>
         <Ionicons name="swap-horizontal-outline" size={16} color={Colors.wh} />
         <Text style={[s.btnText, { color: Colors.wh }]}>Zaplatit převodem</Text>
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.mu} />
-      </Pressable>
+      </Pressable>}
 
-      {open && (
+      {showTransfer && open && (
         <View style={s.transferBox}>
           {qrBusy && <ActivityIndicator color={Colors.go} style={{ paddingVertical: 16 }} />}
 
@@ -242,6 +257,7 @@ const s = StyleSheet.create({
   transferInner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   transferHint:  { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 10, lineHeight: 16 },
   transferErr:   { fontSize: Fonts.sizes.sm, color: Colors.red, textAlign: 'center', paddingVertical: 8 },
+  none:          { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center', paddingVertical: 10, lineHeight: 20 },
   row:           { paddingVertical: 3 },
   rowLabel:      { fontSize: Fonts.sizes.xs, color: Colors.mu },
   rowValue:      { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '600' },

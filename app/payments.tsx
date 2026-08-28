@@ -110,18 +110,24 @@ export default function PaymentsScreen() {
   const [homeMatches, setHomeMatches] = useState<HomeMatch[]>([]);
   const [paying, setPaying]         = useState<string | null>(null); // matchId or 'player-license' etc.
   const [openMatch, setOpenMatch]   = useState<string | null>(null);
+  const [methods, setMethods]       = useState<{ card: boolean; wallet: boolean; transfer: boolean } | undefined>(undefined);
 
   useEffect(() => { load(); }, []);
 
   async function load(isRefresh = false) {
     if (!isRefresh) setLoading(true);
     try {
-      const [payRes, matchRes] = await Promise.allSettled([
+      const [payRes, matchRes, methodsRes] = await Promise.allSettled([
         paymentsApi.me(),
         isManager && managerTeamId
           ? matchesApi.list({ homeTeamId: managerTeamId, status: 'UPCOMING', limit: 20 })
           : Promise.resolve(null),
+        paymentsApi.methods(),
       ]);
+
+      if (methodsRes.status === 'fulfilled' && methodsRes.value) {
+        setMethods(methodsRes.value.data);
+      }
 
       if (payRes.status === 'fulfilled') {
         setPlayer(payRes.value.data.playerPayment ?? null);
@@ -243,6 +249,7 @@ export default function PaymentsScreen() {
                   accentText={Colors.bg}
                   busy={paying === 'player-license'}
                   disabled={!!paying}
+                  methods={methods}
                   onCheckout={() => openStripe('player-license')}
                 />
               </>
@@ -285,6 +292,7 @@ export default function PaymentsScreen() {
                   accentText={Colors.wh}
                   busy={paying === 'super-license'}
                   disabled={!!paying}
+                  methods={methods}
                   onCheckout={() => openStripe('super-license')}
                 />
               </>
@@ -330,6 +338,7 @@ export default function PaymentsScreen() {
                   accentText={Colors.bg}
                   busy={paying === `team-${tp.teamId}`}
                   disabled={!!paying}
+                  methods={methods}
                   onCheckout={() => openTeamReg(tp.teamId)}
                 />
               </>
@@ -400,6 +409,7 @@ export default function PaymentsScreen() {
                         accentText={Colors.wh}
                         busy={paying === m.id}
                         disabled={!!paying}
+                        methods={methods}
                         onCheckout={() => openHomeFee(m.id)}
                       />
                     </View>
