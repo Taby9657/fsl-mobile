@@ -78,6 +78,9 @@ export const authApi = {
   login:          (email: string, password: string) => api.post('/auth/login', { email, password }),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put('/auth/password', { currentPassword, newPassword }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  resetPassword:  (email: string, code: string, newPassword: string) =>
+    api.post('/auth/reset-password', { email, code, newPassword }),
   // BUG-04 OPRAVA: endpoint pro serverové odhlášení (invalidace session na backendu)
   logout: () => api.post('/auth/logout'),
   // Apple 5.1.1: mazání účtu

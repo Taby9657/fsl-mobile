@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 WebBrowser.maybeCompleteAuthSession();
 
 type Mode = 'login' | 'register';
+type Reset = null | 'request' | 'code';
 
 export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,10 @@ export default function LoginScreen() {
   const [email,     setEmail]     = useState('');
   const [password,  setPassword]  = useState('');
   const [password2, setPassword2] = useState('');
+
+  // Obnova zapomenutého hesla – dvoukrokově: vyžádání kódu, pak nové heslo
+  const [reset,     setReset]     = useState<Reset>(null);
+  const [resetCode, setResetCode] = useState('');
 
   // Testovací režim je jen pro vývojové buildy — v produkci se nezobrazuje
   const [showTester, setShowTester] = useState(false);
@@ -122,6 +127,53 @@ export default function LoginScreen() {
     }
   }
 
+  async function handleForgot() {
+    const e = email.trim().toLowerCase();
+    if (!e) { Alert.alert('Chybí e-mail', 'Zadej e-mail, na který ti pošleme kód.'); return; }
+    setLoading(true);
+    try {
+      await authApi.forgotPassword(e);
+      setReset('code');
+      Alert.alert(
+        'Kód odeslán',
+        'Pokud účet existuje, poslali jsme na něj šestimístný kód. Platí 30 minut — mrkni i do spamu.',
+      );
+    } catch (err: any) {
+      chyba(err, 'Kód se nepodařilo odeslat');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleReset() {
+    const e = email.trim().toLowerCase();
+    if (resetCode.trim().length !== 6) {
+      Alert.alert('Neplatný kód', 'Kód má šest číslic.'); return;
+    }
+    if (password.length < 8) {
+      Alert.alert('Krátké heslo', 'Nové heslo musí mít alespoň 8 znaků.'); return;
+    }
+    if (password !== password2) {
+      Alert.alert('Hesla se neshodují', 'Zkontroluj obě pole.'); return;
+    }
+    setLoading(true);
+    try {
+      const res = await authApi.resetPassword(e, resetCode.trim(), password);
+      await dokonci(res.data.token, res.data.user);
+    } catch (err: any) {
+      chyba(err, 'Heslo se nepodařilo změnit');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function zpetNaPrihlaseni() {
+    setReset(null);
+    setResetCode('');
+    setPassword('');
+    setPassword2('');
+  }
+
   function handleTesterLogin() {
     if (tLogin.trim() === 'SFLTESTER' && tPass.trim() === 'SFLSFL') {
       loginAsTester();
@@ -168,7 +220,7 @@ export default function LoginScreen() {
         </View>
 
         {/* E-mail + heslo */}
-        {showEmail && (
+        {showEmail && reset === null && (
           <View style={styles.emailBox}>
             <View style={styles.tabs}>
               {(['login', 'register'] as Mode[]).map(m => (
@@ -233,11 +285,115 @@ export default function LoginScreen() {
                   </Text>}
             </Pressable>
 
+            {mode === 'login' && (
+              <Pressable onPress={() => setReset('request')} style={styles.linkBtn}>
+                <Text style={styles.linkTxt}>Zapomenuté heslo?</Text>
+              </Pressable>
+            )}
+
             <Text style={styles.emailNote}>
               {mode === 'login'
                 ? 'Pokud sis účet založil přes Apple nebo Google, přihlas se stejnou cestou.'
-                : 'Heslo si dobře zapamatuj — obnovu hesla zatím aplikace neumí.'}
+                : 'Heslo musí mít alespoň 8 znaků. Když ho zapomeneš, pošleme ti kód na e-mail.'}
             </Text>
+          </View>
+        )}
+
+        {/* Obnova hesla – krok 1: vyžádání kódu */}
+        {showEmail && reset === 'request' && (
+          <View style={styles.emailBox}>
+            <Text style={styles.resetTitle}>Zapomenuté heslo</Text>
+            <Text style={styles.emailNote}>
+              Zadej e-mail, kterým se přihlašuješ. Pošleme na něj šestimístný kód.
+            </Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="E-mail"
+              placeholderTextColor={Colors.di}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              keyboardAppearance="dark"
+            />
+
+            <Pressable
+              style={[styles.emailSubmit, loading && styles.btnOff]}
+              onPress={handleForgot}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color={Colors.bg} size="small" />
+                : <Text style={styles.emailSubmitTxt}>Poslat kód</Text>}
+            </Pressable>
+
+            <Pressable onPress={zpetNaPrihlaseni} style={styles.linkBtn}>
+              <Text style={styles.linkTxt}>Zpět na přihlášení</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Obnova hesla – krok 2: kód a nové heslo */}
+        {showEmail && reset === 'code' && (
+          <View style={styles.emailBox}>
+            <Text style={styles.resetTitle}>Nové heslo</Text>
+            <Text style={styles.emailNote}>
+              Opiš kód z e-mailu a zvol si nové heslo. Kód platí 30 minut.
+            </Text>
+
+            <TextInput
+              style={[styles.input, styles.codeInput]}
+              placeholder="000000"
+              placeholderTextColor={Colors.di}
+              value={resetCode}
+              onChangeText={v => setResetCode(v.replace(/[^0-9]/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              maxLength={6}
+              textContentType="oneTimeCode"
+              keyboardAppearance="dark"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nové heslo (min. 8 znaků)"
+              placeholderTextColor={Colors.di}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              textContentType="newPassword"
+              keyboardAppearance="dark"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nové heslo znovu"
+              placeholderTextColor={Colors.di}
+              value={password2}
+              onChangeText={setPassword2}
+              secureTextEntry
+              autoCapitalize="none"
+              textContentType="newPassword"
+              keyboardAppearance="dark"
+            />
+
+            <Pressable
+              style={[styles.emailSubmit, loading && styles.btnOff]}
+              onPress={handleReset}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color={Colors.bg} size="small" />
+                : <Text style={styles.emailSubmitTxt}>Nastavit heslo a přihlásit</Text>}
+            </Pressable>
+
+            <Pressable onPress={handleForgot} style={styles.linkBtn} disabled={loading}>
+              <Text style={styles.linkTxt}>Poslat kód znovu</Text>
+            </Pressable>
+            <Pressable onPress={zpetNaPrihlaseni} style={styles.linkBtn}>
+              <Text style={styles.linkTxt}>Zpět na přihlášení</Text>
+            </Pressable>
           </View>
         )}
 
@@ -345,6 +501,10 @@ const styles = StyleSheet.create({
   emailSubmit: { height: 48, borderRadius: Radius.md, backgroundColor: Colors.go, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
   emailSubmitTxt: { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.bg },
   emailNote:  { fontSize: Fonts.sizes.xs, color: Colors.di, lineHeight: 16 },
+  resetTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
+  codeInput:  { fontSize: Fonts.sizes.xxl, fontWeight: '800', letterSpacing: 8, textAlign: 'center', height: 56 },
+  linkBtn:    { alignItems: 'center', paddingVertical: 8 },
+  linkTxt:    { fontSize: Fonts.sizes.sm, color: Colors.go, fontWeight: '600' },
   btnOff:     { opacity: 0.5 },
 
   divider: {
