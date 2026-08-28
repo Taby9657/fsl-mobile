@@ -30,6 +30,7 @@ function fmtDate(iso: string) {
 const EMPTY_FORM = {
   homeTeamId: '', awayTeamId: '', time: '18:00',
   venue: '', round: '', division: 'Divize A', competition: 'FSL Liga', season: '',
+  phase: 'REGULAR' as 'REGULAR' | 'PLAYOFF',
 };
 
 export default function SuperMatchesScreen() {
@@ -39,6 +40,7 @@ export default function SuperMatchesScreen() {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter]         = useState<StatusFilter>('UPCOMING');
+  const [phase, setPhase]           = useState<'ALL' | 'REGULAR' | 'PLAYOFF'>('ALL');
   const [seasons, setSeasons]       = useState<string[]>([]);
   const [season, setSeason]         = useState<string | undefined>(undefined);
   const [modal, setModal]           = useState<ModalType>(null);
@@ -61,6 +63,7 @@ export default function SuperMatchesScreen() {
     try {
       const params: Record<string, string> = {};
       if (filter !== 'ALL') params.status = filter;
+      if (phase !== 'ALL')  params.phase  = phase;
       if (season) params.season = season;
       const [mRes, tRes, rRes] = await Promise.all([
         supervisorApi.matches(params),
@@ -76,7 +79,7 @@ export default function SuperMatchesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, season]);
+  }, [filter, season, phase]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -99,6 +102,7 @@ export default function SuperMatchesScreen() {
       division:    match.division ?? 'Divize A',
       competition: match.competition ?? 'FSL Liga',
       season:      match.season ?? '',
+      phase:       match.phase === 'PLAYOFF' ? 'PLAYOFF' : 'REGULAR',
     });
     setEditTarget(match);
     setModal('edit');
@@ -125,6 +129,7 @@ export default function SuperMatchesScreen() {
         division:    form.division,
         competition: form.competition,
         season:      form.season || null,
+        phase:       form.phase,
       };
       if (modal === 'add') {
         await matchesApi.create(data);
@@ -139,6 +144,16 @@ export default function SuperMatchesScreen() {
       Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se uložit');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function prepniFazi(match: any) {
+    const nova = match.phase === 'PLAYOFF' ? 'REGULAR' : 'PLAYOFF';
+    try {
+      await matchesApi.update(match.id, { phase: nova });
+      setMatches(prev => prev.map(m => m.id === match.id ? { ...m, phase: nova } : m));
+    } catch (err: any) {
+      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se změnit fázi');
     }
   }
 
@@ -233,6 +248,15 @@ export default function SuperMatchesScreen() {
         ))}
       </ScrollView>
 
+      {/* Fáze */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+        {([['ALL', 'Vše'], ['REGULAR', 'Základní část'], ['PLAYOFF', 'Playoff']] as const).map(([k, label]) => (
+          <Pressable key={k} style={[s.chip, phase === k && s.chipActive]} onPress={() => setPhase(k)}>
+            <Text style={[s.chipText, phase === k && s.chipTextActive]}>{label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       {/* Season filter */}
       {seasons.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingBottom: 4 }}>
@@ -270,6 +294,11 @@ export default function SuperMatchesScreen() {
                   {STATUS_LABEL[item.status] ?? item.status}
                 </Text>
                 {item.round ? <Text style={s.roundBadge}>Kolo {item.round}</Text> : null}
+                <Pressable onPress={() => prepniFazi(item)} hitSlop={6}>
+                  <Text style={[s.phaseBadge, item.phase === 'PLAYOFF' && s.phaseBadgePo]}>
+                    {item.phase === 'PLAYOFF' ? 'PLAYOFF' : 'základní'}
+                  </Text>
+                </Pressable>
                 <Text style={s.divisionBadge}>{item.division}</Text>
               </View>
 
@@ -386,6 +415,18 @@ export default function SuperMatchesScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.label}>Kolo</Text>
                   <TextInput style={s.input} value={form.round} onChangeText={v => setForm(p => ({ ...p, round: v }))} placeholder="1" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark" inputAccessoryViewID={DONE_BAR_ID} returnKeyType="done" />
+                  <Text style={s.label}>Fáze</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {([['REGULAR', 'Základní'], ['PLAYOFF', 'Playoff']] as const).map(([k, label]) => (
+                      <Pressable
+                        key={k}
+                        style={[s.chip, form.phase === k && s.chipActive, { flex: 1, alignItems: 'center' }]}
+                        onPress={() => setForm(p => ({ ...p, phase: k }))}
+                      >
+                        <Text style={[s.chipText, form.phase === k && s.chipTextActive]}>{label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               </View>
 
@@ -442,6 +483,8 @@ export default function SuperMatchesScreen() {
 }
 
 const s = StyleSheet.create({
+  phaseBadge:   { fontSize: 10, fontWeight: '800', color: Colors.mu, backgroundColor: Colors.c2, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
+  phaseBadgePo: { color: Colors.bg, backgroundColor: Colors.go },
   safe:         { flex: 1, backgroundColor: Colors.bg },
   header:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   back:         { width: 40, height: 40, justifyContent: 'center' },

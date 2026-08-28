@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { goBack } from '../utils/navigation';
-import { matchesApi, statsApi, supervisorApi } from '../services/api';
+import { matchesApi, type StatsScope } from '../services/api';
+import { CompetitionFilter } from '../components/CompetitionFilter';
 import { Colors, Fonts, Radius } from '../constants/colors';
 import { ErrorView } from '../components/ErrorView';
 import { format } from 'date-fns';
@@ -74,30 +75,15 @@ function MatchCard({ match, onPress }: { match: any; onPress: () => void }) {
 
 export default function BracketScreen() {
   const [rounds, setRounds]     = useState<Record<number, any[]>>({});
-  const [divisions, setDivisions] = useState<string[]>([]);
-  const [seasons, setSeasons]   = useState<string[]>([]);
-  const [division, setDivision] = useState<string | undefined>(undefined);
-  const [season, setSeason]     = useState<string | undefined>(undefined);
+  const [scope, setScope]       = useState<StatsScope>({});
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
-
-  useEffect(() => {
-    supervisorApi.divisions().then(r => {
-      const divs = [...new Set<string>((r.data ?? []).map((d: any) => d.division as string))].sort();
-      setDivisions(divs);
-    }).catch(() => {});
-    statsApi.seasons().then(r => {
-      const ss: string[] = r.data ?? [];
-      setSeasons(ss);
-      if (ss.length) setSeason(ss[0]);
-    }).catch(() => {});
-  }, []);
 
   async function loadBracket() {
     setLoading(true);
     setError(false);
     try {
-      const r = await matchesApi.bracket(division, season);
+      const r = await matchesApi.bracket(scope);
       setRounds(r.data ?? {});
     } catch {
       setError(true);
@@ -106,7 +92,7 @@ export default function BracketScreen() {
     }
   }
 
-  useEffect(() => { loadBracket(); }, [division, season]);
+  useEffect(() => { loadBracket(); }, [scope]);
 
   const roundKeys  = Object.keys(rounds).map(Number).sort((a, b) => a - b);
   const maxRound   = roundKeys.length ? Math.max(...roundKeys) : 0;
@@ -123,41 +109,7 @@ export default function BracketScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Filtry */}
-      <View style={s.filters}>
-        {divisions.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-            <Pressable
-              style={[s.chip, !division && s.chipActive]}
-              onPress={() => setDivision(undefined)}
-            >
-              <Text style={[s.chipTxt, !division && s.chipTxtActive]}>Vše</Text>
-            </Pressable>
-            {divisions.map(d => (
-              <Pressable
-                key={d}
-                style={[s.chip, division === d && s.chipActive]}
-                onPress={() => setDivision(d)}
-              >
-                <Text style={[s.chipTxt, division === d && s.chipTxtActive]}>{d}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-        {seasons.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ marginTop: 6 }}>
-            {seasons.map(s2 => (
-              <Pressable
-                key={s2}
-                style={[s.chip, season === s2 && s.chipActive]}
-                onPress={() => setSeason(s2)}
-              >
-                <Text style={[s.chipTxt, season === s2 && s.chipTxtActive]}>{s2}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-      </View>
+      <CompetitionFilter onChange={setScope} />
 
       {loading ? (
         <View style={s.center}>
@@ -169,7 +121,7 @@ export default function BracketScreen() {
         <View style={s.center}>
           <Ionicons name="podium-outline" size={48} color={Colors.di} />
           <Text style={s.emptyTitle}>Žádné play-off zápasy</Text>
-          <Text style={s.emptyDesc}>Zápasy s nastaveným číslem kola se zobrazí zde</Text>
+          <Text style={s.emptyDesc}>Zobrazí se tu zápasy označené jako playoff. Nasadí je supervisor ve Správě → Playoff.</Text>
         </View>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -206,11 +158,6 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh },
   emptyDesc:  { fontSize: Fonts.sizes.sm, color: Colors.mu, textAlign: 'center', paddingHorizontal: 32 },
 
-  filters: { paddingHorizontal: 16, paddingBottom: 8 },
-  chip:    { paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  chipActive:  { backgroundColor: Colors.go, borderColor: Colors.go },
-  chipTxt:     { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '700' },
-  chipTxtActive: { color: Colors.bg },
 
   bracket:      { flexDirection: 'row', padding: 16, gap: 12 },
   roundCol:     { width: 160 },

@@ -28,11 +28,12 @@ export default function LineupScreen() {
     if (!teamId) { setLoading(false); return; }
     Promise.all([
       matchesApi.list({ teamId, status: 'UPCOMING' }),
-      teamsApi.get(teamId),
+      teamsApi.roster(teamId),
     ])
-      .then(([mRes, tRes]) => {
+      .then(([mRes, rRes]) => {
         setMatches(mRes.data);
-        setPlayers(tRes.data.players ?? []);
+        // Soupiska na sezónu: kmenoví hráči i hostující. Nikdo jiný do sestavy nesmí.
+        setPlayers(rRes.data.players ?? []);
       })
       .catch(() => Alert.alert('Chyba', 'Nepodařilo se načíst data'))
       .finally(() => setLoading(false));
@@ -89,9 +90,13 @@ export default function LineupScreen() {
         const radky = (err.response.data.blocked as any[])
           .map((b: any) => `${b.jersey ? `#${b.jersey} ` : ''}${b.firstName} ${b.lastName}\n   ${b.reason}`)
           .join('\n\n');
+        const chybiNaSoupisce = (err.response.data.blocked as any[])
+          .some((b: any) => b.code === 'NOT_ON_ROSTER');
         Alert.alert(
           'Tihle hráči nastoupit nemohou',
-          `${radky}\n\nVyřaď je ze sestavy a odešli znovu.`,
+          `${radky}\n\n${chybiNaSoupisce
+            ? 'Do sestavy jde vybírat jen ze soupisky týmu. Hostujícího hráče nejdřív přidej ve Soupisce.'
+            : 'Vyřaď je ze sestavy a odešli znovu.'}`,
           [
             { text: 'Rozumím', style: 'cancel' },
             { text: 'Proč?', onPress: () => router.push('/licence' as any) },
@@ -179,6 +184,11 @@ export default function LineupScreen() {
                       {!lic && (
                         <Text style={s.noLicTxt}>⚠️ bez licence</Text>
                       )}
+                      {p.isHome === false && (
+                        <Text style={s.hostTxt}>
+                          hostuje{p.team?.abbr ? ` · kmenově ${p.team.abbr}` : ''}
+                        </Text>
+                      )}
                     </View>
                     {sel && (
                       <Pressable
@@ -231,6 +241,7 @@ const s = StyleSheet.create({
   matchTeams:     { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
   matchDate:      { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   matchVenue:     { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 1 },
+  hostTxt:        { fontSize: 10, color: Colors.pu, fontWeight: '700', marginTop: 2 },
   playerRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.c1, borderRadius: Radius.md, padding: 12, marginBottom: 6, borderWidth: 1, borderColor: Colors.bd },
   playerRowSel:   { borderColor: Colors.go, backgroundColor: Colors.c2 },
   playerRowGK:    { borderColor: Colors.pu },

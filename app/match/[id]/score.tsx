@@ -62,8 +62,9 @@ export default function LiveScoreScreen() {
 
   useEffect(() => {
     if (!myTeamId) { setRoster([]); return; }
-    teamsApi.get(myTeamId)
-      .then(r => setRoster(r.data.players ?? []))
+    // Za běhu zápasu jde doplnit jen kmenový hráč — hostující ne
+    teamsApi.roster(myTeamId)
+      .then(r => setRoster((r.data.players ?? []).filter((p: any) => p.isHome !== false)))
       .catch(() => setRoster([]));
   }, [myTeamId]);
 

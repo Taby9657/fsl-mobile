@@ -98,6 +98,7 @@ function RootLayout() {
         <Stack.Screen name="supervisor/teams"     options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/league"      options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/leagues"     options={{ headerShown: false }} />
+        <Stack.Screen name="supervisor/playoff"     options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/highlights"  options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/requests"    options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/admins"      options={{ headerShown: false }} />

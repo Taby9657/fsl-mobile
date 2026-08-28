@@ -165,8 +165,9 @@ export default function LicenceScreen() {
                   <Text style={s.pravidloTitle}>Základní část: až {maxTymu} týmy</Text>
                 </View>
                 <Text style={s.pravidloTxt}>
-                  Se superlicencí smíš v základní části nastupovat celkem za {maxTymu} týmy —
-                  svůj kmenový a další dva. Čtvrtý už systém do soupisky nepustí.
+                  Se superlicencí můžeš být na soupiskách {maxTymu} týmů — svého kmenového
+                  a dalších dvou. Na soupisku tě přidá vedoucí toho týmu; čtvrtou už
+                  systém nepovolí.
                 </Text>
               </View>
 
@@ -193,6 +194,10 @@ export default function LicenceScreen() {
               <Bod>Volbu jde měnit, dokud playoff nezačne. Pak je uzamčená.</Bod>
               <Bod>Pokud se tvůj primární tým do playoff vůbec nedostane, sekundární máš volný hned.</Bod>
               <Bod>Superlicence tě také pouští do draft poolu, kde si tě můžou týmy samy oslovit.</Bod>
+              <Bod>
+                Platí na jednu sezónu. S novou sezónou se soupisky mažou a licence
+                se platí znovu — hostování si tedy domlouváš pokaždé nanovo.
+              </Bod>
             </Sekce>
 
             {/* ── Můj stav ── */}
@@ -327,23 +332,39 @@ export default function LicenceScreen() {
           <>
             <View style={s.tldr}>
               <Text style={s.tldrTxt}>
-                Na soupisku smíš napsat <Text style={s.tucne}>kmenové hráče s licencí</Text> a{' '}
-                <Text style={s.tucne}>hostující hráče se superlicencí</Text>. Ostatní systém odmítne.
+                Do sestavy vybíráš <Text style={s.tucne}>jen ze soupisky svého týmu</Text>.
+                Hostujícího hráče musíš nejdřív na soupisku přidat — a to jen se superlicencí.
               </Text>
             </View>
 
-            <Sekce ikona="clipboard-outline" nadpis="Koho smíš postavit">
+            <Sekce ikona="clipboard-outline" nadpis="Jak to funguje">
+              <Odstavec>
+                Tým má na sezónu <Text style={s.tucne}>soupisku</Text> — kmenové hráče
+                a k nim případné hostující. Do sestavy na zápas vybíráš vždycky jen z ní,
+                nikoho jiného systém nepustí.
+              </Odstavec>
               <Bod>
-                Hráče ze své soupisky, kteří mají zaplacenou hráčskou licenci. To je základ —
-                bez licence sestavu neuložíš.
+                Kmenoví hráči se na soupisku dostanou pozvánkovým kódem při registraci.
               </Bod>
               <Bod>
-                Hráče z jiného týmu, pokud má superlicenci a ještě nevyčerpal strop
-                {' '}{maxTymu} týmů za sezónu.
+                Hostujícího hráče přidáš ve Soupisce tlačítkem „Přidat hostujícího hráče".
+                Musí mít superlicenci a smí být nejvýš na {maxTymu} soupiskách za sezónu.
               </Bod>
               <Bod>
-                V playoff jen ty hostující hráče, kteří si tvůj tým zvolili jako primární —
-                nebo jako sekundární a jejich primární tým už v playoff skončil.
+                Každý hráč v sestavě musí mít zaplacenou hráčskou licenci.
+              </Bod>
+              <Bod>
+                V playoff smí nastoupit jen ti hostující hráči, kteří si tvůj tým zvolili
+                jako primární — nebo jako sekundární a jejich primární tým už skončil.
+              </Bod>
+              <Bod>
+                Po zahájení zápasu jde doplnit jen kmenový hráč, který dorazil pozdě.
+                Hostujícího už ne.
+              </Bod>
+              <Bod>
+                Soupiska platí jednu sezónu. S novou začíná prázdná — kmenové hráče
+                doplníš ve Soupisce jedním klepnutím, hostování se musí sjednat nanovo
+                a s nově zaplacenou superlicencí.
               </Bod>
             </Sekce>
 
@@ -353,11 +374,18 @@ export default function LicenceScreen() {
                 <Text style={s.duvodTxt}>Nezaplacená hráčská licence. Řeší to hráč sám v sekci Platby.</Text>
               </View>
               <View style={s.duvod}>
-                <Text style={s.duvodKod}>Za cizí tým jen se superlicencí</Text>
-                <Text style={s.duvodTxt}>Píšeš hráče, který u tebe není kmenový a superlicenci nemá.</Text>
+                <Text style={s.duvodKod}>Hráč není na soupisce tohoto týmu</Text>
+                <Text style={s.duvodTxt}>
+                  Nejdřív ho přidej do Soupisky. Kmenové hráče pozvánkovým kódem,
+                  hostující tlačítkem „Přidat hostujícího hráče".
+                </Text>
               </View>
               <View style={s.duvod}>
-                <Text style={s.duvodKod}>Hráč už figuruje ve {maxTymu} týmech</Text>
+                <Text style={s.duvodKod}>Hostovat smí jen hráč se superlicencí</Text>
+                <Text style={s.duvodTxt}>Zkoušíš na soupisku přidat cizího hráče, který superlicenci nemá.</Text>
+              </View>
+              <View style={s.duvod}>
+                <Text style={s.duvodKod}>Hráč už je na soupiskách {maxTymu} týmů</Text>
                 <Text style={s.duvodTxt}>Strop sezóny je vyčerpaný, tvůj tým by byl čtvrtý.</Text>
               </View>
               <View style={s.duvod}>
@@ -384,6 +412,10 @@ export default function LicenceScreen() {
               <Bod>
                 Volba primárního a sekundárního týmu je na hráči, ne na tobě. Ty ji jen uvidíš
                 v momentě, kdy ho zkusíš postavit.
+              </Bod>
+              <Bod>
+                Hostujícího hráče lze ze soupisky odebrat, jen dokud za tebe neodehrál zápas.
+                Pak už zůstává kvůli statistikám a nároku na playoff.
               </Bod>
             </Sekce>
           </>

@@ -101,6 +101,16 @@ export const teamsApi = {
   invite:     (id: string) => api.get(`/teams/${id}/invite`),
   join:       (code: string) => api.post(`/teams/join/${code}`),
   appeal:     (id: string, appeal: string) => api.put(`/teams/${id}/appeal`, { appeal }),
+
+  // Soupiska na sezónu — kmenoví hráči i hostující. Z ní se skládá sestava.
+  roster:       (id: string, season?: string) => api.get(`/teams/${id}/roster`, { params: { season } }),
+  addToRoster:  (id: string, playerId: string, season?: string) =>
+    api.post(`/teams/${id}/roster`, { playerId, season }),
+  removeFromRoster: (id: string, playerId: string, season?: string) =>
+    api.delete(`/teams/${id}/roster/${playerId}`, { params: { season } }),
+  // Soupiska se s novou sezónou nepřenáší – tohle doplní kmenové hráče naráz
+  addHomePlayers: (id: string, playerIds?: string[], season?: string) =>
+    api.post(`/teams/${id}/roster/home`, { playerIds, season }),
 };
 
 // ==================== HRÁČI ====================
@@ -122,7 +132,8 @@ export const playersApi = {
 // ==================== ZÁPASY ====================
 export const matchesApi = {
   list:            (params?: any)  => api.get('/matches', { params }),
-  bracket:         (division?: string, season?: string) => api.get('/matches/bracket', { params: { division, season } }),
+  bracket:         (scope?: StatsScope | string, season?: string) =>
+    api.get('/matches/bracket', { params: scopeParams(scope, season) }),
   get:             (id: string)    => api.get(`/matches/${id}`),
   create:          (data: any)     => api.post('/matches', data),
   update:          (id: string, data: any) => api.put(`/matches/${id}`, data),
@@ -352,6 +363,10 @@ export const supervisorApi = {
   // Rozlosování
   previewFixtures: (data: any)                   => api.post('/supervisor/fixtures/preview', data),
   generateFixtures:(data: any)                   => api.post('/supervisor/fixtures/generate', data),
+
+  // Playoff – nasazení podle tabulky, generuje se vždy jedno kolo
+  previewPlayoff:  (data: any)                   => api.post('/supervisor/playoff/preview', data),
+  generatePlayoff: (data: any)                   => api.post('/supervisor/playoff/generate', data),
 
   // Sezóna – naplánovaný dvoukrokový přechod
   season:          ()                             => api.get('/supervisor/season'),
