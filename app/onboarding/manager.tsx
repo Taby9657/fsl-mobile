@@ -7,9 +7,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { teamsApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
+import { TeamColorPicker } from '../../components/TeamColorPicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
-
-const TEAM_COLORS = ['#C9A140', '#8B5CF6', '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#FFFFFF'];
 
 export default function ManagerOnboardingScreen() {
   const refreshUser = useAuthStore(s => s.refreshUser);
@@ -165,12 +164,12 @@ export default function ManagerOnboardingScreen() {
           autoCapitalize="characters" maxLength={3} keyboardAppearance="dark" />
 
         {/* Barva */}
-        <Text style={styles.label}>Barva dresu</Text>
-        <View style={styles.colorRow}>
-          {TEAM_COLORS.map(c => (
-            <Pressable key={c} style={[styles.colorDot, { backgroundColor: c }, form.color === c && styles.colorDotActive]}
-              onPress={() => set('color', c)} />
-          ))}
+        <View style={{ marginTop: 20 }}>
+          <TeamColorPicker
+            value={form.color}
+            onChange={c => set('color', c)}
+            abbr={form.abbr}
+          />
         </View>
 
         {/* Divizi přiděluje supervisor */}
@@ -207,9 +206,6 @@ const styles = StyleSheet.create({
   logoHint:        { fontSize: Fonts.sizes.xs, color: Colors.di },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 16, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
-  colorRow:        { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 6 },
-  colorDot:        { width: 32, height: 32, borderRadius: 16 },
-  colorDotActive:  { borderWidth: 3, borderColor: Colors.wh },
   note:            { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 20, padding: 12, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd },
   noteTxt:         { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
   btnPrimary:      { backgroundColor: Colors.go, borderRadius: Radius.md, padding: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', marginTop: 28, width: '100%' },

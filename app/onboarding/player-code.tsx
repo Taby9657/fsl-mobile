@@ -66,7 +66,7 @@ export default function PlayerCodeScreen() {
               <Text style={styles.teamAbbr}>{team.abbr}</Text>
             </View>
             <Text style={styles.teamName}>{team.name}</Text>
-            <Text style={styles.teamDiv}>{team.division}</Text>
+            <Text style={styles.teamDiv}>{team.division ?? 'Nezařazeno'}</Text>
           </View>
           <Text style={styles.confirm}>Připojuješ se k tomuto týmu?</Text>
           <Pressable

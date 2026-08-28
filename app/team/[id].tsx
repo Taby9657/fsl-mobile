@@ -113,7 +113,7 @@ export default function TeamDetailScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.heroName}>{team.name}</Text>
-            <Text style={s.heroDivision}>{team.division}</Text>
+            <Text style={s.heroDivision}>{team.division ?? 'Nezařazeno'}</Text>
           </View>
         </View>
 

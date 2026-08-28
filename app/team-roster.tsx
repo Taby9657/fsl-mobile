@@ -71,7 +71,7 @@ export default function TeamRosterScreen() {
           <View style={[s.teamCard, { borderLeftColor: team?.color ?? Colors.go }]}>
             <View style={{ flex: 1 }}>
               <Text style={s.teamName}>{team?.name}</Text>
-              <Text style={s.teamSub}>{team?.division} · {team?.players?.length ?? 0} hráčů</Text>
+              <Text style={s.teamSub}>{team?.division ?? 'Nezařazeno'} · {team?.players?.length ?? 0} hráčů</Text>
             </View>
             <View style={[s.badge, { backgroundColor: team?.color ?? Colors.go }]}>
               <Text style={s.badgeTxt}>{team?.abbr}</Text>

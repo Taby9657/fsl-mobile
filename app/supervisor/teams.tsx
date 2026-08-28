@@ -7,18 +7,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supervisorApi } from '../../services/api';
+import { TeamColorPicker } from '../../components/TeamColorPicker';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
-const PRESET_COLORS = [
-  '#C9A140', '#7C3AED', '#2563EB', '#DC2626', '#16A34A',
-  '#EA580C', '#DB2777', '#0891B2', '#65A30D', '#9333EA',
-];
 
 type RegStatus = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPEALING';
 type PayFilter = 'ALL' | 'PENDING' | 'PAID' | 'OVERDUE';
 
 interface TeamForm { name: string; abbr: string; division: string; conference: string; color: string; venue: string; }
-const EMPTY_FORM: TeamForm = { name: '', abbr: '', division: 'Divize A', conference: '', color: '#C9A140', venue: '' };
+const EMPTY_FORM: TeamForm = { name: '', abbr: '', division: '', conference: '', color: '#C9A140', venue: '' };
 
 const REG_TABS: { id: RegStatus; label: string }[] = [
   { id: 'ALL',       label: 'Vše'       },
@@ -106,7 +103,7 @@ export default function SuperTeamsScreen() {
   }
 
   function openEdit(team: any) {
-    setForm({ name: team.name, abbr: team.abbr, division: team.division, conference: team.conference ?? '', color: team.color, venue: team.venue ?? '' });
+    setForm({ name: team.name, abbr: team.abbr, division: team.division ?? '', conference: team.conference ?? '', color: team.color, venue: team.venue ?? '' });
     setEditTarget(team);
     setModal('edit');
   }
@@ -118,7 +115,7 @@ export default function SuperTeamsScreen() {
   }
 
   async function save() {
-    if (!form.name.trim() || !form.abbr.trim() || !form.division.trim()) {
+    if (!form.name.trim() || !form.abbr.trim()) {
       Alert.alert('Chyba', 'Vyplň název, zkratku a divizi');
       return;
     }
@@ -213,7 +210,7 @@ export default function SuperTeamsScreen() {
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, alignItems: 'center' }}>
             <Text style={s.teamMeta}>
-              {team._count?.players ?? 0} hráčů · {team.division}
+              {team._count?.players ?? 0} hráčů · {team.division ?? 'Nezařazeno'}
             </Text>
             <Text style={[s.payBadge, { color: payColor(ps) }]}>
               {payLabel(ps)}
@@ -358,63 +355,30 @@ export default function SuperTeamsScreen() {
                     keyboardAppearance="dark"
                   />
                 </View>
-                <View style={{ flex: 2 }}>
-                  <Text style={s.fieldLabel}>Divize *</Text>
-                  <TextInput
-                    style={s.input}
-                    value={form.division}
-                    onChangeText={v => setForm(p => ({ ...p, division: v }))}
-                    placeholder="Divize A"
-                    placeholderTextColor={Colors.di}
-                    keyboardAppearance="dark"
-                  />
-                </View>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.fieldLabel}>Konference</Text>
-                  <TextInput
-                    style={s.input}
-                    value={form.conference}
-                    onChangeText={v => setForm(p => ({ ...p, conference: v }))}
-                    placeholder="Konference A"
-                    placeholderTextColor={Colors.di}
-                    keyboardAppearance="dark"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.fieldLabel}>Domácí hřiště</Text>
-                  <TextInput
-                    style={s.input}
-                    value={form.venue}
-                    onChangeText={v => setForm(p => ({ ...p, venue: v }))}
-                    placeholder="Hala XY"
-                    placeholderTextColor={Colors.di}
-                    keyboardAppearance="dark"
-                  />
-                </View>
+              <Text style={s.fieldLabel}>Domácí hřiště</Text>
+              <TextInput
+                style={s.input}
+                value={form.venue}
+                onChangeText={v => setForm(p => ({ ...p, venue: v }))}
+                placeholder="Hala XY"
+                placeholderTextColor={Colors.di}
+                keyboardAppearance="dark"
+              />
+
+              <View style={s.note}>
+                <Ionicons name="information-circle-outline" size={16} color={Colors.mu} />
+                <Text style={s.noteTxt}>
+                  Divizi a konferenci přiděluješ až v Rozlosování, kde vidíš všechny týmy pohromadě.
+                </Text>
               </View>
 
-              <Text style={s.fieldLabel}>Barva týmu</Text>
-              <View style={s.colorRow}>
-                {PRESET_COLORS.map(c => (
-                  <Pressable
-                    key={c}
-                    style={[s.colorDot, { backgroundColor: c }, form.color === c && s.colorDotActive]}
-                    onPress={() => setForm(p => ({ ...p, color: c }))}
-                  >
-                    {form.color === c && <Ionicons name="checkmark" size={14} color="#fff" />}
-                  </Pressable>
-                ))}
-              </View>
-
-              <View style={s.preview}>
-                <View style={[s.previewBadge, { backgroundColor: form.color }]}>
-                  <Text style={s.previewAbbr}>{form.abbr || '??'}</Text>
-                </View>
-                <Text style={s.previewName}>{form.name || 'Název týmu'}</Text>
-              </View>
+              <TeamColorPicker
+                value={form.color}
+                onChange={c => setForm(p => ({ ...p, color: c }))}
+                abbr={form.abbr}
+              />
 
               <Pressable style={[s.saveBtn, saving && { opacity: 0.6 }]} onPress={save} disabled={saving}>
                 {saving
@@ -445,7 +409,7 @@ export default function SuperTeamsScreen() {
                   </View>
                   <View>
                     <Text style={{ fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh }}>{editTarget.name}</Text>
-                    <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu }}>{editTarget.division}</Text>
+                    <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu }}>{editTarget.division ?? 'Nezařazeno'}</Text>
                   </View>
                 </View>
 
@@ -544,9 +508,8 @@ const s = StyleSheet.create({
   sheetTitle:     { fontSize: Fonts.sizes.lg, fontWeight: '700', color: Colors.wh, marginBottom: 16 },
   fieldLabel:     { fontSize: Fonts.sizes.xs, color: Colors.mu, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 14 },
   input:          { backgroundColor: Colors.bg, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 12, fontSize: Fonts.sizes.md, color: Colors.wh },
-  colorRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  colorDot:       { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  colorDotActive: { borderWidth: 3, borderColor: Colors.wh },
+  note:           { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 4, marginBottom: 4 },
+  noteTxt:        { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 17 },
   preview:        { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: Colors.bg, borderRadius: Radius.md, padding: 14, marginTop: 16 },
   previewBadge:   { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   previewAbbr:    { fontSize: Fonts.sizes.sm, fontWeight: '900', color: '#fff' },

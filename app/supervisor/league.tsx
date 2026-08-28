@@ -17,7 +17,7 @@ type Scope = 'division' | 'conference' | 'custom';
 
 interface Team {
   id: string; name: string; abbr: string; color: string;
-  division: string; conference: string | null; venue: string | null;
+  division: string | null; conference: string | null; venue: string | null;
 }
 
 interface ConferenceGroup {
@@ -121,7 +121,10 @@ export default function SuperLeagueScreen() {
 
   // Všechny konference a divize pro picker
   const confNames = [...new Set(allTeams.map(t => t.conference).filter(Boolean) as string[])].sort();
-  const divNames  = [...new Set(allTeams.map(t => t.division))].sort();
+  // Nezařazené týmy nemají divizi — do výběru divizí nepatří
+  const divNames: string[] = [...new Set(allTeams.map(t => t.division))]
+    .filter((d): d is string => !!d)
+    .sort();
 
   // Počet vybraných týmů
   const scopeTeams = (() => {
@@ -316,7 +319,7 @@ export default function SuperLeagueScreen() {
                             style={s.moveBtn}
                             onPress={() => {
                               setMoveTeam(team);
-                              setNewDiv(team.division);
+                              setNewDiv(team.division ?? '');
                               setNewConf(team.conference ?? '');
                             }}
                           >
