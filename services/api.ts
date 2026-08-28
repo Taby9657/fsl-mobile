@@ -260,9 +260,13 @@ export const supervisorApi = {
   previewFixtures: (data: any)                   => api.post('/supervisor/fixtures/preview', data),
   generateFixtures:(data: any)                   => api.post('/supervisor/fixtures/generate', data),
 
-  // Sezóna
-  newSeason: (newSeason: string, cancelPending?: boolean) =>
-    api.post('/supervisor/new-season', { newSeason, cancelPending }),
+  // Sezóna – naplánovaný dvoukrokový přechod
+  season:          ()                             => api.get('/supervisor/season'),
+  planSeason:      (newSeason: string, scheduledAt: string) =>
+    api.post('/supervisor/season', { newSeason, scheduledAt }),
+  confirmSeason:   (id: string, confirmSeason: string) =>
+    api.put(`/supervisor/season/${id}/confirm`, { confirmSeason }),
+  cancelSeason:    (id: string)                   => api.delete(`/supervisor/season/${id}`),
 
   // Žádosti (supervisor vidí všechny, může je updatovat)
   requests: (status?: string) => api.get('/supervisor/requests', { params: status ? { status } : {} }),

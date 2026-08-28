@@ -99,6 +99,7 @@ function RootLayout() {
         <Stack.Screen name="supervisor/highlights"  options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/requests"    options={{ headerShown: false }} />
         <Stack.Screen name="supervisor/admins"      options={{ headerShown: false }} />
+        <Stack.Screen name="supervisor/season"      options={{ headerShown: false }} />
         <Stack.Screen name="draft/[playerId]"        options={{ headerShown: false }} />
         <Stack.Screen name="draft/profile-edit"      options={{ headerShown: false }} />
         <Stack.Screen name="settings"                options={{ headerShown: false }} />

@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Alert } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { goBack } from '../utils/navigation';
-import { useAuthStore } from '../store/auth';
+import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor } from '../store/auth';
 import { useFanStore } from '../store/fan';
 import { Colors, Fonts, Radius } from '../constants/colors';
 import { cacheClearAll, cacheSize } from '../utils/cache';
@@ -55,7 +56,20 @@ function SettingRow({ icon, label, description, right, onPress }: {
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
-  const favTeamId = useFanStore(s => s.favTeamId);
+  const favTeamId    = useFanStore(s => s.favTeamId);
+  const isManager    = useIsManager();
+  const isReferee    = useIsReferee();
+  const isSupervisor = useIsSupervisor();
+
+  // Verze z app.json — dřív tu bylo natvrdo "1.0.0", což při ladění mátlo
+  const appVersion = Constants.expoConfig?.version ?? '—';
+
+  const roles = [
+    user?.player   && 'Hráč',
+    isManager      && 'Vedoucí týmu',
+    isReferee      && 'Rozhodčí',
+    isSupervisor   && 'Supervisor',
+  ].filter(Boolean) as string[];
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_PREFS);
   const [cacheCount, setCacheCount] = useState(0);
 
@@ -149,7 +163,7 @@ export default function SettingsScreen() {
                 </View>
                 <View style={s.roleBadge}>
                   <Text style={s.roleTxt}>
-                    {user.player ? 'Hráč' : user.referee ? 'Rozhodčí' : user.manager?.length ? 'Manažer' : 'Fanoušek'}
+                    {isSupervisor ? 'Supervisor' : user.player ? 'Hráč' : user.referee ? 'Rozhodčí' : user.manager?.length ? 'Manažer' : 'Fanoušek'}
                   </Text>
                 </View>
               </View>
@@ -173,7 +187,7 @@ export default function SettingsScreen() {
               <SettingRow
                 icon="person-add-outline"
                 label="Role v lize"
-                description="Přidat roli hráče, vedoucího nebo rozhodčího"
+                description={roles.length ? roles.join(' · ') : 'Zatím žádná — jsi fanoušek'}
                 right={<Ionicons name="chevron-forward" size={16} color={Colors.di} />}
                 onPress={() => router.push('/(tabs)/admin' as any)}
               />
@@ -259,7 +273,7 @@ export default function SettingsScreen() {
           <SettingRow
             icon="information-circle-outline"
             label="Verze aplikace"
-            right={<Text style={s.valueText}>1.0.0</Text>}
+            right={<Text style={s.valueText}>{appVersion}</Text>}
           />
           <View style={s.divider} />
           <SettingRow

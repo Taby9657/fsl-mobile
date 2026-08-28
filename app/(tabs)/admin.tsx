@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, useIsManager, useIsReferee, useIsSupervisor, type ActiveRole } from '../../store/auth';
 import { useFanStore } from '../../store/fan';
-import { playersApi, supervisorApi, statsApi, teamsApi } from '../../services/api';
+import { playersApi, supervisorApi, teamsApi } from '../../services/api';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 interface MenuItem {
@@ -34,9 +34,6 @@ export default function AdminScreen() {
 
   const [myStats, setMyStats]           = useState<any>(null);
   const [leavingTeam, setLeavingTeam]   = useState(false);
-  const [newSeason, setNewSeason]       = useState('');
-  const [seasonBusy, setSeasonBusy]     = useState(false);
-  const [currentSeason, setCurrentSeason] = useState<string>('');
   const [teamDetail, setTeamDetail]     = useState<any>(null);
   const [queue, setQueue]               = useState<any>(null);
   const [appealText, setAppealText]     = useState('');
@@ -48,10 +45,6 @@ export default function AdminScreen() {
       playersApi.myStats().then(r => setMyStats(r.data)).catch(() => {});
     }
     if (isSupervisor) {
-      statsApi.seasons().then(r => {
-        const ss: string[] = r.data ?? [];
-        if (ss.length > 0) setCurrentSeason(ss[0]);
-      }).catch(() => {});
       supervisorApi.dashboard().then(r => setQueue(r.data)).catch(() => {});
     }
     // Načti detail týmu vedoucího (kvůli regStatus)
@@ -100,35 +93,6 @@ export default function AdminScreen() {
           },
         },
       ],
-    );
-  }
-
-  async function startNewSeason(cancelPending: boolean) {
-    if (!/^\d{4}\/\d{2}$/.test(newSeason.trim())) {
-      Alert.alert('Neplatný formát', 'Zadej sezónu ve formátu "2026/27"'); return;
-    }
-    setSeasonBusy(true);
-    try {
-      const res = await supervisorApi.newSeason(newSeason.trim(), cancelPending);
-      Alert.alert('Hotovo', res.data.message);
-      setNewSeason('');
-      setCurrentSeason(newSeason.trim());
-    } catch (err: any) {
-      Alert.alert('Chyba', err?.response?.data?.error ?? 'Nepodařilo se přepnout sezónu');
-    } finally {
-      setSeasonBusy(false);
-    }
-  }
-
-  function confirmNewSeason() {
-    Alert.alert(
-      'Nová sezóna',
-      `Přepnout na sezónu ${newSeason}?\n\nChceš zrušit dosud neplánované zápasy ze staré sezóny?`,
-      [
-        { text: 'Zrušit', style: 'cancel' },
-        { text: 'Zachovat zápasy', onPress: () => startNewSeason(false) },
-        { text: 'Zrušit staré zápasy', style: 'destructive', onPress: () => startNewSeason(true) },
-      ]
     );
   }
 
@@ -205,6 +169,7 @@ export default function AdminScreen() {
         { icon: 'cash',         label: 'Platby',          desc: 'Přehled a ruční sync',          route: '/supervisor/payments', color: Colors.pu },
         { icon: 'newspaper',    label: 'Highlights kola', desc: 'Aktuality viditelné na home screen', route: '/supervisor/highlights', color: Colors.pu },
         { icon: 'star',         label: 'Supervisoři',     desc: 'Přidat nebo odebrat organizátory ligy', route: '/supervisor/admins', color: Colors.pu },
+        { icon: 'calendar',     label: 'Sezóna',          desc: 'Naplánovat přechod na novou sezónu', route: '/supervisor/season', color: Colors.pu },
       ],
     });
   }
@@ -344,6 +309,16 @@ export default function AdminScreen() {
           </View>
         ))}
 
+        {/* Vybraná role zatím nic nenabízí */}
+        {isSupervisor && activeRole !== 'all' && sections.length === 0 && (
+          <View style={[styles.card, styles.roleEmpty]}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.mu} />
+            <Text style={styles.roleEmptyTxt}>
+              V téhle roli tu zatím nic nemáš. Přepni zpět na „Vše" nebo si roli doplň níže.
+            </Text>
+          </View>
+        )}
+
         {/* Doplnit roli – vždy, dokud nějaká chybí */}
         {addRoleItems.length > 0 && (!isSupervisor || activeRole === 'all') && (
           <View style={styles.section}>
@@ -405,42 +380,6 @@ export default function AdminScreen() {
                 </>
             }
           </Pressable>
-        )}
-
-        {/* Nová sezóna (jen supervisor) */}
-        {isSupervisor && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sezóna</Text>
-            <View style={[styles.card, { padding: 14 }]}>
-              {currentSeason ? (
-                <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 10 }}>
-                  Aktuální sezóna: <Text style={{ color: Colors.go, fontWeight: '700' }}>{currentSeason}</Text>
-                </Text>
-              ) : null}
-              <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.mu, marginBottom: 8 }}>
-                Nová sezóna (formát 2026/27)
-              </Text>
-              <TextInput
-                style={styles.seasonInput}
-                value={newSeason}
-                onChangeText={setNewSeason}
-                placeholder="2026/27"
-                placeholderTextColor={Colors.di}
-                keyboardAppearance="dark"
-                autoCapitalize="none"
-              />
-              <Pressable
-                style={[styles.seasonBtn, (!newSeason || seasonBusy) && { opacity: 0.4 }]}
-                onPress={confirmNewSeason}
-                disabled={!newSeason || seasonBusy}
-              >
-                {seasonBusy
-                  ? <ActivityIndicator color={Colors.bg} size="small" />
-                  : <Text style={styles.seasonBtnTxt}>Spustit novou sezónu</Text>
-                }
-              </Pressable>
-            </View>
-          </View>
         )}
 
         {/* Nastavení */}
@@ -632,13 +571,12 @@ const styles = StyleSheet.create({
   settingsBtn:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, marginTop: 8 },
   logoutBtn:    { borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, alignItems: 'center', marginTop: 8 },
   logoutText:   { fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '600' },
-  seasonInput:      { backgroundColor: Colors.c2, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.sm, padding: 12, color: Colors.wh, fontSize: Fonts.sizes.md, marginBottom: 10 },
-  seasonBtn:        { backgroundColor: Colors.pu, borderRadius: Radius.md, padding: 12, alignItems: 'center' },
-  seasonBtnTxt:     { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
   roleChip:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   roleChipActive:   { backgroundColor: Colors.go, borderColor: Colors.go },
   roleChipTxt:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.mu },
   roleChipTxtActive:{ color: Colors.bg },
+  roleEmpty:     { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, marginBottom: 20 },
+  roleEmptyTxt:  { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18 },
   queueEmpty:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
   queueEmptyTxt: { fontSize: Fonts.sizes.sm, color: Colors.mu },
   queueBadge:    { minWidth: 26, paddingHorizontal: 7, paddingVertical: 3, borderRadius: Radius.full, backgroundColor: Colors.pu, alignItems: 'center', marginRight: 4 },
