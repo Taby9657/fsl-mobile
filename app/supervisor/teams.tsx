@@ -14,8 +14,8 @@ import { Colors, Fonts, Radius } from '../../constants/colors';
 type RegStatus = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'APPEALING';
 type PayFilter = 'ALL' | 'PENDING' | 'PAID' | 'OVERDUE';
 
-interface TeamForm { name: string; abbr: string; division: string; conference: string; color: string; venue: string; }
-const EMPTY_FORM: TeamForm = { name: '', abbr: '', division: '', conference: '', color: '#C9A140', venue: '' };
+interface TeamForm { name: string; abbr: string; division: string; conference: string; color: string; colorSecondary: string | null; }
+const EMPTY_FORM: TeamForm = { name: '', abbr: '', division: '', conference: '', color: '#C9A140', colorSecondary: '#F5F5F5' };
 
 const REG_TABS: { id: RegStatus; label: string }[] = [
   { id: 'ALL',       label: 'Vše'       },
@@ -103,7 +103,7 @@ export default function SuperTeamsScreen() {
   }
 
   function openEdit(team: any) {
-    setForm({ name: team.name, abbr: team.abbr, division: team.division ?? '', conference: team.conference ?? '', color: team.color, venue: team.venue ?? '' });
+    setForm({ name: team.name, abbr: team.abbr, division: team.division ?? '', conference: team.conference ?? '', color: team.color, colorSecondary: team.colorSecondary ?? null });
     setEditTarget(team);
     setModal('edit');
   }
@@ -357,26 +357,19 @@ export default function SuperTeamsScreen() {
                 </View>
               </View>
 
-              <Text style={s.fieldLabel}>Domácí hřiště</Text>
-              <TextInput
-                style={s.input}
-                value={form.venue}
-                onChangeText={v => setForm(p => ({ ...p, venue: v }))}
-                placeholder="Hala XY"
-                placeholderTextColor={Colors.di}
-                keyboardAppearance="dark"
-              />
-
               <View style={s.note}>
                 <Ionicons name="information-circle-outline" size={16} color={Colors.mu} />
                 <Text style={s.noteTxt}>
                   Divizi a konferenci přiděluješ až v Rozlosování, kde vidíš všechny týmy pohromadě.
+                  Halu zadáváš u konkrétního zápasu.
                 </Text>
               </View>
 
               <TeamColorPicker
-                value={form.color}
-                onChange={c => setForm(p => ({ ...p, color: c }))}
+                primary={form.color}
+                onPrimary={c => setForm(p => ({ ...p, color: c }))}
+                secondary={form.colorSecondary}
+                onSecondary={c => setForm(p => ({ ...p, colorSecondary: c }))}
                 abbr={form.abbr}
               />
 

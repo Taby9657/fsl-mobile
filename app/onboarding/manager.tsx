@@ -18,11 +18,11 @@ export default function ManagerOnboardingScreen() {
   const [inviteCode, setInviteCode] = useState('');
 
   // Divizi tým nedostává při registraci — přiděluje ji supervisor při schvalování
-  const [form, setForm] = useState({
-    name: '', abbr: '', color: '#C9A140',
+  const [form, setForm] = useState<{ name: string; abbr: string; color: string; colorSecondary: string | null }>({
+    name: '', abbr: '', color: '#C9A140', colorSecondary: '#F5F5F5',
   });
 
-  function set(key: string, val: string) {
+  function set(key: string, val: string | null) {
     setForm(f => ({ ...f, [key]: val }));
   }
 
@@ -166,8 +166,10 @@ export default function ManagerOnboardingScreen() {
         {/* Barva */}
         <View style={{ marginTop: 20 }}>
           <TeamColorPicker
-            value={form.color}
-            onChange={c => set('color', c)}
+            primary={form.color}
+            onPrimary={c => set('color', c)}
+            secondary={form.colorSecondary}
+            onSecondary={c => set('colorSecondary', c)}
             abbr={form.abbr}
           />
         </View>

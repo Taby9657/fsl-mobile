@@ -8,6 +8,7 @@ import { goBack } from '../../utils/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import { matchesApi, refereesApi } from '../../services/api';
 import { useAuthStore, useIsSupervisor } from '../../store/auth';
+import { resolveMatchKits } from '../../utils/kits';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 type Tab = 'events' | 'lineups' | 'info';
@@ -118,6 +119,8 @@ export default function MatchDetailScreen() {
 
   const isPlayed  = match.status === 'DONE';
   const showScore = match.status === 'DONE' || match.status === 'LIVE';
+  // Když se primární barvy kryjí, hostující tým jde do sekundární sady
+  const kits = resolveMatchKits(match.homeTeam ?? {}, match.awayTeam ?? {});
   const isAssignedRef = user?.referee?.id && match.refereeId === user.referee.id;
   const canScore  = (isSupervisor || isAssignedRef) && (match.status === 'LIVE' || match.status === 'UPCOMING');
   const isTeamManager = (user?.manager ?? []).some(
@@ -210,7 +213,7 @@ export default function MatchDetailScreen() {
         {/* Scoreboard */}
         <View style={s.scoreboard}>
           <Pressable style={s.teamCol} onPress={() => router.push(`/team/${match.homeTeamId}` as any)}>
-            <View style={[s.teamBadge, { backgroundColor: match.homeTeam?.color ?? Colors.go }]}>
+            <View style={[s.teamBadge, { backgroundColor: kits.homeKit }]}>
               <Text style={s.teamAbbr}>{match.homeTeam?.abbr}</Text>
             </View>
             <Text style={s.teamName} numberOfLines={2}>{match.homeTeam?.name}</Text>
@@ -226,12 +229,28 @@ export default function MatchDetailScreen() {
           </View>
 
           <Pressable style={s.teamCol} onPress={() => router.push(`/team/${match.awayTeamId}` as any)}>
-            <View style={[s.teamBadge, { backgroundColor: match.awayTeam?.color ?? Colors.pu }]}>
+            <View style={[s.teamBadge, { backgroundColor: kits.awayKit }]}>
               <Text style={s.teamAbbr}>{match.awayTeam?.abbr}</Text>
             </View>
             <Text style={s.teamName} numberOfLines={2}>{match.awayTeam?.name}</Text>
           </Pressable>
         </View>
+
+        {/* Dresy – upozornění na shodu barev */}
+        {(kits.awaySwitched || kits.unresolvedClash) && (
+          <View style={[s.kitNote, kits.unresolvedClash && s.kitNoteWarn]}>
+            <Ionicons
+              name={kits.unresolvedClash ? 'alert-circle-outline' : 'shirt-outline'}
+              size={16}
+              color={kits.unresolvedClash ? '#F59E0B' : Colors.mu}
+            />
+            <Text style={s.kitNoteTxt}>
+              {kits.unresolvedClash
+                ? `Oba týmy mají podobnou barvu dresů a ${match.awayTeam?.name ?? 'host'} nemá sekundární sadu. Domluvte se před zápasem.`
+                : `${match.awayTeam?.name ?? 'Host'} nastoupí v sekundární sadě — primární barvy se kryjí.`}
+            </Text>
+          </View>
+        )}
 
         {/* Tagy */}
         <View style={s.tabs}>
@@ -442,6 +461,9 @@ const s = StyleSheet.create({
   teamCol:      { flex: 1, alignItems: 'center', gap: 8 },
   teamBadge:    { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },
   teamAbbr:     { fontSize: Fonts.sizes.md, fontWeight: '900', color: Colors.bg },
+  kitNote:      { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  kitNoteWarn:  { borderColor: '#F59E0B44', backgroundColor: '#F59E0B14' },
+  kitNoteTxt:   { flex: 1, fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 17 },
   teamName:     { fontSize: Fonts.sizes.xs, color: Colors.mu, textAlign: 'center' },
   scoreCol:     { flex: 1, alignItems: 'center', gap: 6 },
   score:        { fontSize: 36, fontWeight: '900', color: Colors.wh },
