@@ -9,6 +9,13 @@
 
 node_modules/
 
+# Nativní projekty – EAS si je vygeneruje z app.json (prebuild).
+# Když tu nejsou, EAS bere projekt jako "bare" a NATIVNÍ NASTAVENÍ Z app.json
+# SE NEUPLATNÍ – oprávnění, associatedDomains, ikona, konfigurace expo-updates.
+# Navíc se do archivu balí Pods/ a build/ (343 MB, 16 minut uploadu).
+ios/
+android/
+
 # Git a lokální stav
 .git/
 .expo/

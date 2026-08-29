@@ -22,7 +22,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "cz.fsl.app",
-      "buildNumber": "1",
       "deploymentTarget": "15.1",
       "usesAppleSignIn": true,
       "infoPlist": {
@@ -39,7 +38,6 @@
     },
     "android": {
       "package": "cz.fsl.app",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0D0120"
