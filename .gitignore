@@ -18,3 +18,4 @@ build/
 # Nativní projekty generuje prebuild
 ios/
 android/
+.DS_Store
