@@ -119,6 +119,8 @@ export const playersApi = {
   get:         (id: string)   => api.get(`/players/${id}`),
   create:      (data: any)    => api.post('/players', data),
   update:      (id: string, data: any) => api.put(`/players/${id}`, data),
+  /** Hráč, který tým nemá, se připojí pozvánkovým kódem. */
+  join:        (inviteCode: string, jersey?: number) => api.post('/players/join', { inviteCode, jersey }),
   leaveTeam:   (id: string)   => api.post(`/players/${id}/leave-team`),
   removeFromTeam: (playerId: string, teamId: string) => api.delete(`/players/${playerId}/team/${teamId}`),
   myStats:     (season?: string) => api.get('/players/my/stats', { params: { season } }),
