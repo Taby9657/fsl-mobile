@@ -14,6 +14,7 @@ import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
 import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
+import { firstError, validateName, validatePhone } from '../../utils/validation';
 
 type Step = 1 | 2;
 
@@ -60,9 +61,14 @@ export default function RefereeOnboardingScreen() {
 
   function nextStep() {
     if (step === 1) {
-      if (!form.firstName.trim() || !form.lastName.trim()) {
-        Alert.alert('Vyplň jméno a příjmení'); return;
-      }
+      // Stejná validace jako všude jinde v appce i na webu — tenhle krok ji dřív
+      // neměl vůbec, takže prošlo jednopísmenné jméno i nesmyslný telefon.
+      const err = firstError([
+        validateName(form.firstName, 'Jméno'),
+        validateName(form.lastName, 'Příjmení'),
+        validatePhone(form.phone),
+      ]);
+      if (err) { Alert.alert('Zkontroluj údaje', err); return; }
       setStep(2);
     }
   }
