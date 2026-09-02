@@ -7,6 +7,8 @@ interface User {
   email: string;
   /** Přichází z backendu — pokrývá i supervisory z env SUPERVISOR_USER_IDS, kteří nemají hráčský profil. */
   isSupervisor?: boolean;
+  /** Účty z Google/Apple heslo nemají, dokud si ho nenastaví v Nastavení. */
+  hasPassword?: boolean;
   player?: any;
   referee?: any;
   manager?: any[];
