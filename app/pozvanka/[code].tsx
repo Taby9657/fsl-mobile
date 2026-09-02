@@ -1,6 +1,6 @@
 // Přistání z pozvánkového odkazu – https://fslleague.cz/pozvanka/KÓD nebo fsl://pozvanka/KÓD
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '../../store/auth';
@@ -22,8 +22,26 @@ export default function PozvankaScreen() {
       // Nepřihlášený se nejdřív přihlásí; kód si počká v úložišti
       if (!user) { router.replace('/(auth)/login'); return; }
 
-      // Kdo už hráčský profil má, pozvánku nepotřebuje
-      if (user.player) { router.replace('/(tabs)'); return; }
+      // Hráč, který tým má, pozvánku použít nemůže — dřív ho appka jen tiše
+      // odklidila na taby a nikdo se nedozvěděl proč
+      if (user.player?.teamId) {
+        Alert.alert(
+          'Jsi v týmu',
+          `Pozvánku můžeš použít, až opustíš tým ${user.player?.team?.name ?? ''}. Uděláš to v úpravě profilu.`,
+        );
+        router.replace('/(tabs)');
+        return;
+      }
+
+      // Hráč bez týmu se připojí kódem, nezakládá nový profil
+      if (user.player) {
+        router.replace(
+          kod
+            ? { pathname: '/pripojit-tym', params: { code: kod } }
+            : { pathname: '/pripojit-tym' },
+        );
+        return;
+      }
 
       router.replace(
         kod
