@@ -18,7 +18,7 @@ export default function RefereeProfileScreen() {
   const [loading, setSaving]   = useState(false);
   const [ref, setRef]          = useState<any>(null);
   const [edit, setEdit]        = useState(false);
-  const [form, setForm]        = useState({ phone: '', address: '', city: '', zip: '', bankAccount: '', bankCode: '' });
+  const [form, setForm]        = useState({ phone: '', birthNo: '', address: '', city: '', zip: '', bankAccount: '', bankCode: '' });
 
   useEffect(() => {
     if (!refId) return;
@@ -26,6 +26,7 @@ export default function RefereeProfileScreen() {
       setRef(r.data);
       setForm({
         phone:       r.data.phone       ?? '',
+        birthNo:     r.data.birthNo     ?? '',
         address:     r.data.address     ?? '',
         city:        r.data.city        ?? '',
         zip:         r.data.zip         ?? '',
@@ -126,6 +127,8 @@ export default function RefereeProfileScreen() {
           <Text style={s.section}>Kontaktní údaje</Text>
           <View style={s.card}>
             <Field label="Telefon"  field="phone"   keyboardType="phone-pad" />
+            {/* Rodné číslo šlo dřív vyplnit jen při registraci z webu */}
+            <Field label="Rodné číslo" field="birthNo" />
             <Field label="Adresa"   field="address" />
             <Field label="Město"    field="city" />
             <Field label="PSČ"      field="zip"     keyboardType="number-pad" />
