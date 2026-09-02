@@ -190,6 +190,12 @@ export default function AdminScreen() {
       icon: 'person-add', label: 'Stát se hráčem',
       desc: 'Zadej pozvánkový kód od vedoucího týmu', route: '/onboarding/player-code',
     });
+  } else if (!user.player.teamId) {
+    // Hráč bez týmu se dřív neměl kam kliknout — jedinou cestou zpět byl draft
+    addRoleItems.push({
+      icon: 'people', label: 'Připojit se k týmu',
+      desc: 'Máš kód od vedoucího? Naskočíš na soupisku', route: '/pripojit-tym',
+    });
   }
   if (!isManager) {
     addRoleItems.push({
