@@ -61,7 +61,12 @@ export default function PlayerCodeScreen() {
         inviteCode: trimmed,
       });
     } catch (err: any) {
-      Alert.alert('Neplatný kód', err.response?.data?.error ?? 'Zkus to znovu');
+      // Vypršelý kód není neplatný kód — backend to rozlišuje a hláška má sedět
+      const kodChyby = err.response?.data?.code;
+      Alert.alert(
+        kodChyby === 'CODE_EXPIRED' ? 'Kód vypršel' : 'Kód nesedí',
+        err.response?.data?.error ?? 'Zkus to znovu',
+      );
     } finally {
       setLoading(false);
     }
