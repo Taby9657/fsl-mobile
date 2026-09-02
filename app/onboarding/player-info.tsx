@@ -11,7 +11,7 @@ import { playersApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
-import { validateName, validatePhone, validateJersey, firstError } from '../../utils/validation';
+import { validateName, validatePhone, validateJersey, validateBirthdate, firstError } from '../../utils/validation';
 
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 
@@ -58,7 +58,8 @@ export default function PlayerInfoScreen() {
     const e3 = validateJersey(form.jersey);
     const e4 = !form.jersey.trim() ? 'Číslo dresu je povinné.' : null;
     const e5 = validatePhone(form.phone);
-    const first = firstError([e1, e2, e4 ?? e3, e5]);
+    const e6 = birthdate ? validateBirthdate(birthdate.toISOString()) : null;
+    const first = firstError([e1, e2, e4 ?? e3, e5, e6]);
     if (first) {
       Alert.alert('Vyplň povinné údaje', first); return;
     }
@@ -72,7 +73,13 @@ export default function PlayerInfoScreen() {
         inviteCode,
       });
       if (photo) {
-        await playersApi.uploadPhoto(res.data.id, photo).catch(() => {});
+        // Selhání uploadu registraci neshodí, ale ať se to hráč dozví —
+        // dřív fotka jen tiše zmizela
+        try {
+          await playersApi.uploadPhoto(res.data.id, photo);
+        } catch {
+          Alert.alert('Fotka se nenahrála', 'Profil je hotový, fotku můžeš přidat v Můj profil.');
+        }
       }
       await clearDraft();
       await refreshUser();
