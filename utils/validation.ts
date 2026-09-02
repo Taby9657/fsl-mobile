@@ -35,7 +35,8 @@ export function validateBirthdate(value: string): string | null {
 export function validateJersey(value: string): string | null {
   if (!value.trim()) return null; // optional
   const n = Number(value);
-  if (isNaN(n) || n < 1 || n > 99) return 'Číslo dresu musí být 1–99.';
+  // Nula je platné číslo dresu a backend ji bere — dřív ji appka odmítala
+  if (!Number.isInteger(n) || n < 0 || n > 99) return 'Číslo dresu musí být 0–99.';
   return null;
 }
 
