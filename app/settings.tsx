@@ -171,6 +171,26 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {/* Heslo */}
+        {user && (
+          <>
+            <SectionHeader label="Heslo" />
+            <View style={s.card}>
+              <SettingRow
+                icon="key-outline"
+                label={user.hasPassword === false ? 'Nastavit heslo' : 'Změnit heslo'}
+                description={
+                  user.hasPassword === false
+                    ? 'Účet je z Google nebo Apple — s heslem půjde i přihlášení e-mailem'
+                    : 'Přihlašování e-mailem a heslem máš zapnuté'
+                }
+                right={<Ionicons name="chevron-forward" size={16} color={Colors.di} />}
+                onPress={() => router.push('/heslo' as any)}
+              />
+            </View>
+          </>
+        )}
+
         {/* Sledování */}
         {user && (
           <>
