@@ -23,20 +23,14 @@ export default function ManagerOnboardingScreen() {
     name: '', abbr: '', color: '#C9A140', colorSecondary: '#F5F5F5',
   });
 
-  // Sezóna, do které se tým přihlašuje. Bez ní by spadl do té, kterou zrovna
-  // ukazuje liga, a při přepnutí sezóny by ze soutěže zmizel.
-  const [season, setSeason]   = useState<string | null>(null);
-  const [sezony, setSezony]   = useState<string[]>([]);
+  // Sezóna se nevybírá — tým se hlásí vždycky do té, která zrovna běží.
+  // Dřív šlo zvolit i následující ročník a tým pak vznikl v soutěži, která
+  // ještě není otevřená. Tady ji jen ukazujeme, rozhoduje o ní backend.
+  const [season, setSeason] = useState<string | null>(null);
 
   useEffect(() => {
     seasonsApi.list()
-      .then(r => {
-        const { current, next, options } = r.data;
-        // Nabízíme aktuální a následující — zpětně se tým přihlašovat nemá proč
-        const nabidka = [current, next].filter(Boolean) as string[];
-        setSezony(nabidka.length > 0 ? nabidka : (options ?? []));
-        setSeason(current ?? nabidka[0] ?? null);
-      })
+      .then(r => setSeason(r.data.current ?? null))
       .catch(() => {});
   }, []);
 
@@ -75,12 +69,9 @@ export default function ManagerOnboardingScreen() {
     if (form.abbr.length > 3) {
       Alert.alert('Zkratka', 'Zkratka týmu může mít maximálně 3 znaky.'); return;
     }
-    if (!season) {
-      Alert.alert('Vyber sezónu', 'Urči, do které sezóny tým přihlašuješ.'); return;
-    }
     setLoading(true);
     try {
-      const res = await teamsApi.create({ ...form, season });
+      const res = await teamsApi.create(form);
       const teamId = res.data.team.id;
       const code   = res.data.inviteCode;
 
@@ -199,23 +190,15 @@ export default function ManagerOnboardingScreen() {
           />
         </View>
 
-        {/* Sezóna */}
-        {sezony.length > 0 && (
+        {/* Sezóna — jen k přečtení, vybírat není z čeho */}
+        {season && (
           <>
-            <Text style={styles.label}>Sezóna *</Text>
-            <View style={styles.seasonRow}>
-              {sezony.map(sz => (
-                <Pressable
-                  key={sz}
-                  style={[styles.seasonChip, season === sz && styles.seasonChipActive]}
-                  onPress={() => setSeason(sz)}
-                >
-                  <Text style={[styles.seasonTxt, season === sz && styles.seasonTxtActive]}>{sz}</Text>
-                </Pressable>
-              ))}
+            <Text style={styles.label}>Sezóna</Text>
+            <View style={styles.seasonBox}>
+              <Text style={styles.seasonValue}>{season}</Text>
             </View>
             <Text style={styles.seasonHint}>
-              Tým se přihlašuje na jednu sezónu. Do další se přihlašuje znovu.
+              Tým se přihlašuje do právě probíhající sezóny. Do další se přihlašuje znovu.
             </Text>
           </>
         )}
@@ -252,11 +235,8 @@ const styles = StyleSheet.create({
   logoPlaceholder: { width: 96, height: 96, borderRadius: 16, backgroundColor: Colors.c1, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
   logoAbbr:        { fontSize: Fonts.sizes.xxl, fontWeight: '900' },
   logoHint:        { fontSize: Fonts.sizes.xs, color: Colors.di },
-  seasonRow:        { flexDirection: 'row', gap: 8 },
-  seasonChip:       { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
-  seasonChipActive: { backgroundColor: Colors.go, borderColor: Colors.go },
-  seasonTxt:        { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '700' },
-  seasonTxtActive:  { color: Colors.bg },
+  seasonBox:        { paddingVertical: 11, paddingHorizontal: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
+  seasonValue:      { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '700' },
   seasonHint:       { fontSize: Fonts.sizes.xs, color: Colors.di, lineHeight: 16, marginTop: 6 },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 16, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
