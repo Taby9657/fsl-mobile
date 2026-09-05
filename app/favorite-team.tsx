@@ -76,7 +76,10 @@ export default function FavoriteTeamScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{item.name}</Text>
-                  <Text style={s.division}>{item.division ?? 'Bez divize'}</Text>
+                  {/* Divizi přiděluje supervisor až při rozlosování. Dokud ji tým
+                      nemá, řádek prostě není — „Bez divize" svítilo u všech týmů
+                      naráz a neneslo žádnou informaci. */}
+                  {item.division ? <Text style={s.division}>{item.division}</Text> : null}
                 </View>
                 <Ionicons
                   name={active ? 'heart' : 'heart-outline'}
