@@ -161,7 +161,9 @@ export default function TeamRosterScreen() {
             <View style={{ flex: 1 }}>
               <Text style={s.teamName}>{team?.name}</Text>
               <Text style={s.teamSub}>
-                {team?.division ?? 'Nezařazeno'} · {roster.length} na soupisce
+                {/* Divize jen když ji tým má, jinak by řádek začínal „Nezařazeno ·" */}
+                {team?.division ? `${team.division} · ` : ''}
+                {roster.length} na soupisce
                 {roster.some((p: any) => !p.isHome) ? ` (${roster.filter((p: any) => !p.isHome).length} hostuje)` : ''}
               </Text>
             </View>
