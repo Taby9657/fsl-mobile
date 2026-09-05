@@ -210,7 +210,10 @@ export default function HomeScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={s.favName}>{favTeam.name}</Text>
-                  <Text style={s.favDivision}>{favTeam.division ?? 'Bez divize'}</Text>
+                  {/* Bez divize se řádek vynechá — viz favorite-team.tsx */}
+                  {favTeam.division ? (
+                    <Text style={s.favDivision}>{favTeam.division}</Text>
+                  ) : null}
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.di} />
               </View>
