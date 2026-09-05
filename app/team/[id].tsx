@@ -113,7 +113,8 @@ export default function TeamDetailScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.heroName}>{team.name}</Text>
-            <Text style={s.heroDivision}>{team.division ?? 'Nezařazeno'}</Text>
+            {/* Bez divize se řádek vynechá — viz favorite-team.tsx */}
+            {team.division ? <Text style={s.heroDivision}>{team.division}</Text> : null}
           </View>
         </View>
 
