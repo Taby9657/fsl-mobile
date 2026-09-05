@@ -141,7 +141,10 @@ export default function PlayerCodeScreen() {
               <Text style={styles.teamAbbr}>{team.abbr}</Text>
             </View>
             <Text style={styles.teamName}>{team.name}</Text>
-            <Text style={styles.teamDiv}>{team.division ?? 'Nezařazeno'}</Text>
+            {/* Tady se hodí vysvětlit proč je prázdno — člověk zrovna vstupuje
+                do týmu a „Nezařazeno" zní jako by s týmem něco nebylo v pořádku.
+                Stejná formulace je i v pripojit-tym.tsx. */}
+            <Text style={styles.teamDiv}>{team.division ?? 'Divizi přidělí supervisor'}</Text>
           </View>
           <Text style={styles.confirm}>Připojuješ se k tomuto týmu?</Text>
           <Pressable
