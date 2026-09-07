@@ -199,13 +199,18 @@ export default function LoginScreen() {
 
         {/* Apple + Google */}
         <View style={styles.buttons}>
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-            cornerRadius={Radius.md}
-            style={styles.appleBtn}
-            onPress={handleApple}
-          />
+          {/* Sign in with Apple existuje jen na iOS. Na Androidu nemá
+              AppleAuthenticationButton nativní protějšek, takže by se
+              nevykreslil a mohl by shodit celou přihlašovací obrazovku. */}
+          {Platform.OS === 'ios' && (
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={Radius.md}
+              style={styles.appleBtn}
+              onPress={handleApple}
+            />
+          )}
           <Pressable style={styles.googleBtn} onPress={handleGoogle} disabled={loading}>
             <Ionicons name="logo-google" size={20} color={Colors.wh} style={{ marginRight: 10 }} />
             <Text style={styles.googleText}>Přihlásit se přes Google</Text>
