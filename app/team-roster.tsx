@@ -9,6 +9,22 @@ import { Colors, Fonts, Radius } from '../constants/colors';
 import { SearchBar } from '../components/SearchBar';
 
 const POS: Record<string, string> = { GK: 'Brankář', F: 'Útočník', D: 'Obránce' };
+
+/**
+ * Rozdělí soupisku na dva bloky — brankáři nahoře, hráči do pole pod nimi.
+ * Backend posílá seznam už seřazený, tohle jen vkládá nadpisy a upozornění,
+ * když tým brankáře nemá (bez brankáře v sestavě zápas nezačne).
+ */
+function seSekcemi(hraci: any[]) {
+  const brankari = hraci.filter((p: any) => p.slot === 'GOALKEEPER');
+  const pole     = hraci.filter((p: any) => p.slot !== 'GOALKEEPER');
+  return [
+    { nadpis: `BRANKÁŘI · ${brankari.length}` },
+    ...(brankari.length ? brankari : [{ varovani: true }]),
+    { nadpis: `HRÁČI DO POLE · ${pole.length}` },
+    ...pole,
+  ];
+}
 const LIC_COL: Record<string, string> = {
   PAID: Colors.green, PENDING: '#F59E0B', OVERDUE: Colors.red, WAIVED: Colors.mu,
 };
@@ -117,6 +133,23 @@ export default function TeamRosterScreen() {
     }
   }
 
+  // Brankář vs. hráč do pole. Rozhoduje soupiska sezóny, ne `position`.
+  const [slotMeni, setSlotMeni] = useState<string | null>(null);
+
+  async function prepniSlot(player: any) {
+    if (!teamId) return;
+    const novy = player.slot === 'GOALKEEPER' ? 'FIELD' : 'GOALKEEPER';
+    setSlotMeni(player.id);
+    try {
+      await teamsApi.setRosterSlot(teamId, player.id, novy);
+      await nactiSoupisku();
+    } catch (err: any) {
+      Alert.alert('Nepodařilo se změnit', err?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setSlotMeni(null);
+    }
+  }
+
   function odeberHosta(player: any) {
     Alert.alert(
       'Odebrat hostujícího hráče',
@@ -196,11 +229,11 @@ export default function TeamRosterScreen() {
             <SearchBar value={query} onChangeText={setQuery} placeholder="Hledat hráče..." />
           </View>
           <FlatList
-            data={roster.filter((p: any) =>
+            data={seSekcemi(roster.filter((p: any) =>
               `${p.firstName} ${p.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
               String(p.jersey ?? '').includes(query)
-            )}
-            keyExtractor={item => item.id}
+            ))}
+            keyExtractor={item => item.id ?? item.nadpis}
             contentContainerStyle={{ padding: 16, paddingTop: 8 }}
             ListEmptyComponent={
               <View style={s.center}>
@@ -208,31 +241,56 @@ export default function TeamRosterScreen() {
                 <Text style={s.empty}>Žádní hráči. Pozvi je pozvánkovým kódem.</Text>
               </View>
             }
-            renderItem={({ item }) => (
-              <Pressable style={s.row} onPress={() => router.push(`/player/${item.id}` as any)}>
-                <View style={s.jersey}>
-                  <Text style={s.jerseyNum}>{item.jersey ?? '–'}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.name}>{item.firstName} {item.lastName}</Text>
-                  <Text style={s.pos}>
-                    {POS[item.position] ?? item.position}
-                    {item.isHome === false && item.team?.abbr ? ` · kmenově ${item.team.abbr}` : ''}
-                  </Text>
-                </View>
-                {item.isHome === false && (
-                  <View style={s.hostTag}><Text style={s.hostTagTxt}>hostuje</Text></View>
-                )}
-                <View style={[s.dot, { backgroundColor: LIC_COL[item.payment?.licStatus ?? 'PENDING'] }]} />
-                <Pressable
-                  style={s.removeBtn}
-                  onPress={() => item.isHome === false ? odeberHosta(item) : removePlayer(item)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="person-remove-outline" size={16} color={Colors.red} />
+            renderItem={({ item }) => {
+              if (item.nadpis) {
+                return <Text style={s.sekce}>{item.nadpis}</Text>;
+              }
+              if (item.varovani) {
+                return (
+                  <View style={s.gkVarovani}>
+                    <Ionicons name="alert-circle-outline" size={16} color={Colors.go} />
+                    <Text style={s.gkVarovaniTxt}>
+                      Tým nemá označeného brankáře. Bez něj nejde zahájit zápas —
+                      označ ho tlačítkem GK.
+                    </Text>
+                  </View>
+                );
+              }
+              const jeGK = item.slot === 'GOALKEEPER';
+              return (
+                <Pressable style={s.row} onPress={() => router.push(`/player/${item.id}` as any)}>
+                  <View style={[s.jersey, jeGK && { backgroundColor: `${Colors.pu}26` }]}>
+                    <Text style={[s.jerseyNum, jeGK && { color: Colors.pu }]}>{item.jersey ?? '–'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.name}>{item.firstName} {item.lastName}</Text>
+                    <Text style={s.pos}>
+                      {jeGK ? 'Brankář' : (POS[item.position] ?? item.position)}
+                      {item.isHome === false && item.team?.abbr ? ` · kmenově ${item.team.abbr}` : ''}
+                    </Text>
+                  </View>
+                  {item.isHome === false && (
+                    <View style={s.hostTag}><Text style={s.hostTagTxt}>hostuje</Text></View>
+                  )}
+                  <Pressable
+                    style={[s.gkBtn, jeGK && s.gkBtnAktivni, slotMeni === item.id && { opacity: 0.5 }]}
+                    onPress={() => prepniSlot(item)}
+                    disabled={slotMeni === item.id}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={[s.gkBtnTxt, jeGK && s.gkBtnTxtAktivni]}>GK</Text>
+                  </Pressable>
+                  <View style={[s.dot, { backgroundColor: LIC_COL[item.payment?.licStatus ?? 'PENDING'] }]} />
+                  <Pressable
+                    style={s.removeBtn}
+                    onPress={() => item.isHome === false ? odeberHosta(item) : removePlayer(item)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="person-remove-outline" size={16} color={Colors.red} />
+                  </Pressable>
                 </Pressable>
-              </Pressable>
-            )}
+              );
+            }}
             ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
             ListFooterComponent={
               <Pressable style={s.hostBtn} onPress={() => setHostModal(true)}>
@@ -309,6 +367,15 @@ const s = StyleSheet.create({
   chybiBtnTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.bg },
   hostTag:     { backgroundColor: `${Colors.pu}33`, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
   hostTagTxt:  { fontSize: 9, color: Colors.pu, fontWeight: '800' },
+
+  // Nadpis bloku (brankáři / hráči do pole) a přepínač postu na soupisce
+  sekce:          { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: Colors.mu, marginTop: 14, marginBottom: 6, paddingHorizontal: 4 },
+  gkVarovani:     { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: `${Colors.go}14`, borderRadius: Radius.md, padding: 12 },
+  gkVarovaniTxt:  { flex: 1, fontSize: 12, color: Colors.go, lineHeight: 17 },
+  gkBtn:          { backgroundColor: Colors.c2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginRight: 8 },
+  gkBtnAktivni:   { backgroundColor: Colors.pu },
+  gkBtnTxt:       { fontSize: 10, fontWeight: '800', color: Colors.mu },
+  gkBtnTxtAktivni:{ color: Colors.wh },
   hostBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: Colors.pu, borderStyle: 'dashed', borderRadius: Radius.md, padding: 14, marginTop: 12 },
   hostBtnTxt:  { fontSize: Fonts.sizes.sm, color: Colors.pu, fontWeight: '700' },
   overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },

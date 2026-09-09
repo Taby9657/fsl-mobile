@@ -108,6 +108,10 @@ export const teamsApi = {
     api.post(`/teams/${id}/roster`, { playerId, season }),
   removeFromRoster: (id: string, playerId: string, season?: string) =>
     api.delete(`/teams/${id}/roster/${playerId}`, { params: { season } }),
+  // Brankář vs. hráč do pole. Drží se na soupisce sezóny, ne na hráči —
+  // `position` je volný text a v datech jsou vedle sebe dva slovníky.
+  setRosterSlot: (id: string, playerId: string, slot: 'GOALKEEPER' | 'FIELD', season?: string) =>
+    api.put(`/teams/${id}/roster/${playerId}/slot`, { slot, season }),
   // Soupiska se s novou sezónou nepřenáší – tohle doplní kmenové hráče naráz
   addHomePlayers: (id: string, playerIds?: string[], season?: string) =>
     api.post(`/teams/${id}/roster/home`, { playerIds, season }),

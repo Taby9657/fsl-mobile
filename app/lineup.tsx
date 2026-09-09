@@ -48,6 +48,10 @@ export default function LineupScreen() {
         if (goalkeeper === id) setGoalkeeper('');
       } else {
         next.add(id);
+        // Kdo je na soupisce vedený jako brankář, se rovnou nabídne jako
+        // brankář zápasu. Přepnout se to pořád dá tlačítkem GK.
+        const hrac = players.find((p: any) => p.id === id);
+        if (hrac?.slot === 'GOALKEEPER' && !goalkeeper) setGoalkeeper(id);
       }
       return next;
     });
@@ -181,6 +185,9 @@ export default function LineupScreen() {
                       <Text style={[s.playerName, sel && { color: Colors.wh }]}>
                         {p.firstName} {p.lastName}
                       </Text>
+                      {p.slot === 'GOALKEEPER' && (
+                        <Text style={s.gkTxt}>Brankář</Text>
+                      )}
                       {!lic && (
                         <Text style={s.noLicTxt}>⚠️ bez licence</Text>
                       )}
@@ -251,6 +258,7 @@ const s = StyleSheet.create({
   gkBtnTxtActive: { color: Colors.wh },
   jersey:         { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5 },
   noLicTxt:       { fontSize: 10, color: Colors.red, marginTop: 1 },
+  gkTxt:          { fontSize: 10, color: Colors.pu, fontWeight: '700', marginTop: 2 },
   jerseyNum:      { fontSize: Fonts.sizes.xs, fontWeight: '700', color: Colors.go },
   playerName:     { flex: 1, fontSize: Fonts.sizes.md, color: Colors.mu, fontWeight: '500' },
   submitBtn:      { backgroundColor: Colors.go, borderRadius: Radius.md, height: 50, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
