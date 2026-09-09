@@ -41,14 +41,6 @@ interface TeamPayment {
   variableSymbol: string | null;
 }
 
-interface HomeMatch {
-  id: string;
-  date: string;
-  awayTeam: { name: string; abbr: string; color: string };
-  homeFeePaid: boolean;
-  venue: string | null;
-}
-
 const STATUS_LABEL: Record<PayStatus, string> = {
   PENDING: 'Čeká na platbu',
   PAID:    'Zaplaceno',
@@ -107,9 +99,7 @@ export default function PaymentsScreen() {
   const [refresh, setRefresh]       = useState(false);
   const [player, setPlayer]         = useState<PlayerPayment | null>(null);
   const [teams, setTeams]           = useState<TeamPayment[]>([]);
-  const [homeMatches, setHomeMatches] = useState<HomeMatch[]>([]);
   const [paying, setPaying]         = useState<string | null>(null); // matchId or 'player-license' etc.
-  const [openMatch, setOpenMatch]   = useState<string | null>(null);
   const [methods, setMethods]       = useState<{ card: boolean; wallet: boolean; transfer: boolean } | undefined>(undefined);
   // Balíčky zápasů — zápasy si platí hráč, ne tým.
   const [packs, setPacks]           = useState<any>(null);
@@ -120,11 +110,8 @@ export default function PaymentsScreen() {
   async function load(isRefresh = false) {
     if (!isRefresh) setLoading(true);
     try {
-      const [payRes, matchRes, methodsRes, packsRes] = await Promise.allSettled([
+      const [payRes, methodsRes, packsRes] = await Promise.allSettled([
         paymentsApi.me(),
-        isManager && managerTeamId
-          ? matchesApi.list({ homeTeamId: managerTeamId, status: 'UPCOMING', limit: 20 })
-          : Promise.resolve(null),
         paymentsApi.methods(),
         paymentsApi.packs(),
       ]);
@@ -141,12 +128,6 @@ export default function PaymentsScreen() {
         if (tp) setTeams(Array.isArray(tp) ? tp : [tp]);
       }
 
-      if (matchRes.status === 'fulfilled' && matchRes.value) {
-        const sorted = [...(matchRes.value.data ?? [])].sort(
-          (a: HomeMatch, b: HomeMatch) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-        setHomeMatches(sorted);
-      }
     } catch {
       if (!isRefresh) Alert.alert('Chyba', 'Nepodařilo se načíst platby');
     } finally {
@@ -220,7 +201,6 @@ export default function PaymentsScreen() {
 
   const openStripe   = (type: 'player-license' | 'super-license') =>
     runCheckout(type, () => type === 'player-license' ? paymentsApi.playerLicense() : paymentsApi.superLicense());
-  const openHomeFee  = (matchId: string) => runCheckout(matchId, () => paymentsApi.homeFee(matchId));
   const openTeamReg  = (teamId: string)  => runCheckout(`team-${teamId}`, () => paymentsApi.teamRegistration(teamId));
 
   if (loading) return (
@@ -451,79 +431,9 @@ export default function PaymentsScreen() {
           </View>
         ))}
 
-        {/* ── DOMÁCÍ ZÁPASY – poplatky (vedoucí) ── */}
-        {isManager && (
-          <View style={[s.card, { marginTop: 12 }]}>
-            <View style={s.cardHeader}>
-              <View style={[s.iconBox, { backgroundColor: `${Colors.red}22` }]}>
-                <Ionicons name="home" size={18} color={Colors.red} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.cardTitle}>Poplatky za domácí zápasy</Text>
-                <Text style={s.cardSub}>2 200 Kč / zápas · do 48 h před zápasem</Text>
-              </View>
-            </View>
-
-            <View style={s.hr} />
-
-            {homeMatches.length === 0 ? (
-              <Text style={[s.infoLabel, { textAlign: 'center', paddingVertical: 8 }]}>
-                Žádné nadcházející domácí zápasy
-              </Text>
-            ) : (
-              homeMatches.map((m, i) => (
-                <View key={m.id} style={i > 0 ? s.matchRowBorder : undefined}>
-                  <View style={s.matchRow}>
-                    {/* Soupeř + datum */}
-                    <View style={s.matchBadge}>
-                      <Text style={s.matchAbbr}>{m.awayTeam.abbr}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.matchName}>vs {m.awayTeam.name}</Text>
-                      <Text style={s.matchDate}>{formatMatchDate(m.date)}{m.venue ? ` · ${m.venue}` : ''}</Text>
-                    </View>
-
-                    {/* Stav / tlačítko */}
-                    {m.homeFeePaid ? (
-                      <View style={s.paidBadge}>
-                        <Ionicons name="checkmark-circle" size={14} color={Colors.green} />
-                        <Text style={s.paidText}>Zaplaceno</Text>
-                      </View>
-                    ) : (
-                      <Pressable
-                        style={s.payBtn}
-                        onPress={() => setOpenMatch(openMatch === m.id ? null : m.id)}
-                      >
-                        <Text style={s.payBtnText}>{openMatch === m.id ? 'Skrýt' : 'Zaplatit'}</Text>
-                        <Ionicons
-                          name={openMatch === m.id ? 'chevron-up' : 'chevron-down'}
-                          size={13}
-                          color={Colors.wh}
-                        />
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {!m.homeFeePaid && openMatch === m.id && (
-                    <View style={{ paddingBottom: 12 }}>
-                      <PayOptions
-                        qrType="home-fee"
-                        qrId={m.id}
-                        amount={2200}
-                        accent={Colors.red}
-                        accentText={Colors.wh}
-                        busy={paying === m.id}
-                        disabled={!!paying}
-                        methods={methods}
-                        onCheckout={() => openHomeFee(m.id)}
-                      />
-                    </View>
-                  )}
-                </View>
-              ))
-            )}
-          </View>
-        )}
+        {/* Poplatek za domácí zápas (2 200 Kč) skončil 9. 9. 2026.
+            Zápasy si platí hráči sami v balíčku startů — sekce Balíčky
+            zápasů výš. */}
 
         {/* ── PRÁZDNÝ STAV ── */}
         {!hasData && (

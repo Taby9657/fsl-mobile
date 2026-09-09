@@ -15,7 +15,7 @@ import { Colors, Fonts, Radius } from '../constants/colors';
  * zařízení vykreslí Apple Pay (iOS/Safari), Google Pay (Android/Chrome) i kartu.
  */
 
-export type QrType = 'player-license' | 'super-license' | 'team-reg' | 'home-fee';
+export type QrType = 'player-license' | 'super-license' | 'team-reg' | 'match-pack';
 
 interface QrData {
   spayd: string;

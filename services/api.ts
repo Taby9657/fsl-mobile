@@ -189,7 +189,6 @@ export const paymentsApi = {
   me:              ()           => api.get('/payments/me'),
   playerLicense:   ()           => api.post('/payments/player-license'),
   superLicense:    ()           => api.post('/payments/super-license'),
-  homeFee:         (matchId: string) => api.post('/payments/home-fee', { matchId }),
   teamRegistration:(teamId: string)  => api.post('/payments/team-registration', { teamId }),
   qr:              (type: string, id: string) => api.get(`/payments/qr/${type}/${id}`),
   methods:         ()           => api.get('/payments/methods'),

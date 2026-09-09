@@ -142,7 +142,7 @@ export default function AdminScreen() {
         { icon: 'qr-code',         label: 'Pozvánkový kód',        desc: 'Sdílej s hráči',                 route: '/invite-code'  },
         { icon: 'document-text',   label: 'Soupisky',              desc: 'Odeslání před zápasem',          route: '/lineup'       },
         { icon: 'clipboard',       label: 'Po-zápasový formulář',  desc: 'MVP, rating rozhodčího',         route: '/postmatch'    },
-        { icon: 'card',            label: 'Platby',                desc: 'Licence, domácí zápas',          route: '/payments'     },
+        { icon: 'card',            label: 'Platby',                desc: 'Licence a balíčky zápasů',          route: '/payments'     },
         { icon: 'ribbon',          label: 'Licence a pravidla',    desc: 'Koho smíš postavit do sestavy',  route: '/licence'      },
       ],
     });

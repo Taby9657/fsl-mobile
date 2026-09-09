@@ -104,9 +104,10 @@ export default function LiveScoreScreen() {
             const code = e?.response?.data?.code;
             const msg  = e?.response?.data?.error ?? 'Nepodařilo se zahájit';
 
-            // Neuhrazený poplatek za domácí zápas může přebít jen supervizor.
-            if (code === 'HOME_FEE_UNPAID' && user?.isSupervisor) {
-              Alert.alert('Neuhrazený poplatek', `${msg}\n\nChceš zápas přesto zahájit?`, [
+            // Hráče bez zaplaceného startu může přebít jen supervizor
+            // (dohoda, platba na místě).
+            if (code === 'NO_CREDIT_LINEUP' && user?.isSupervisor) {
+              Alert.alert('Hráči bez startu', `${msg}\n\nChceš zápas přesto zahájit?`, [
                 { text: 'Zrušit', style: 'cancel' },
                 {
                   text: 'Zahájit i tak',
