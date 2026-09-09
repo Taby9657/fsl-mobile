@@ -14,7 +14,7 @@ import { useAuthStore } from '../store/auth';
 import PayOptions from '../components/PayOptions';
 import { Colors, Fonts, Radius } from '../constants/colors';
 
-type PayStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'WAIVED';
+type PayStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'WAIVED' | 'REFUNDED';
 
 interface PlayerPayment {
   id: string;
@@ -29,6 +29,18 @@ interface PlayerPayment {
   superStatus: PayStatus;
   superPaidAt: string | null;
   variableSymbol: string | null;
+}
+
+interface Fine {
+  id: string;
+  teamId: string;
+  season: string;
+  amount: number;
+  paidAmount: number;
+  reason: string;
+  status: PayStatus;
+  variableSymbol: string | null;
+  team?: { id: string; name: string; abbr: string };
 }
 
 interface TeamPayment {
@@ -46,6 +58,7 @@ const STATUS_LABEL: Record<PayStatus, string> = {
   PAID:    'Zaplaceno',
   OVERDUE: 'Po splatnosti',
   WAIVED:  'Odpuštěno',
+  REFUNDED:'Vráceno',
 };
 
 const STATUS_COLOR: Record<PayStatus, string> = {
@@ -53,6 +66,7 @@ const STATUS_COLOR: Record<PayStatus, string> = {
   PAID:    Colors.green,
   OVERDUE: Colors.red,
   WAIVED:  Colors.mu,
+  REFUNDED:Colors.mu,
 };
 
 const STATUS_ICON: Record<PayStatus, keyof typeof Ionicons.glyphMap> = {
@@ -60,6 +74,7 @@ const STATUS_ICON: Record<PayStatus, keyof typeof Ionicons.glyphMap> = {
   PAID:    'checkmark-circle',
   OVERDUE: 'alert-circle',
   WAIVED:  'shield-checkmark-outline',
+  REFUNDED:'arrow-undo-outline',
 };
 
 function StatusChip({ status }: { status: PayStatus }) {
@@ -99,6 +114,8 @@ export default function PaymentsScreen() {
   const [refresh, setRefresh]       = useState(false);
   const [player, setPlayer]         = useState<PlayerPayment | null>(null);
   const [teams, setTeams]           = useState<TeamPayment[]>([]);
+  // Pokuty za kontumaci. Do zaplacení tým další zápas nerozehraje.
+  const [fines, setFines]           = useState<Fine[]>([]);
   const [paying, setPaying]         = useState<string | null>(null); // matchId or 'player-license' etc.
   const [methods, setMethods]       = useState<{ card: boolean; wallet: boolean; transfer: boolean } | undefined>(undefined);
   // Balíčky zápasů — zápasy si platí hráč, ne tým.
@@ -126,6 +143,7 @@ export default function PaymentsScreen() {
         setPlayer(payRes.value.data.playerPayment ?? null);
         const tp = payRes.value.data.teamPayment;
         if (tp) setTeams(Array.isArray(tp) ? tp : [tp]);
+        setFines(payRes.value.data.fines ?? []);
       }
 
     } catch {
@@ -202,6 +220,7 @@ export default function PaymentsScreen() {
   const openStripe   = (type: 'player-license' | 'super-license') =>
     runCheckout(type, () => type === 'player-license' ? paymentsApi.playerLicense() : paymentsApi.superLicense());
   const openTeamReg  = (teamId: string)  => runCheckout(`team-${teamId}`, () => paymentsApi.teamRegistration(teamId));
+  const openFine     = (fineId: string)  => runCheckout(`fine-${fineId}`, () => paymentsApi.fine(fineId));
 
   if (loading) return (
     <SafeAreaView style={s.safe}>
@@ -226,7 +245,7 @@ export default function PaymentsScreen() {
     </SafeAreaView>
   );
 
-  const hasData = player || teams.length > 0 || isManager;
+  const hasData = player || teams.length > 0 || fines.length > 0 || isManager;
 
   return (
     <SafeAreaView style={s.safe}>
@@ -428,6 +447,42 @@ export default function PaymentsScreen() {
                 />
               </>
             )}
+          </View>
+        ))}
+
+        {/* ── POKUTY ZA KONTUMACI (vedoucí) ── */}
+        {fines.map(f => (
+          <View style={[s.card, { marginTop: 12, borderColor: Colors.red }]} key={f.id}>
+            <View style={s.cardHeader}>
+              <View style={[s.iconBox, { backgroundColor: `${Colors.red}22` }]}>
+                <Ionicons name="hammer" size={18} color={Colors.red} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>Pokuta za kontumaci</Text>
+                <Text style={s.cardSub}>{f.team?.name ?? f.season}</Text>
+              </View>
+              <StatusChip status={f.status} />
+            </View>
+
+            <View style={s.hr} />
+            <InfoRow label="Výše pokuty" value={`${f.amount} Kč`} />
+            {f.paidAmount > 0 && <InfoRow label="Zatím uhrazeno" value={`${f.paidAmount} Kč`} />}
+            <Text style={[s.cardSub, { marginTop: 8 }]}>
+              {f.reason} Dokud není zaplacená, rozhodčí týmu další zápas nespustí.
+            </Text>
+
+            <View style={s.hr} />
+            <PayOptions
+              qrType="fine"
+              qrId={f.id}
+              amount={f.amount - f.paidAmount}
+              accent={Colors.red}
+              accentText={Colors.wh}
+              busy={paying === `fine-${f.id}`}
+              disabled={!!paying}
+              methods={methods}
+              onCheckout={() => openFine(f.id)}
+            />
           </View>
         ))}
 
