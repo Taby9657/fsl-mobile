@@ -89,6 +89,19 @@ export default function LineupScreen() {
             { text: 'Odeslat přesto', style: 'destructive', onPress: () => doSubmit(true) },
           ],
         );
+      } else if (code === 'NO_CREDIT') {
+        // Balíček je předplacený — obejít ho nejde, jen vypsat, komu chybí.
+        const jmena = (err.response.data.blocked as any[] ?? [])
+          .map((u: any) => `${u.jersey ? `#${u.jersey} ` : ''}${u.firstName} ${u.lastName}`)
+          .join('\n');
+        Alert.alert(
+          'Chybí zápas v balíčku',
+          jmena
+            ? `Bez volného startu je do sestavy postavit nejde:\n\n${jmena}`
+            : 'Někteří hráči nemají volný zápas v balíčku.',
+        );
+      } else if (code === 'LINEUP_TOO_BIG') {
+        Alert.alert('Sestava je moc velká', err?.response?.data?.error ?? 'Zkrať sestavu.');
       } else if (code === 'INELIGIBLE_PLAYERS') {
         // Pravidla superlicence obejít nejde — nabízíme jen vysvětlení
         const radky = (err.response.data.blocked as any[])

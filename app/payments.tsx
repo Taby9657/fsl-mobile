@@ -111,19 +111,25 @@ export default function PaymentsScreen() {
   const [paying, setPaying]         = useState<string | null>(null); // matchId or 'player-license' etc.
   const [openMatch, setOpenMatch]   = useState<string | null>(null);
   const [methods, setMethods]       = useState<{ card: boolean; wallet: boolean; transfer: boolean } | undefined>(undefined);
+  // Balíčky zápasů — zápasy si platí hráč, ne tým.
+  const [packs, setPacks]           = useState<any>(null);
+  const [odhlasuje, setOdhlasuje]   = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
   async function load(isRefresh = false) {
     if (!isRefresh) setLoading(true);
     try {
-      const [payRes, matchRes, methodsRes] = await Promise.allSettled([
+      const [payRes, matchRes, methodsRes, packsRes] = await Promise.allSettled([
         paymentsApi.me(),
         isManager && managerTeamId
           ? matchesApi.list({ homeTeamId: managerTeamId, status: 'UPCOMING', limit: 20 })
           : Promise.resolve(null),
         paymentsApi.methods(),
+        paymentsApi.packs(),
       ]);
+
+      if (packsRes.status === 'fulfilled' && packsRes.value) setPacks(packsRes.value.data);
 
       if (methodsRes.status === 'fulfilled' && methodsRes.value) {
         setMethods(methodsRes.value.data);
@@ -146,6 +152,41 @@ export default function PaymentsScreen() {
     } finally {
       setLoading(false);
       setRefresh(false);
+    }
+  }
+
+  /** Odhlášení ze zápasu. Do uzávěrky se start vrátí, potom propadá. */
+  async function odhlasSe(polozka: any) {
+    const lhuta = packs?.withdrawalHours ?? 12;
+    const potvrd = () => new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Odhlásit se ze zápasu',
+        polozka.locked
+          ? `Do výkopu zbývá míň než ${lhuta} h, takže ti tenhle zápas z balíčku propadne. `
+            + 'Když se na něj vrátíš, nic dalšího se ti nestrhne.'
+          : 'Start se ti vrátí zpátky do balíčku.',
+        [
+          { text: 'Zpět', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Odhlásit se', style: 'destructive', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!await potvrd()) return;
+
+    setOdhlasuje(polozka.matchId);
+    try {
+      const r = await matchesApi.withdraw(polozka.matchId);
+      await load(true);
+      Alert.alert(
+        r.data.refunded ? 'Odhlášeno' : 'Odhlášeno — zápas propadá',
+        r.data.refunded
+          ? `Start se ti vrátil. Zbývá ${r.data.remaining} zápasů v balíčku.`
+          : (r.data.note ?? 'Odhlášení po uzávěrce start nevrací.'),
+      );
+    } catch (err: any) {
+      Alert.alert('Nepodařilo se odhlásit', err?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setOdhlasuje(null);
     }
   }
 
@@ -214,6 +255,70 @@ export default function PaymentsScreen() {
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
       >
+
+        {/* ── BALÍČKY ZÁPASŮ ── */}
+        {packs && (
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <View style={s.iconBox}>
+                <Ionicons name="ticket-outline" size={18} color={Colors.go} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>Balíčky zápasů</Text>
+                <Text style={s.cardSub}>odehraný zápas odečte jeden start</Text>
+              </View>
+            </View>
+
+            <View style={s.hr} />
+            <Text style={s.zbyva}>{packs.remaining ?? 0}</Text>
+            <Text style={s.zbyvaPopis}>zbývá v balíčku</Text>
+
+            <View style={s.balicky}>
+              {(packs.catalog ?? []).map((b: any) => (
+                <Pressable
+                  key={b.size}
+                  style={[s.balicek, paying === `pack-${b.size}` && { opacity: 0.5 }]}
+                  disabled={!!paying}
+                  onPress={() => runCheckout(`pack-${b.size}`, () => paymentsApi.buyPack(b.size))}
+                >
+                  <Text style={s.balicekPocet}>
+                    {b.size} {b.size === 1 ? 'zápas' : b.size < 5 ? 'zápasy' : 'zápasů'}
+                  </Text>
+                  <Text style={s.balicekCena}>{b.price} Kč</Text>
+                  <Text style={s.balicekZa}>{Math.round(b.price / b.size)} Kč / zápas</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {(packs.upcoming ?? []).length > 0 && (
+              <>
+                <View style={s.hr} />
+                <Text style={s.podnadpis}>Přihlášené zápasy</Text>
+                {packs.upcoming.map((e: any) => {
+                  const souper = e.teamId === e.match.homeTeam?.id ? e.match.awayTeam : e.match.homeTeam;
+                  return (
+                    <View key={e.matchId} style={s.prihlaseny}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.name}>{souper?.name ?? 'Soupeř'}</Text>
+                        <Text style={s.pos}>
+                          {formatMatchDate(e.match.date)}
+                          {e.locked ? ' · po uzávěrce' : ''}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={[s.odhlasitBtn, odhlasuje === e.matchId && { opacity: 0.5 }]}
+                        disabled={!!odhlasuje}
+                        onPress={() => odhlasSe(e)}
+                      >
+                        <Text style={s.odhlasitTxt}>Odhlásit</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </>
+            )}
+          </View>
+        )}
 
         {/* ── HRÁČSKÁ LICENCE ── */}
         {player && (
@@ -464,6 +569,21 @@ const s = StyleSheet.create({
   cardTitle:    { fontSize: Fonts.sizes.md, fontWeight: '700', color: Colors.wh },
   cardSub:      { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
   hr:           { height: 1, backgroundColor: Colors.bd, marginVertical: 12 },
+
+  // Balíčky zápasů
+  zbyva:        { fontSize: 30, fontWeight: '800', color: Colors.wh, textAlign: 'center' },
+  zbyvaPopis:   { fontSize: 12, color: Colors.mu, textAlign: 'center', marginTop: 2, marginBottom: 14 },
+  balicky:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  balicek:      { flexGrow: 1, minWidth: 96, backgroundColor: Colors.c2, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, padding: 12 },
+  balicekPocet: { fontSize: 11, fontWeight: '700', color: Colors.mu, letterSpacing: 0.6, textTransform: 'uppercase' },
+  balicekCena:  { fontSize: 17, fontWeight: '800', color: Colors.wh, marginTop: 3 },
+  balicekZa:    { fontSize: 11, color: Colors.mu, marginTop: 1 },
+  podnadpis:    { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: Colors.mu, textTransform: 'uppercase', marginBottom: 8 },
+  prihlaseny:   { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  name:         { fontSize: 14, fontWeight: '600', color: Colors.wh },
+  pos:          { fontSize: 12, color: Colors.mu, marginTop: 1 },
+  odhlasitBtn:  { borderWidth: 1, borderColor: Colors.red, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
+  odhlasitTxt:  { fontSize: 12, fontWeight: '700', color: Colors.red },
   infoRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 },
   infoLabel:    { fontSize: Fonts.sizes.sm, color: Colors.mu, flex: 1, lineHeight: 18 },
   infoValue:    { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '500' },

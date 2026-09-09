@@ -125,6 +125,9 @@ export const playersApi = {
   update:      (id: string, data: any) => api.put(`/players/${id}`, data),
   /** Hráč, který tým nemá, se připojí pozvánkovým kódem. */
   join:        (inviteCode: string, jersey?: number) => api.post('/players/join', { inviteCode, jersey }),
+  /** Můj doporučovací kód — kdo s ním přijde do ligy, přinese mi zápas zdarma. */
+  referral:    ()             => api.get('/players/me/referral'),
+  useReferral: (code: string) => api.post('/players/referral', { code }),
   leaveTeam:   (id: string)   => api.post(`/players/${id}/leave-team`),
   removeFromTeam: (playerId: string, teamId: string) => api.delete(`/players/${playerId}/team/${teamId}`),
   myStats:     (season?: string) => api.get('/players/my/stats', { params: { season } }),
@@ -142,6 +145,8 @@ export const matchesApi = {
     api.get('/matches/bracket', { params: scopeParams(scope, season) }),
   get:             (id: string)    => api.get(`/matches/${id}`),
   create:          (data: any)     => api.post('/matches', data),
+  /** Hráč se odhlásí ze zápasu. Do uzávěrky se mu start vrátí do balíčku. */
+  withdraw:        (id: string)    => api.post(`/matches/${id}/withdraw`),
   update:          (id: string, data: any) => api.put(`/matches/${id}`, data),
   addEvent:        (id: string, data: any) => api.post(`/matches/${id}/events`, data),
   deleteEvent:     (id: string, eventId: string) => api.delete(`/matches/${id}/events/${eventId}`),
@@ -177,6 +182,10 @@ export const refereesApi = {
 
 // ==================== PLATBY ====================
 export const paymentsApi = {
+  // Balíčky zápasů — zápasy si platí hráč, ne tým. Vrací i zůstatek
+  // a zápasy, na které je přihlášený, ať si obrazovka vystačí s jedním voláním.
+  packs:   ()             => api.get('/payments/packs'),
+  buyPack: (size: number) => api.post('/payments/pack', { size }),
   me:              ()           => api.get('/payments/me'),
   playerLicense:   ()           => api.post('/payments/player-license'),
   superLicense:    ()           => api.post('/payments/super-license'),
