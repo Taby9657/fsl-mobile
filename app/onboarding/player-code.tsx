@@ -283,7 +283,25 @@ export default function PlayerCodeScreen() {
           </Pressable>
         ) : (
           <View style={styles.vyberBox}>
-            <Text style={styles.vyberTitle}>Nevadí, máš tři možnosti</Text>
+            <Text style={styles.vyberTitle}>Nevadí, máš několik možností</Text>
+
+            {/* Draft je jediná cesta do ligy pro toho, kdo nikoho nezná —
+                a přitom tady dřív chyběl. Bez něj byla obrazovka slepá
+                ulička: kód se nedal odkud vzít a profil bez kódu nevznikl. */}
+            <Pressable
+              style={styles.vyberItem}
+              onPress={() => router.push({ pathname: '/onboarding/player-info', params: { bezTymu: '1' } })}
+            >
+              <Ionicons name="people-outline" size={20} color={Colors.go} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.vyberLabel}>Nabídnu se v draftu</Text>
+                <Text style={styles.vyberDesc}>
+                  Založíš si profil bez týmu a vedoucí tě uvidí mezi volnými hráči.
+                  Dres si vybereš, až budeš v týmu.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.di} />
+            </Pressable>
 
             <Pressable style={styles.vyberItem} onPress={pokracovatJakoFanousek}>
               <Ionicons name="eye-outline" size={20} color={Colors.mu} />

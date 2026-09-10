@@ -16,7 +16,12 @@ import { validateName, validatePhone, validateJersey, validateBirthdate, firstEr
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 
 export default function PlayerInfoScreen() {
-  const { teamId, teamName, inviteCode } = useLocalSearchParams<{ teamId: string; teamName: string; inviteCode?: string }>();
+  // `bezTymu` = hráč, který kód nemá a jde se nabídnout v draftu. Nemá tým,
+  // takže nemá ani dres — čísla se hlídají v rámci týmu.
+  const { teamId, teamName, inviteCode, bezTymu } = useLocalSearchParams<{
+    teamId?: string; teamName?: string; inviteCode?: string; bezTymu?: string;
+  }>();
+  const doDraftu = bezTymu === '1' || !teamId;
   const refreshUser = useAuthStore(s => s.refreshUser);
 
   const [form, setForm] = useState({
@@ -55,8 +60,8 @@ export default function PlayerInfoScreen() {
   async function submit() {
     const e1 = validateName(form.firstName, 'Jméno');
     const e2 = validateName(form.lastName, 'Příjmení');
-    const e3 = validateJersey(form.jersey);
-    const e4 = !form.jersey.trim() ? 'Číslo dresu je povinné.' : null;
+    const e3 = form.jersey.trim() ? validateJersey(form.jersey) : null;
+    const e4 = !form.jersey.trim() && !doDraftu ? 'Číslo dresu je povinné.' : null;
     const e5 = validatePhone(form.phone);
     const e6 = birthdate ? validateBirthdate(birthdate.toISOString()) : null;
     const first = firstError([e1, e2, e4 ?? e3, e5, e6]);
@@ -67,10 +72,10 @@ export default function PlayerInfoScreen() {
     try {
       const res = await playersApi.create({
         firstName: form.firstName, lastName: form.lastName,
-        jersey: form.jersey, position: form.position,
+        ...(form.jersey.trim() ? { jersey: form.jersey } : {}),
+        position: form.position,
         phone: form.phone || undefined, birthdate: birthdate ? birthdate.toISOString() : undefined,
-        teamId,
-        inviteCode,
+        ...(doDraftu ? { bezTymu: true } : { teamId, inviteCode }),
       });
       if (photo) {
         // Selhání uploadu registraci neshodí, ale ať se to hráč dozví —
@@ -83,7 +88,9 @@ export default function PlayerInfoScreen() {
       }
       await clearDraft();
       await refreshUser();
-      router.replace('/onboarding/complete');
+      // Hráč bez týmu má hotovo teprve tím, že se nabídne v draftu —
+      // samotný profil ho vedoucím neukáže.
+      router.replace(doDraftu ? '/draft' : '/onboarding/complete');
     } catch (err: any) {
       Alert.alert('Chyba', err.response?.data?.error ?? 'Zkus to znovu');
     } finally {
@@ -101,7 +108,9 @@ export default function PlayerInfoScreen() {
         </Pressable>
 
         <Text style={styles.title}>Tvůj profil</Text>
-        <Text style={styles.subtitle}>Tým: <Text style={{ color: Colors.go }}>{teamName}</Text></Text>
+        {doDraftu
+          ? <Text style={styles.subtitle}>Zatím bez týmu — po vyplnění se nabídneš v draftu.</Text>
+          : <Text style={styles.subtitle}>Tým: <Text style={{ color: Colors.go }}>{teamName}</Text></Text>}
 
         {/* Foto */}
         <Pressable style={styles.photoBtn} onPress={pickPhoto}>
@@ -132,7 +141,7 @@ export default function PlayerInfoScreen() {
         {/* Dres + pozice */}
         <View style={styles.row}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Číslo dresu *</Text>
+            <Text style={styles.label}>{doDraftu ? 'Číslo dresu' : 'Číslo dresu *'}</Text>
             <TextInput style={styles.input} value={form.jersey} onChangeText={v => set('jersey', v)}
               placeholder="10" placeholderTextColor={Colors.di} keyboardType="number-pad" keyboardAppearance="dark"
               returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
