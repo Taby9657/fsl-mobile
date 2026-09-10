@@ -559,15 +559,4 @@ const s = StyleSheet.create({
   transferInner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   transferHint:  { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 10, textAlign: 'center' },
   qrImg:         { width: 100, height: 100, borderRadius: Radius.sm, backgroundColor: Colors.bg },
-  // Domácí zápasy
-  matchRow:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  matchRowBorder:{ borderTopWidth: 1, borderTopColor: Colors.bd },
-  matchBadge:    { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.c2, justifyContent: 'center', alignItems: 'center' },
-  matchAbbr:     { fontSize: Fonts.sizes.xs, fontWeight: '900', color: Colors.go },
-  matchName:     { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
-  matchDate:     { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 2 },
-  paidBadge:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  paidText:      { fontSize: Fonts.sizes.xs, fontWeight: '600', color: Colors.green },
-  payBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.red, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 8 },
-  payBtnText:    { fontSize: Fonts.sizes.sm, fontWeight: '700', color: Colors.wh },
 });

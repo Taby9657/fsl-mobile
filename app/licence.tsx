@@ -138,6 +138,8 @@ export default function LicenceScreen() {
             <View style={s.tldr}>
               <Text style={s.tldrTxt}>
                 <Text style={s.tucne}>Hráčská licence</Text> tě opravňuje nastupovat za tvůj tým.{'\n'}
+                <Text style={s.tucne}>Balíček startů</Text> platí jednotlivé zápasy — každý
+                odehraný z něj jeden odečte.{'\n'}
                 <Text style={s.tucne}>Superlicence</Text> ti navíc dovolí hrát i za cizí týmy.
               </Text>
             </View>
@@ -150,6 +152,40 @@ export default function LicenceScreen() {
               <Bod>Platí pro celou sezónu, ne pro jednotlivé zápasy.</Bod>
               <Bod>Vztahuje se na tvůj kmenový tým, tedy ten, kde jsi na soupisce.</Bod>
               <Bod>Zaplatit se dá kartou nebo převodem, každý hráč má svůj variabilní symbol.</Bod>
+            </Sekce>
+
+            {/* Zápasy platí hráč, ne tým. Do 9. 9. 2026 platil domácí tým
+                2 200 Kč za zápas — ten poplatek skončil a tým dnes platí
+                jen registraci. Rovnou to tady stojí, protože jinak si lidi
+                starý model pamatují dál. */}
+            <Sekce ikona="ticket-outline" nadpis="Balíček startů">
+              <Odstavec>
+                Zápasy si platí hráč, ne tým. Koupíš si balíček startů a každý odehraný
+                zápas z něj jeden odečte. Z těchhle peněz liga platí halu, rozhodčího
+                a zdravotníka.
+              </Odstavec>
+              <Bod>
+                Platí se <Text style={s.tucne}>každý zápas stejně, doma i venku</Text>.
+                Domácí zápasy nestojí víc a tým za hřiště neplatí nic.
+              </Bod>
+              <Bod>Čím větší balíček, tím levnější jeden zápas. Ceník je v Platbách.</Bod>
+              <Bod>
+                Start se zablokuje, jakmile tě vedoucí napíše do sestavy.
+                Zúčtuje se 12 hodin před výkopem, kdy se sestava zamyká.
+              </Bod>
+              <Bod>
+                Do uzávěrky se dá odhlásit bez ztráty. Potom už tě odhlášení ten zápas
+                stojí — ale když se na týž zápas vrátíš, neplatíš znovu.
+              </Bod>
+              <Bod>
+                <Text style={s.tucne}>Nevyčerpané starty nepropadají</Text> — přenášejí se
+                do playoff a do další sezóny, jakmile si v ní zaplatíš licenci.
+              </Bod>
+              <Bod>Zrušený zápas se nezapočítá a start zůstane v balíčku.</Bod>
+              <Bod>
+                Bez volného startu tě systém do sestavy nepustí — je to předplacené,
+                výjimka se nedělá.
+              </Bod>
             </Sekce>
 
             <Sekce ikona="star-outline" nadpis="Superlicence">
@@ -333,7 +369,9 @@ export default function LicenceScreen() {
             <View style={s.tldr}>
               <Text style={s.tldrTxt}>
                 Do sestavy vybíráš <Text style={s.tucne}>jen ze soupisky svého týmu</Text>.
-                Hostujícího hráče musíš nejdřív na soupisku přidat — a to jen se superlicencí.
+                Hostujícího hráče musíš nejdřív na soupisku přidat — a to jen se superlicencí.{'\n'}
+                <Text style={s.tucne}>Tým platí jen registraci.</Text> Zápasy si platí hráči
+                sami z balíčku startů, takže po nich nic vybírat nemusíš.
               </Text>
             </View>
 
@@ -372,6 +410,20 @@ export default function LicenceScreen() {
               <View style={s.duvod}>
                 <Text style={s.duvodKod}>Hráč nemá platnou licenci</Text>
                 <Text style={s.duvodTxt}>Nezaplacená hráčská licence. Řeší to hráč sám v sekci Platby.</Text>
+              </View>
+              <View style={s.duvod}>
+                <Text style={s.duvodKod}>Hráč nemá volný start v balíčku</Text>
+                <Text style={s.duvodTxt}>
+                  Zápasy si platí hráči sami. Bez volného startu ho do sestavy postavit nejde —
+                  musí si v Platbách dokoupit balíček.
+                </Text>
+              </View>
+              <View style={s.duvod}>
+                <Text style={s.duvodKod}>Tým má nezaplacenou pokutu</Text>
+                <Text style={s.duvodTxt}>
+                  Po kontumaci dostal tým pokutu. Dokud ji nezaplatíš, rozhodčí další zápas
+                  nespustí. Řeší se v Platbách.
+                </Text>
               </View>
               <View style={s.duvod}>
                 <Text style={s.duvodKod}>Hráč není na soupisce tohoto týmu</Text>
