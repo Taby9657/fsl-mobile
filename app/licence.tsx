@@ -168,7 +168,7 @@ export default function LicenceScreen() {
               <Bod>Čím větší balíček, tím levnější jeden zápas. Ceník je v Platbách.</Bod>
               <Bod>
                 Start se zablokuje, jakmile tě vedoucí napíše do sestavy.
-                Zúčtuje se 12 hodin před výkopem, kdy se sestava zamyká.
+                Zúčtuje se 12 hodin před začátkem zápasu, kdy se sestava zamyká.
               </Bod>
               <Bod>
                 Do uzávěrky se dá odhlásit bez ztráty. Potom už tě odhlášení ten zápas

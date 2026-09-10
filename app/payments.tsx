@@ -213,7 +213,7 @@ export default function PaymentsScreen() {
       Alert.alert(
         'Odhlásit se ze zápasu',
         polozka.locked
-          ? `Do výkopu zbývá míň než ${lhuta} h, takže ti tenhle zápas z balíčku propadne. `
+          ? `Do začátku zápasu zbývá míň než ${lhuta} h, takže ti tenhle zápas z balíčku propadne. `
             + 'Když se na něj vrátíš, nic dalšího se ti nestrhne.'
           : 'Start se ti vrátí zpátky do balíčku.',
         [
