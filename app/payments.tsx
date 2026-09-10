@@ -619,8 +619,7 @@ export default function PaymentsScreen() {
           </View>
         ))}
 
-        {/* Poplatek za domácí zápas (2 200 Kč) skončil 9. 9. 2026.
-            Zápasy si platí hráči sami v balíčku startů — sekce Balíčky
+        {/* Zápasy si platí hráči sami v balíčku startů — sekce Balíčky
             zápasů výš. */}
 
         {/* ── PRÁZDNÝ STAV ── */}

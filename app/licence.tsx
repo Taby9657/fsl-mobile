@@ -154,17 +154,16 @@ export default function LicenceScreen() {
               <Bod>Zaplatit se dá kartou nebo převodem, každý hráč má svůj variabilní symbol.</Bod>
             </Sekce>
 
-            {/* Zápasy platí hráč, ne tým. Poplatek za domácí zápas skončil
-                9. 9. 2026 a tým dnes platí jen registraci. Rovnou to tady
-                stojí, protože jinak si lidi starý model pamatují dál. */}
+            {/* Zápasy platí hráč, ne tým — tým platí jen registraci. Stojí to
+                tady natvrdo, protože se na to lidi pořád ptají. */}
             <Sekce ikona="ticket-outline" nadpis="Balíček startů">
               <Odstavec>
                 Zápasy si platí hráč, ne tým. Koupíš si balíček startů a každý odehraný
                 zápas z něj jeden odečte. Z těchhle peněz liga platí organizaci soutěže.
               </Odstavec>
               <Bod>
-                Platí se <Text style={s.tucne}>každý zápas stejně, doma i venku</Text>.
-                Domácí zápasy nestojí víc a tým za hřiště neplatí nic.
+                Platí se <Text style={s.tucne}>za každý odehraný zápas stejně</Text>.
+                Tým kromě registrace neplatí nic.
               </Bod>
               <Bod>Čím větší balíček, tím levnější jeden zápas. Ceník je v Platbách.</Bod>
               <Bod>
