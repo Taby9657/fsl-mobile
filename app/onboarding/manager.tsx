@@ -23,6 +23,12 @@ export default function ManagerOnboardingScreen() {
     name: '', abbr: '', color: '#C9A140', colorSecondary: '#F5F5F5',
   });
 
+  // Vedoucí je zároveň hráč. Profil mu vznikne s týmem — licence i balíčky
+  // startů visí na hráči, ne na týmu, takže bez profilu by po zaplacení
+  // registrace nemohl zaplatit nic dalšího. Jméno je proto povinné; dres
+  // a post se dají doplnit i později v profilu.
+  const [ja, setJa] = useState({ firstName: '', lastName: '', jersey: '' });
+
   // Sezóna se nevybírá — tým se hlásí vždycky do té, která zrovna běží.
   // Dřív šlo zvolit i následující ročník a tým pak vznikl v soutěži, která
   // ještě není otevřená. Tady ji jen ukazujeme, rozhoduje o ní backend.
@@ -69,9 +75,19 @@ export default function ManagerOnboardingScreen() {
     if (form.abbr.length > 3) {
       Alert.alert('Zkratka', 'Zkratka týmu může mít maximálně 3 znaky.'); return;
     }
+    if (!ja.firstName.trim() || !ja.lastName.trim()) {
+      Alert.alert('Vyplň své jméno', 'Jméno a příjmení vedoucího jsou povinné — zakládá se z nich tvůj hráčský profil.'); return;
+    }
+    const dres = ja.jersey.trim() === '' ? undefined : parseInt(ja.jersey, 10);
+    if (dres !== undefined && (isNaN(dres) || dres < 0 || dres > 99)) {
+      Alert.alert('Číslo dresu', 'Číslo dresu musí být od 0 do 99. Nechat prázdné jde taky.'); return;
+    }
     setLoading(true);
     try {
-      const res = await teamsApi.create(form);
+      const res = await teamsApi.create({
+        ...form,
+        manager: { firstName: ja.firstName.trim(), lastName: ja.lastName.trim(), jersey: dres },
+      });
       const teamId = res.data.team.id;
       const code   = res.data.inviteCode;
 
@@ -203,6 +219,30 @@ export default function ManagerOnboardingScreen() {
           </>
         )}
 
+        {/* Vedoucí = hráč. Profil vzniká s týmem, aby šlo hned zaplatit
+            licenci i balíček startů — obojí visí na hráči, ne na týmu. */}
+        <Text style={styles.section}>Tvůj hráčský profil</Text>
+        <Text style={styles.sectionHint}>
+          Jako vedoucí jsi zároveň hráč týmu. Profil ti založíme rovnou, ať můžeš
+          zaplatit registraci i balíček zápasů najednou. Údaje si pak kdykoli upravíš.
+        </Text>
+
+        <Text style={styles.label}>Jméno *</Text>
+        <TextInput style={styles.input} value={ja.firstName}
+          onChangeText={v => setJa(j => ({ ...j, firstName: v }))}
+          placeholder="Jakub" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+
+        <Text style={styles.label}>Příjmení *</Text>
+        <TextInput style={styles.input} value={ja.lastName}
+          onChangeText={v => setJa(j => ({ ...j, lastName: v }))}
+          placeholder="Tabášek" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+
+        <Text style={styles.label}>Číslo dresu</Text>
+        <TextInput style={styles.input} value={ja.jersey}
+          onChangeText={v => setJa(j => ({ ...j, jersey: v.replace(/[^0-9]/g, '').slice(0, 2) }))}
+          placeholder="Nepovinné — přidělíme první volné" placeholderTextColor={Colors.di}
+          keyboardType="number-pad" keyboardAppearance="dark" />
+
         {/* Divizi přiděluje supervisor */}
         <View style={styles.note}>
           <Ionicons name="information-circle-outline" size={16} color={Colors.mu} />
@@ -238,6 +278,8 @@ const styles = StyleSheet.create({
   seasonBox:        { paddingVertical: 11, paddingHorizontal: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.bd, backgroundColor: Colors.c1 },
   seasonValue:      { fontSize: Fonts.sizes.sm, color: Colors.wh, fontWeight: '700' },
   seasonHint:       { fontSize: Fonts.sizes.xs, color: Colors.di, lineHeight: 16, marginTop: 6 },
+  section:         { fontSize: Fonts.sizes.lg, color: Colors.wh, fontWeight: '800', marginTop: 28 },
+  sectionHint:     { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 18, marginTop: 6 },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 16, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
   note:            { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 20, padding: 12, borderRadius: Radius.md, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd },
