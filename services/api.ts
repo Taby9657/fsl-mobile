@@ -189,6 +189,10 @@ export const paymentsApi = {
   // Balíčky zápasů — zápasy si platí hráč, ne tým. Vrací i zůstatek
   // a zápasy, na které je přihlášený, ať si obrazovka vystačí s jedním voláním.
   packs:   ()             => api.get('/payments/packs'),
+  // Platby po jedné. Appka je od 10. 9. 2026 **nevolá** — všechno jde přes
+  // košík, aby se ušetřil pevný poplatek brány u každé další položky.
+  // Endpointy na backendu zůstaly kvůli starším verzím appky, které jsou
+  // v provozu; tady jsou jen proto, aby bylo vidět, že se na ně nesahá.
   buyPack: (size: number) => api.post('/payments/pack', { size }),
   me:              ()           => api.get('/payments/me'),
   playerLicense:   ()           => api.post('/payments/player-license'),
