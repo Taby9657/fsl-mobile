@@ -39,7 +39,32 @@ export default function LineupScreen() {
       .finally(() => setLoading(false));
   }, [teamId]);
 
+  /**
+   * Vybraný zápas mění, koho jde postavit: kdo na něj start už má, není
+   * blokovaný, i když mu v balíčku nic nezbývá. Proto se soupiska při změně
+   * zápasu načte znovu.
+   */
+  useEffect(() => {
+    if (!teamId || !selected?.id) return;
+    teamsApi.roster(teamId, { matchId: selected.id })
+      .then(r => setPlayers(r.data.players ?? []))
+      .catch(() => {});
+  }, [teamId, selected?.id]);
+
   function togglePlayer(id: string) {
+    // Odebrat jde vždycky, blokuje se jen přidání. Důvod se ukáže rovnou,
+    // ne až z chyby při odeslání celé sestavy.
+    const hrac = players.find((p: any) => p.id === id);
+    if (!picked.has(id) && (hrac?.blockers?.length ?? 0) > 0) {
+      Alert.alert(
+        `#${hrac.jersey} ${hrac.firstName} ${hrac.lastName} nemůže nastoupit`,
+        hrac.blockers.map((b: any) => `• ${b.text}`).join('\n')
+        + (hrac.blockers.some((b: any) => b.code === 'NO_CREDIT')
+          ? '\n\nBalíček zápasů si hráč kupuje sám v Platbách. Jako vedoucí mu ho můžeš zaplatit taky — přidej ho v Platbách do košíku.'
+          : '\n\nDokud to hráč nevyřeší, do sestavy ho postavit nejde.'),
+      );
+      return;
+    }
     setPicked(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -201,7 +226,10 @@ export default function LineupScreen() {
                       {p.slot === 'GOALKEEPER' && (
                         <Text style={s.gkTxt}>Brankář</Text>
                       )}
-                      {!lic && (
+                      {(p.blockers ?? []).map((b: any) => (
+                        <Text key={b.code} style={s.noLicTxt}>⚠️ {b.text}</Text>
+                      ))}
+                      {!lic && (p.blockers?.length ?? 0) === 0 && (
                         <Text style={s.noLicTxt}>⚠️ bez licence</Text>
                       )}
                       {p.isHome === false && (

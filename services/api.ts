@@ -103,7 +103,11 @@ export const teamsApi = {
   appeal:     (id: string, appeal: string) => api.put(`/teams/${id}/appeal`, { appeal }),
 
   // Soupiska na sezónu — kmenoví hráči i hostující. Z ní se skládá sestava.
-  roster:       (id: string, season?: string) => api.get(`/teams/${id}/roster`, { params: { season } }),
+  // S `matchId` vrací u každého hráče `blockers` — proč ho na TENHLE zápas
+  // nejde postavit. Bez zápasu se nulový zůstatek bere jako blokující vždycky,
+  // což u hráče, který na zápas už přihlášený je, neplatí.
+  roster:       (id: string, opts?: { season?: string; matchId?: string }) =>
+    api.get(`/teams/${id}/roster`, { params: { season: opts?.season, matchId: opts?.matchId } }),
   addToRoster:  (id: string, playerId: string, season?: string) =>
     api.post(`/teams/${id}/roster`, { playerId, season }),
   removeFromRoster: (id: string, playerId: string, season?: string) =>
@@ -193,6 +197,16 @@ export const paymentsApi = {
   teamRegistration:(teamId: string)  => api.post('/payments/team-registration', { teamId }),
   qr:              (type: string, id: string) => api.get(`/payments/qr/${type}/${id}`),
   methods:         ()           => api.get('/payments/methods'),
+
+  // ── Košík ────────────────────────────────────────────────────────────
+  // Víc poplatků, jedna platba. Platební brána si u každé transakce bere
+  // pevných 6,50 Kč navíc k procentům, takže každá položka zaplacená zvlášť
+  // stojí ligu o tuhle částku víc. Převodem je celý košík zdarma.
+  cart:         ()                => api.get('/payments/cart'),
+  cartAdd:      (item: { kind: string; playerId?: string; teamId?: string; size?: number }) =>
+    api.post('/payments/cart/items', item),
+  cartRemove:   (itemId: string)  => api.delete(`/payments/cart/items/${itemId}`),
+  cartCheckout: ()                => api.post('/payments/cart/checkout'),
 };
 
 // ==================== SEZÓNY ====================

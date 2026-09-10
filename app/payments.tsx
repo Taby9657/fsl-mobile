@@ -100,6 +100,50 @@ function InfoRow({ label, value, copyable }: { label: string; value: string; cop
   );
 }
 
+/**
+ * Poplatky se od 10. 9. 2026 neplatí po jednom. Tlačítko proto jen přidává
+ * do košíku — zaplatí se všechno naráz nahoře, což u každé další položky
+ * ušetří pevný poplatek platební brány.
+ */
+function DoKosiku({
+  jeUvnitr, busy, disabled, accent, accentText, onAdd,
+}: {
+  jeUvnitr: boolean; busy: boolean; disabled: boolean;
+  accent: string; accentText: string; onAdd: () => void;
+}) {
+  if (jeUvnitr) {
+    return (
+      <View style={[dk.vKosiku, { borderColor: accent }]}>
+        <Ionicons name="cart" size={15} color={accent} />
+        <Text style={[dk.vKosikuTxt, { color: accent }]}>V košíku nahoře</Text>
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      style={[dk.btn, { backgroundColor: accent }, (busy || disabled) && { opacity: 0.5 }]}
+      disabled={busy || disabled}
+      onPress={onAdd}
+    >
+      {busy
+        ? <ActivityIndicator color={accentText} />
+        : (
+          <>
+            <Ionicons name="cart-outline" size={16} color={accentText} />
+            <Text style={[dk.btnTxt, { color: accentText }]}>Přidat do košíku</Text>
+          </>
+        )}
+    </Pressable>
+  );
+}
+
+const dk = StyleSheet.create({
+  btn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: Radius.md },
+  btnTxt:     { fontSize: Fonts.sizes.md, fontWeight: '700' },
+  vKosiku:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46, borderRadius: Radius.md, borderWidth: 1, borderStyle: 'dashed' },
+  vKosikuTxt: { fontSize: Fonts.sizes.sm, fontWeight: '700' },
+});
+
 function formatMatchDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
@@ -121,19 +165,27 @@ export default function PaymentsScreen() {
   // Balíčky zápasů — zápasy si platí hráč, ne tým.
   const [packs, setPacks]           = useState<any>(null);
   const [odhlasuje, setOdhlasuje]   = useState<string | null>(null);
+  // Košík: licence, superlicence, balíčky a registrace se od 10. 9. 2026
+  // neplatí po jednom. Platební brána si bere pevný poplatek z každé
+  // transakce, takže tři platby stojí ligu o dvakrát 6,50 Kč víc než jedna.
+  // Pokuta za kontumaci zůstává mimo — blokuje týmu další zápas.
+  const [kosik, setKosik]           = useState<any>(null);
+  const [kosikBusy, setKosikBusy]   = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
   async function load(isRefresh = false) {
     if (!isRefresh) setLoading(true);
     try {
-      const [payRes, methodsRes, packsRes] = await Promise.allSettled([
+      const [payRes, methodsRes, packsRes, cartRes] = await Promise.allSettled([
         paymentsApi.me(),
         paymentsApi.methods(),
         paymentsApi.packs(),
+        paymentsApi.cart(),
       ]);
 
       if (packsRes.status === 'fulfilled' && packsRes.value) setPacks(packsRes.value.data);
+      if (cartRes.status === 'fulfilled' && cartRes.value) setKosik(cartRes.value.data);
 
       if (methodsRes.status === 'fulfilled' && methodsRes.value) {
         setMethods(methodsRes.value.data);
@@ -217,10 +269,39 @@ export default function PaymentsScreen() {
     }
   }
 
-  const openStripe   = (type: 'player-license' | 'super-license') =>
-    runCheckout(type, () => type === 'player-license' ? paymentsApi.playerLicense() : paymentsApi.superLicense());
-  const openTeamReg  = (teamId: string)  => runCheckout(`team-${teamId}`, () => paymentsApi.teamRegistration(teamId));
+  // Pokuta je jediná platba, která jde pořád mimo košík: dokud visí, tým
+  // další zápas nerozehraje, takže čekat na zbytek nákupu nesmí.
   const openFine     = (fineId: string)  => runCheckout(`fine-${fineId}`, () => paymentsApi.fine(fineId));
+
+  const polozkyKosiku: any[] = kosik?.items ?? [];
+  const vKosiku = (kind: string, id?: string | null) =>
+    polozkyKosiku.some((i: any) => i.kind === kind && (!id || i.player?.id === id || i.team?.id === id));
+
+  async function doKosiku(klic: string, item: any) {
+    setKosikBusy(klic);
+    try {
+      const r = await paymentsApi.cartAdd(item);
+      setKosik(r.data);
+      await load(true);
+    } catch (err: any) {
+      Alert.alert('Nepodařilo se přidat', err?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setKosikBusy(null);
+    }
+  }
+
+  async function zKosiku(itemId: string) {
+    setKosikBusy(itemId);
+    try {
+      const r = await paymentsApi.cartRemove(itemId);
+      setKosik(r.data);
+      await load(true);
+    } catch (err: any) {
+      Alert.alert('Nepodařilo se odebrat', err?.response?.data?.error ?? 'Zkus to znovu');
+    } finally {
+      setKosikBusy(null);
+    }
+  }
 
   if (loading) return (
     <SafeAreaView style={s.safe}>
@@ -255,6 +336,64 @@ export default function PaymentsScreen() {
         refreshControl={<RefreshControl refreshing={refresh} onRefresh={() => { setRefresh(true); load(true); }} tintColor={Colors.go} />}
       >
 
+        {/* ── KOŠÍK ──
+            Jediné místo, odkud se doopravdy platí. Karty níž do něj jen
+            přidávají. Převodem je celý košík bez poplatku. */}
+        {polozkyKosiku.length > 0 && (
+          <View style={[s.card, { marginBottom: 12 }]}>
+            <View style={s.cardHeader}>
+              <View style={s.iconBox}>
+                <Ionicons name="cart-outline" size={18} color={Colors.go} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.cardTitle}>Košík</Text>
+                <Text style={s.cardSub}>jedna platba místo několika</Text>
+              </View>
+              <Text style={s.kosikCelkem}>{kosik?.total ?? 0} Kč</Text>
+            </View>
+
+            <View style={s.hr} />
+            {polozkyKosiku.map((i: any) => (
+              <View key={i.id} style={s.kosikRadek}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.kosikNazev}>{i.label}</Text>
+                  {(i.team?.name || (i.zaJineho && i.player)) && (
+                    <Text style={s.kosikPopis}>
+                      {i.team?.name ?? `za ${i.player.firstName} ${i.player.lastName}`}
+                    </Text>
+                  )}
+                </View>
+                <Text style={s.kosikCena}>{i.amount} Kč</Text>
+                <Pressable
+                  onPress={() => zKosiku(i.id)}
+                  disabled={!!kosikBusy}
+                  hitSlop={8}
+                  style={kosikBusy === i.id && { opacity: 0.4 }}
+                >
+                  <Ionicons name="trash-outline" size={17} color={Colors.mu} />
+                </Pressable>
+              </View>
+            ))}
+
+            <View style={s.hr} />
+            <PayOptions
+              qrType="cart"
+              qrId={kosik?.id ?? ''}
+              amount={kosik?.total ?? 0}
+              accent={Colors.go}
+              accentText={Colors.bg}
+              busy={paying === 'cart'}
+              disabled={!!paying}
+              methods={methods}
+              onCheckout={() => runCheckout('cart', () => paymentsApi.cartCheckout())}
+            />
+            <Text style={s.kosikPozn}>
+              Převodem je platba bez poplatku. U karty si brána bere pevnou částku
+              z každé transakce — proto se vyplatí zaplatit všechno najednou.
+            </Text>
+          </View>
+        )}
+
         {/* ── BALÍČKY ZÁPASŮ ── */}
         {packs && (
           <View style={s.card}>
@@ -276,15 +415,18 @@ export default function PaymentsScreen() {
               {(packs.catalog ?? []).map((b: any) => (
                 <Pressable
                   key={b.size}
-                  style={[s.balicek, paying === `pack-${b.size}` && { opacity: 0.5 }]}
-                  disabled={!!paying}
-                  onPress={() => runCheckout(`pack-${b.size}`, () => paymentsApi.buyPack(b.size))}
+                  style={[s.balicek, kosikBusy === `pack-${b.size}` && { opacity: 0.5 }]}
+                  disabled={!!kosikBusy || packs?.hasProfile === false}
+                  onPress={() => doKosiku(`pack-${b.size}`, { kind: 'MATCH_PACK', size: b.size })}
                 >
                   <Text style={s.balicekPocet}>
                     {b.size} {b.size === 1 ? 'zápas' : b.size < 5 ? 'zápasy' : 'zápasů'}
                   </Text>
                   <Text style={s.balicekCena}>{b.price} Kč</Text>
                   <Text style={s.balicekZa}>{Math.round(b.price / b.size)} Kč / zápas</Text>
+                  {polozkyKosiku.some((i: any) => i.packSize === b.size) && (
+                    <Text style={s.vKosiku}>v košíku</Text>
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -345,16 +487,13 @@ export default function PaymentsScreen() {
             {(player.licStatus === 'PENDING' || player.licStatus === 'OVERDUE') && (
               <>
                 <View style={s.hr} />
-                <PayOptions
-                  qrType="player-license"
-                  qrId={player.playerId}
-                  amount={player.licFee}
+                <DoKosiku
+                  jeUvnitr={vKosiku('PLAYER_LICENSE', player.playerId)}
+                  busy={kosikBusy === 'lic'}
+                  disabled={!!kosikBusy}
                   accent={Colors.go}
                   accentText={Colors.bg}
-                  busy={paying === 'player-license'}
-                  disabled={!!paying}
-                  methods={methods}
-                  onCheckout={() => openStripe('player-license')}
+                  onAdd={() => doKosiku('lic', { kind: 'PLAYER_LICENSE' })}
                 />
               </>
             )}
@@ -388,16 +527,13 @@ export default function PaymentsScreen() {
             {(player.superStatus === 'PENDING' || player.superStatus === 'OVERDUE') && (
               <>
                 <View style={s.hr} />
-                <PayOptions
-                  qrType="super-license"
-                  qrId={player.playerId}
-                  amount={player.superFee}
+                <DoKosiku
+                  jeUvnitr={vKosiku('SUPER_LICENSE', player.playerId)}
+                  busy={kosikBusy === 'super'}
+                  disabled={!!kosikBusy}
                   accent={Colors.pu}
                   accentText={Colors.wh}
-                  busy={paying === 'super-license'}
-                  disabled={!!paying}
-                  methods={methods}
-                  onCheckout={() => openStripe('super-license')}
+                  onAdd={() => doKosiku('super', { kind: 'SUPER_LICENSE' })}
                 />
               </>
             )}
@@ -434,16 +570,13 @@ export default function PaymentsScreen() {
             {(tp.status === 'PENDING' || tp.status === 'OVERDUE') && (
               <>
                 <View style={s.hr} />
-                <PayOptions
-                  qrType="team-reg"
-                  qrId={tp.teamId}
-                  amount={tp.amount}
+                <DoKosiku
+                  jeUvnitr={vKosiku('TEAM_REG', tp.teamId)}
+                  busy={kosikBusy === `team-${tp.teamId}`}
+                  disabled={!!kosikBusy}
                   accent="#63B3ED"
                   accentText={Colors.bg}
-                  busy={paying === `team-${tp.teamId}`}
-                  disabled={!!paying}
-                  methods={methods}
-                  onCheckout={() => openTeamReg(tp.teamId)}
+                  onAdd={() => doKosiku(`team-${tp.teamId}`, { kind: 'TEAM_REG', teamId: tp.teamId })}
                 />
               </>
             )}
@@ -559,4 +692,12 @@ const s = StyleSheet.create({
   transferInner: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   transferHint:  { fontSize: Fonts.sizes.xs, color: Colors.di, marginTop: 10, textAlign: 'center' },
   qrImg:         { width: 100, height: 100, borderRadius: Radius.sm, backgroundColor: Colors.bg },
+  // Košík
+  kosikCelkem:  { fontSize: 20, fontWeight: '800', color: Colors.wh },
+  kosikRadek:   { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 },
+  kosikNazev:   { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
+  kosikPopis:   { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 1 },
+  kosikCena:    { fontSize: Fonts.sizes.sm, fontWeight: '600', color: Colors.wh },
+  kosikPozn:    { fontSize: Fonts.sizes.xs, color: Colors.mu, lineHeight: 17, marginTop: 10 },
+  vKosiku:      { fontSize: 11, fontWeight: '700', color: Colors.go, marginTop: 3 },
 });
