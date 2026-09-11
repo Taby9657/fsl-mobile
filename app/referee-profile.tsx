@@ -40,9 +40,8 @@ export default function RefereeProfileScreen() {
     if (!refId) return;
     const phoneErr = validatePhone(form.phone);
     if (phoneErr) { Alert.alert('Chyba', phoneErr); return; }
-    // Rodné číslo nese věk, takže ho backend od 11. 9. 2026 nepustí prázdné
-    // ani nezletilé. Bez téhle kontroly by se to člověk dozvěděl až z hlášky
-    // serveru, po odeslání celého formuláře.
+    // Rodné číslo se vyplňuje kvůli smlouvě a výplatě odměn, ne kvůli věku —
+    // ten drží datum narození z registrace. Prázdné proto projde, překlep ne.
     const rcErr = validateBirthNo(form.birthNo);
     if (rcErr) { Alert.alert('Rodné číslo', rcErr); return; }
     if (!form.bankAccount.trim()) { Alert.alert('Chyba', 'Číslo účtu je povinné pro výplatu odměn.'); return; }

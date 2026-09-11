@@ -79,15 +79,15 @@ export function datumZRodnehoCisla(value: string): string | null {
 }
 
 /**
- * Rodné číslo rozhodčího. Od 11. 9. 2026 **povinné** — nese datum narození
- * a pískat smí jen od 18 let. Kontrolní číslice se schválně neověřuje:
- * u starších rodných čísel neplatí.
+ * Rodné číslo rozhodčího. Vyplňuje se kvůli smlouvě a výplatě odměn, ne kvůli
+ * věku — ten drží datum narození z registrace. Prázdné proto projde.
+ *
+ * Kontrolní číslice se schválně neověřuje: u starších rodných čísel neplatí
+ * a odmítnout platné RČ by bylo horší než pustit překlep.
  */
 export function validateBirthNo(value: string): string | null {
-  if (!value?.trim()) return 'Rodné číslo je povinné.';
-  const datum = datumZRodnehoCisla(value);
-  if (!datum) return 'Rodné číslo zadej ve formátu 950615/1234.';
-  return validateBirthdate(datum);
+  if (!value?.trim()) return null;
+  return datumZRodnehoCisla(value) ? null : 'Rodné číslo zadej ve formátu 950615/1234.';
 }
 
 export function validateJersey(value: string): string | null {

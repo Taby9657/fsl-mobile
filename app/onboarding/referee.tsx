@@ -1,12 +1,12 @@
 // Onboarding rozhodčího – 2 kroky: osobní údaje → souhrn.
 //
-// Adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve zkouší, jestli
+// Rodné číslo, adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve zkouší, jestli
 // chce pískat, nemá důvod je vyplňovat dřív, než ho supervisor schválí. Doplní
 // je pak ve svém profilu.
 //
-// **Rodné číslo je od 11. 9. 2026 výjimka a chce se hned.** Do soutěže smí jen
-// dospělí a datum narození nemáme odkud jinud vzít; backend registraci bez něj
-// odmítne. Kdo ho odsud zase vyhodí, rozbije registraci rozhodčího.
+// **Datum narození je výjimka a chce se hned.** Do soutěže smí jen dospělí
+// a backend registraci bez data odmítne. Krátce se věk bral z rodného čísla,
+// ale to sem nepatří — přihláška má být základní profil.
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,12 +18,13 @@ import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
 import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
-import { firstError, validateBirthNo, validateName, validatePhone } from '../../utils/validation';
+import { firstError, validateBirthdate, validateName, validatePhone } from '../../utils/validation';
+import { DatePicker } from '../../components/DatePicker';
 
 type Step = 1 | 2;
 
 interface FormData {
-  firstName: string; lastName: string; phone: string; birthNo: string;
+  firstName: string; lastName: string; phone: string;
 }
 
 export default function RefereeOnboardingScreen() {
@@ -32,8 +33,9 @@ export default function RefereeOnboardingScreen() {
   const [photo, setPhoto]     = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [form, setForm]       = useState<FormData>({
-    firstName: '', lastName: '', phone: '', birthNo: '',
+    firstName: '', lastName: '', phone: '',
   });
+  const [birthdate, setBirthdate] = useState<Date | null>(null);
 
   // Kdyby odešel uprostřed, nabídneme mu příště pokračování
   useEffect(() => { saveDraft({ role: 'referee' }); }, []);
@@ -71,7 +73,7 @@ export default function RefereeOnboardingScreen() {
         validateName(form.firstName, 'Jméno'),
         validateName(form.lastName, 'Příjmení'),
         validatePhone(form.phone),
-        validateBirthNo(form.birthNo),
+        validateBirthdate(birthdate ? birthdate.toISOString() : ''),
       ]);
       if (err) { Alert.alert('Zkontroluj údaje', err); return; }
       setStep(2);
@@ -81,7 +83,7 @@ export default function RefereeOnboardingScreen() {
   async function submit() {
     setLoading(true);
     try {
-      const res = await refereesApi.register(form);
+      const res = await refereesApi.register({ ...form, birthdate: birthdate!.toISOString() });
       if (photo) {
         await refereesApi.uploadPhoto(res.data.id, photo).catch(() => {});
       }
@@ -123,8 +125,9 @@ export default function RefereeOnboardingScreen() {
           <>
             <Text style={styles.title}>Přihláška rozhodčího</Text>
             <Text style={styles.subtitle}>
-              Zatím po tobě chceme jméno, kontakt a rodné číslo. Adresu a účet pro
-              výplatu odměn doplníš ve svém profilu, až tě supervisor schválí.
+              Zatím po tobě chceme jen jméno, kontakt a datum narození. Rodné číslo,
+              adresu a účet pro výplatu odměn vyplníš až na smlouvě, kterou
+              podepíšeš po schválení.
             </Text>
 
             <Pressable style={styles.photoBtn} onPress={pickPhoto}>
@@ -157,15 +160,9 @@ export default function RefereeOnboardingScreen() {
               keyboardType="phone-pad" keyboardAppearance="dark"
               returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
-            <Text style={styles.label}>Rodné číslo *</Text>
-            <TextInput style={styles.input} value={form.birthNo} onChangeText={v => set('birthNo', v)}
-              placeholder="950615/1234" placeholderTextColor={Colors.di}
-              keyboardAppearance="dark"
-              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
-            <Text style={styles.subtitle}>
-              Pískat smí jen rozhodčí od 18 let — věk bereme z rodného čísla.
-              Vidí ho jenom supervisor ligy.
-            </Text>
+            <Text style={styles.label}>Datum narození *</Text>
+            <DatePicker value={birthdate} onChange={setBirthdate} placeholder="Vybrat datum" maxDate={new Date()} />
+            <Text style={styles.subtitle}>Pískat smí jen rozhodčí od 18 let.</Text>
           </>
         )}
 
@@ -179,7 +176,7 @@ export default function RefereeOnboardingScreen() {
             {[
               { label: 'Jméno',   value: `${form.firstName} ${form.lastName}` },
               { label: 'Telefon', value: form.phone || '—' },
-              { label: 'Rodné číslo', value: form.birthNo },
+              { label: 'Datum narození', value: birthdate ? birthdate.toLocaleDateString('cs-CZ') : '—' },
             ].map(row => (
               <View key={row.label} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{row.label}</Text>
@@ -191,8 +188,8 @@ export default function RefereeOnboardingScreen() {
               <Ionicons name="information-circle" size={18} color={Colors.go} />
               <Text style={styles.infoText}>
                 Přihlášku schvaluje supervisor FSL, obvykle do 48 hodin — přijde ti notifikace.
-                Než odpískáš první zápas, budeš v profilu potřebovat doplnit adresu
-                a bankovní spojení pro výplatu odměn.
+                Rodné číslo, adresu a bankovní spojení pro výplatu odměn vyplníš
+                až na smlouvě.
               </Text>
             </View>
           </>
