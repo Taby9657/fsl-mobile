@@ -44,7 +44,7 @@ const ROLES = [
     id:    'referee',
     icon:  'flag' as const,
     title: 'Chci být rozhodčí',
-    desc:  'Budu pískat zápasy FSL. Vyplníš osobní údaje a bankovní spojení pro výplatu odměn. Supervisor FSL tvoji přihlášku schválí do 48 hodin.',
+    desc:  'Budu pískat zápasy FSL. Vyplníš jméno, kontakt a datum narození — nic víc. Supervisor FSL tvoji přihlášku schválí do 48 hodin.',
     need:  'Co budeš potřebovat: osobní údaje a číslo účtu',
     route: '/onboarding/referee',
     color: '#3B82F6',
