@@ -9,6 +9,8 @@ import { teamsApi, seasonsApi } from '../../services/api';
 import { useAuthStore } from '../../store/auth';
 import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { TeamColorPicker } from '../../components/TeamColorPicker';
+import { DatePicker } from '../../components/DatePicker';
+import { validateBirthdate } from '../../utils/validation';
 import { Colors, Fonts, Radius } from '../../constants/colors';
 
 export default function ManagerOnboardingScreen() {
@@ -28,6 +30,8 @@ export default function ManagerOnboardingScreen() {
   // registrace nemohl zaplatit nic dalšího. Jméno je proto povinné; dres
   // a post se dají doplnit i později v profilu.
   const [ja, setJa] = useState({ firstName: '', lastName: '', jersey: '' });
+  // Vedoucí je zároveň hráč, takže pro něj platí stejná věková hranice.
+  const [jaNarozeni, setJaNarozeni] = useState<Date | null>(null);
 
   // Sezóna se nevybírá — tým se hlásí vždycky do té, která zrovna běží.
   // Dřív šlo zvolit i následující ročník a tým pak vznikl v soutěži, která
@@ -78,6 +82,8 @@ export default function ManagerOnboardingScreen() {
     if (!ja.firstName.trim() || !ja.lastName.trim()) {
       Alert.alert('Vyplň své jméno', 'Jméno a příjmení vedoucího jsou povinné — zakládá se z nich tvůj hráčský profil.'); return;
     }
+    const vekErr = validateBirthdate(jaNarozeni ? jaNarozeni.toISOString() : '');
+    if (vekErr) { Alert.alert('Datum narození', vekErr); return; }
     const dres = ja.jersey.trim() === '' ? undefined : parseInt(ja.jersey, 10);
     if (dres !== undefined && (isNaN(dres) || dres < 0 || dres > 99)) {
       Alert.alert('Číslo dresu', 'Číslo dresu musí být od 0 do 99. Nechat prázdné jde taky.'); return;
@@ -86,7 +92,10 @@ export default function ManagerOnboardingScreen() {
     try {
       const res = await teamsApi.create({
         ...form,
-        manager: { firstName: ja.firstName.trim(), lastName: ja.lastName.trim(), jersey: dres },
+        manager: {
+          firstName: ja.firstName.trim(), lastName: ja.lastName.trim(), jersey: dres,
+          birthdate: jaNarozeni!.toISOString(),
+        },
       });
       const teamId = res.data.team.id;
       const code   = res.data.inviteCode;
@@ -236,6 +245,10 @@ export default function ManagerOnboardingScreen() {
         <TextInput style={styles.input} value={ja.lastName}
           onChangeText={v => setJa(j => ({ ...j, lastName: v }))}
           placeholder="Tabášek" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+
+        <Text style={styles.label}>Datum narození *</Text>
+        <DatePicker value={jaNarozeni} onChange={setJaNarozeni} placeholder="Vybrat datum" maxDate={new Date()} />
+        <Text style={styles.sectionHint}>Do FSL smí jen hráči od 18 let.</Text>
 
         <Text style={styles.label}>Číslo dresu</Text>
         <TextInput style={styles.input} value={ja.jersey}

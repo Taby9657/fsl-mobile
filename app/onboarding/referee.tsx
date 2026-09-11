@@ -1,8 +1,12 @@
 // Onboarding rozhodčího – 2 kroky: osobní údaje → souhrn.
 //
-// Rodné číslo, adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve
-// zkouší, jestli chce pískat, nemá důvod je vyplňovat dřív, než ho supervisor
-// schválí. Doplní je pak ve svém profilu — backend je má jako volitelné.
+// Adresu a bankovní spojení tady záměrně nechceme. Kdo si teprve zkouší, jestli
+// chce pískat, nemá důvod je vyplňovat dřív, než ho supervisor schválí. Doplní
+// je pak ve svém profilu.
+//
+// **Rodné číslo je od 11. 9. 2026 výjimka a chce se hned.** Do soutěže smí jen
+// dospělí a datum narození nemáme odkud jinud vzít; backend registraci bez něj
+// odmítne. Kdo ho odsud zase vyhodí, rozbije registraci rozhodčího.
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,12 +18,12 @@ import { DoneBar, DONE_BAR_ID } from '../../components/DoneBar';
 import { useAuthStore } from '../../store/auth';
 import { saveDraft, clearDraft } from '../../utils/draftRegistration';
 import { Colors, Fonts, Radius } from '../../constants/colors';
-import { firstError, validateName, validatePhone } from '../../utils/validation';
+import { firstError, validateBirthNo, validateName, validatePhone } from '../../utils/validation';
 
 type Step = 1 | 2;
 
 interface FormData {
-  firstName: string; lastName: string; phone: string;
+  firstName: string; lastName: string; phone: string; birthNo: string;
 }
 
 export default function RefereeOnboardingScreen() {
@@ -28,7 +32,7 @@ export default function RefereeOnboardingScreen() {
   const [photo, setPhoto]     = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [form, setForm]       = useState<FormData>({
-    firstName: '', lastName: '', phone: '',
+    firstName: '', lastName: '', phone: '', birthNo: '',
   });
 
   // Kdyby odešel uprostřed, nabídneme mu příště pokračování
@@ -67,6 +71,7 @@ export default function RefereeOnboardingScreen() {
         validateName(form.firstName, 'Jméno'),
         validateName(form.lastName, 'Příjmení'),
         validatePhone(form.phone),
+        validateBirthNo(form.birthNo),
       ]);
       if (err) { Alert.alert('Zkontroluj údaje', err); return; }
       setStep(2);
@@ -118,8 +123,8 @@ export default function RefereeOnboardingScreen() {
           <>
             <Text style={styles.title}>Přihláška rozhodčího</Text>
             <Text style={styles.subtitle}>
-              Zatím po tobě chceme jen jméno a kontakt. Rodné číslo a účet pro výplatu
-              odměn doplníš ve svém profilu, až tě supervisor schválí.
+              Zatím po tobě chceme jméno, kontakt a rodné číslo. Adresu a účet pro
+              výplatu odměn doplníš ve svém profilu, až tě supervisor schválí.
             </Text>
 
             <Pressable style={styles.photoBtn} onPress={pickPhoto}>
@@ -151,6 +156,16 @@ export default function RefereeOnboardingScreen() {
               placeholder="+420 601 234 567" placeholderTextColor={Colors.di}
               keyboardType="phone-pad" keyboardAppearance="dark"
               returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
+
+            <Text style={styles.label}>Rodné číslo *</Text>
+            <TextInput style={styles.input} value={form.birthNo} onChangeText={v => set('birthNo', v)}
+              placeholder="950615/1234" placeholderTextColor={Colors.di}
+              keyboardAppearance="dark"
+              returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
+            <Text style={styles.subtitle}>
+              Pískat smí jen rozhodčí od 18 let — věk bereme z rodného čísla.
+              Vidí ho jenom supervisor ligy.
+            </Text>
           </>
         )}
 
@@ -164,6 +179,7 @@ export default function RefereeOnboardingScreen() {
             {[
               { label: 'Jméno',   value: `${form.firstName} ${form.lastName}` },
               { label: 'Telefon', value: form.phone || '—' },
+              { label: 'Rodné číslo', value: form.birthNo },
             ].map(row => (
               <View key={row.label} style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{row.label}</Text>
@@ -175,8 +191,8 @@ export default function RefereeOnboardingScreen() {
               <Ionicons name="information-circle" size={18} color={Colors.go} />
               <Text style={styles.infoText}>
                 Přihlášku schvaluje supervisor FSL, obvykle do 48 hodin — přijde ti notifikace.
-                Než odpískáš první zápas, budeš v profilu potřebovat doplnit rodné číslo,
-                adresu a bankovní spojení pro výplatu odměn.
+                Než odpískáš první zápas, budeš v profilu potřebovat doplnit adresu
+                a bankovní spojení pro výplatu odměn.
               </Text>
             </View>
           </>

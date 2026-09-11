@@ -7,7 +7,7 @@ import { refereesApi } from '../services/api';
 import { DoneBar, DONE_BAR_ID } from '../components/DoneBar';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
-import { validatePhone } from '../utils/validation';
+import { validatePhone, validateBirthNo } from '../utils/validation';
 
 const LEVEL_LABEL: Record<string, string> = { A: 'Úroveň A (senior)', B: 'Úroveň B', C: 'Úroveň C (junior)' };
 
@@ -40,6 +40,11 @@ export default function RefereeProfileScreen() {
     if (!refId) return;
     const phoneErr = validatePhone(form.phone);
     if (phoneErr) { Alert.alert('Chyba', phoneErr); return; }
+    // Rodné číslo nese věk, takže ho backend od 11. 9. 2026 nepustí prázdné
+    // ani nezletilé. Bez téhle kontroly by se to člověk dozvěděl až z hlášky
+    // serveru, po odeslání celého formuláře.
+    const rcErr = validateBirthNo(form.birthNo);
+    if (rcErr) { Alert.alert('Rodné číslo', rcErr); return; }
     if (!form.bankAccount.trim()) { Alert.alert('Chyba', 'Číslo účtu je povinné pro výplatu odměn.'); return; }
     setSaving(true);
     try {

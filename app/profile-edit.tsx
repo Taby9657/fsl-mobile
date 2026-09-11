@@ -9,7 +9,7 @@ import { DoneBar, DONE_BAR_ID } from '../components/DoneBar';
 import { playersApi } from '../services/api';
 import { useAuthStore } from '../store/auth';
 import { Colors, Fonts, Radius } from '../constants/colors';
-import { validateName, validatePhone, validateJersey, firstError } from '../utils/validation';
+import { validateName, validatePhone, validateJersey, validateBirthdate, firstError } from '../utils/validation';
 
 const POSITIONS = ['Útočník', 'Obránce', 'Brankář'];
 // POS_MAP pro zpětnou kompatibilitu (pokud DB obsahuje zkratky F/D/GK ze starých dat)
@@ -98,10 +98,14 @@ export default function ProfileEditScreen() {
     const e2 = validateName(form.lastName, 'Příjmení');     if (e2) newErrors.lastName = e2;
     const e3 = validatePhone(form.phone);                   if (e3) newErrors.phone = e3;
     const e4 = validateJersey(form.jersey);                 if (e4) newErrors.jersey = e4;
+    // Věkovou hranici hlídá i editace profilu — jinak by stačilo projít
+    // registrací se správným datem a hned si ho tady přepsat.
+    const e5 = validateBirthdate(birthdate ? birthdate.toISOString() : '');
+    if (e5) newErrors.birthdate = e5;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      const first = firstError([e1, e2, e3, e4]);
+      const first = firstError([e1, e2, e3, e4, e5]);
       Alert.alert('Chyba ve formuláři', first ?? 'Zkontroluj zadané údaje.');
       return;
     }
@@ -114,7 +118,7 @@ export default function ProfileEditScreen() {
         jersey:    form.jersey ? parseInt(form.jersey) : undefined,
         position:  form.position,
         phone:     form.phone || undefined,
-        birthdate: birthdate ? birthdate.toISOString() : undefined,
+        birthdate: birthdate!.toISOString(),
       });
       await refreshUser();
       Alert.alert('Uloženo', 'Profil byl úspěšně aktualizován');
@@ -184,13 +188,14 @@ export default function ProfileEditScreen() {
             <Field label="Příjmení *" value={form.lastName} onChange={v => set('lastName', v)} placeholder="Novák" error={errors.lastName} />
             <Field label="Telefon" value={form.phone} onChange={v => set('phone', v)} placeholder="+420 601 234 567" keyboardType="phone-pad" error={errors.phone} />
             <View style={[s.fieldWrap]}>
-              <Text style={s.label}>Datum narození</Text>
+              <Text style={s.label}>Datum narození *</Text>
               <DatePicker
                 value={birthdate}
                 onChange={setBirthdate}
                 placeholder="Vybrat datum"
                 maxDate={new Date()}
               />
+              {!!errors.birthdate && <Text style={s.errorTxt}>{errors.birthdate}</Text>}
             </View>
           </View>
         </View>

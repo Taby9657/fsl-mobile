@@ -63,7 +63,7 @@ export default function PlayerInfoScreen() {
     const e3 = form.jersey.trim() ? validateJersey(form.jersey) : null;
     const e4 = !form.jersey.trim() && !doDraftu ? 'Číslo dresu je povinné.' : null;
     const e5 = validatePhone(form.phone);
-    const e6 = birthdate ? validateBirthdate(birthdate.toISOString()) : null;
+    const e6 = validateBirthdate(birthdate ? birthdate.toISOString() : '');
     const first = firstError([e1, e2, e4 ?? e3, e5, e6]);
     if (first) {
       Alert.alert('Vyplň povinné údaje', first); return;
@@ -167,8 +167,9 @@ export default function PlayerInfoScreen() {
           returnKeyType="done" inputAccessoryViewID={DONE_BAR_ID} />
 
         {/* Datum narození */}
-        <Text style={styles.label}>Datum narození</Text>
+        <Text style={styles.label}>Datum narození *</Text>
         <DatePicker value={birthdate} onChange={setBirthdate} placeholder="Vybrat datum" maxDate={new Date()} />
+        <Text style={styles.hint}>Do FSL smí jen hráči od 18 let.</Text>
 
         <Pressable style={[styles.btnPrimary, loading && styles.btnDisabled]} onPress={submit} disabled={loading}>
           {loading ? <ActivityIndicator color={Colors.bg} /> : <Text style={styles.btnText}>Dokončit registraci</Text>}
@@ -195,6 +196,7 @@ const styles = StyleSheet.create({
   row:             { flexDirection: 'row', gap: 12, marginBottom: 0 },
   label:           { fontSize: Fonts.sizes.sm, color: Colors.mu, fontWeight: '600', marginTop: 16, marginBottom: 6 },
   input:           { backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd, borderRadius: Radius.md, padding: 14, color: Colors.wh, fontSize: Fonts.sizes.md },
+  hint:            { fontSize: Fonts.sizes.xs, color: Colors.mu, marginTop: 6 },
   pills:           { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   pill:            { paddingHorizontal: 10, paddingVertical: 7, borderRadius: Radius.full, backgroundColor: Colors.c1, borderWidth: 1, borderColor: Colors.bd },
   pillActive:      { backgroundColor: Colors.go, borderColor: Colors.go },
