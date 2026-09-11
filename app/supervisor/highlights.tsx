@@ -258,7 +258,7 @@ export default function SuperHighlightsScreen() {
                 style={[s.input, s.textarea]}
                 value={form.body}
                 onChangeText={v => setForm(p => ({ ...p, body: v }))}
-                placeholder="Tomáš Novák (HBR) vstřelil hattrick v derby zápase..."
+                placeholder="Jan Novák (HBR) vstřelil hattrick v derby zápase..."
                 placeholderTextColor={Colors.di}
                 multiline
                 numberOfLines={5}

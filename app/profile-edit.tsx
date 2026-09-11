@@ -184,7 +184,7 @@ export default function ProfileEditScreen() {
         <View style={s.section}>
           <Text style={s.sectionLabel}>Osobní údaje</Text>
           <View style={s.card}>
-            <Field label="Jméno *" value={form.firstName} onChange={v => set('firstName', v)} placeholder="Tomáš" error={errors.firstName} />
+            <Field label="Jméno *" value={form.firstName} onChange={v => set('firstName', v)} placeholder="Jan" error={errors.firstName} />
             <Field label="Příjmení *" value={form.lastName} onChange={v => set('lastName', v)} placeholder="Novák" error={errors.lastName} />
             <Field label="Telefon" value={form.phone} onChange={v => set('phone', v)} placeholder="+420 601 234 567" keyboardType="phone-pad" error={errors.phone} />
             <View style={[s.fieldWrap]}>

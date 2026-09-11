@@ -129,7 +129,7 @@ export default function PlayerInfoScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Jméno *</Text>
             <TextInput style={styles.input} value={form.firstName} onChangeText={v => set('firstName', v)}
-              placeholder="Tomáš" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+              placeholder="Jan" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Příjmení *</Text>

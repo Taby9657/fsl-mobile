@@ -150,7 +150,7 @@ export default function RefereeOnboardingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Příjmení *</Text>
                 <TextInput style={styles.input} value={form.lastName} onChangeText={v => set('lastName', v)}
-                  placeholder="Procházka" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+                  placeholder="Novák" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
               </View>
             </View>
 

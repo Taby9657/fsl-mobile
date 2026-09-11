@@ -239,12 +239,12 @@ export default function ManagerOnboardingScreen() {
         <Text style={styles.label}>Jméno *</Text>
         <TextInput style={styles.input} value={ja.firstName}
           onChangeText={v => setJa(j => ({ ...j, firstName: v }))}
-          placeholder="Jakub" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+          placeholder="Jan" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
 
         <Text style={styles.label}>Příjmení *</Text>
         <TextInput style={styles.input} value={ja.lastName}
           onChangeText={v => setJa(j => ({ ...j, lastName: v }))}
-          placeholder="Tabášek" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
+          placeholder="Novák" placeholderTextColor={Colors.di} keyboardAppearance="dark" />
 
         <Text style={styles.label}>Datum narození *</Text>
         <DatePicker value={jaNarozeni} onChange={setJaNarozeni} placeholder="Vybrat datum" maxDate={new Date()} />
