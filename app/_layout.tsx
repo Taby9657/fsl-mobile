@@ -93,18 +93,10 @@ function RootLayout() {
         <Stack.Screen name="heslo"               options={{ headerShown: false }} />
         <Stack.Screen name="pripojit-tym"        options={{ headerShown: false }} />
         <Stack.Screen name="licence"    options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/dashboard" options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/referees"  options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/matches"   options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/payments"  options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/teams"     options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/league"      options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/leagues"     options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/playoff"     options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/highlights"  options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/requests"    options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/admins"      options={{ headerShown: false }} />
-        <Stack.Screen name="supervisor/season"      options={{ headerShown: false }} />
+        {/* Celá složka supervisor/ má vlastní _layout.tsx, který hlídá,
+            že ji otevírá supervisor. Proto se tu deklaruje jako jeden
+            vnořený stack, ne dvanáct samostatných obrazovek. */}
+        <Stack.Screen name="supervisor"             options={{ headerShown: false }} />
         <Stack.Screen name="draft/[playerId]"        options={{ headerShown: false }} />
         <Stack.Screen name="draft/profile-edit"      options={{ headerShown: false }} />
         <Stack.Screen name="settings"                options={{ headerShown: false }} />
