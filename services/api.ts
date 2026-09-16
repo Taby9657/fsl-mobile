@@ -10,6 +10,15 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+/**
+ * Kolik času dostane nahrání videa.
+ *
+ * Backend pustí video do 500 MB. Tři minuty na to nestačí ani zdaleka —
+ * krátký timeout by zvednutý limit zase zahodil a uživatel by místo
+ * srozumitelné hlášky o velikosti dostal „vypršel čas".
+ */
+const VIDEO_TIMEOUT = 900_000; // 15 minut
+
 // Přidej JWT token do každého requestu automaticky
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('fsl_token');
@@ -351,7 +360,7 @@ export const highlightsApi = {
     form.append('video', { uri, name: 'video.mp4', type: 'video/mp4' } as any);
     return api.post(`/highlights/${id}/video`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180_000, // 3 minuty pro video upload
+      timeout: VIDEO_TIMEOUT,
     });
   },
 };
@@ -369,7 +378,7 @@ export const draftApi = {
     form.append('video', { uri, name: 'draft.mp4', type: 'video/mp4' } as any);
     return api.post('/draft/profile/video', form, {
       headers:  { 'Content-Type': 'multipart/form-data' },
-      timeout:  180_000,
+      timeout:  VIDEO_TIMEOUT,
     });
   },
   deleteVideo:   (videoId: string)                   => api.delete(`/draft/video/${videoId}`),
